@@ -15,6 +15,13 @@ C# 스크립트를 만들거나 고칠 때 따르는 규칙입니다. 규칙은 
 | 상수 | ALL_CAPS | `MAX_HEALTH` |
 | enum 타입·값 | PascalCase | `GameState.Playing` |
 
+## 네임스페이스
+
+- 게임 스크립트는 `BrokenSovereign.<폴더 이름>` 네임스페이스에 둡니다. 예: `Scripts/Combat/Health.cs` → `BrokenSovereign.Combat`
+- 하위 폴더는 이름을 이어 붙입니다. 예: `Scripts/Core/Events/` → `BrokenSovereign.Core.Events`
+- 테스트 스크립트는 `BrokenSovereign.Tests` 네임스페이스에 둡니다.
+- 네임스페이스를 쓰는 이유: 게임 클래스 이름이 Unity나 패키지의 클래스 이름과 겹치는 것을 막기 위해서입니다.
+
 ## 이벤트
 
 - 이벤트 클래스(구조체)는 이름 끝에 `Event`를 붙이고, 일어난 일을 과거형으로 씁니다. 예: `EnemyKilledEvent`, `SkillCastEvent`

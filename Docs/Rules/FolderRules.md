@@ -39,13 +39,15 @@
 	- `Sprites/` - 이미지 (UI 아이콘 포함)
 	- `Audio/` - 효과음·배경음
 	- `Materials/` - 머티리얼
+	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`)
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
 
 - 새 스크립트는 `Scripts/` 아래 기능 폴더에 둡니다. 맞는 폴더가 없으면 폴더를 새로 만들기 전에 묻습니다.
 - `Assets/` 바로 아래에 파일을 두지 않습니다.
+- 빈 폴더에는 `.gitkeep` 파일을 둡니다. Git은 빈 폴더를 저장하지 않아서, 폴더가 없으면 다른 PC에서 유니티가 폴더의 `.meta` 파일을 지우기 때문입니다. 폴더에 파일이 생기면 `.gitkeep`을 지웁니다.
 - `ThirdParty/` 안의 파일은 수정하지 않습니다.
 - `Tests/EditMode/`와 `Tests/PlayMode/`에는 각각 어셈블리 정의 파일(`.asmdef`)을 둡니다. 테스트 코드가 게임 빌드에 들어가지 않게 하기 위해서입니다.
-- 게임 스크립트는 `Scripts/BrokenSovereign.asmdef` 한 개로 묶습니다. 테스트 asmdef는 `BrokenSovereign`을 참조합니다. 새 패키지를 쓰면 `BrokenSovereign.asmdef` 참조에 추가합니다.
+- 게임 스크립트는 `Scripts/BrokenSovereign.asmdef` 한 개로 묶습니다. 테스트 asmdef(`BrokenSovereign.Tests.EditMode`, `BrokenSovereign.Tests.PlayMode`)는 `BrokenSovereign`을 참조합니다. 새 패키지를 쓰면 `BrokenSovereign.asmdef` 참조에 추가합니다.
 
 ## 씬
 
