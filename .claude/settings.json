@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__get_test_job"
+    ],
+    "deny": [
+      "Edit(/Assets/ThirdParty/**)",
+      "Edit(/Assets/**/*.unity)",
+      "Edit(/Assets/**/*.prefab)",
+      "Edit(/Library/**)",
+      "Edit(/Temp/**)"
+    ]
+  }
+}
