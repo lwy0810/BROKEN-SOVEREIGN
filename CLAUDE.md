@@ -48,8 +48,8 @@ Claude Code는 대화를 시작할 때마다 이 파일을 읽습니다. 세부 
 |---|---|
 | `Docs/GDD.md` | 기획, 핵심 시스템 규칙, 프로토타입 범위, 마일스톤 |
 | `Docs/ClassDiagram.md` | 클래스 구조와 관계 |
-| `Docs/AiPipeline.md` | AI 에셋·코드 생성 기록 (작성 예정) |
-| `Docs/DevLog.md` | 개발 일지 (작성 예정) |
+| `Docs/AiPipeline.md` | AI 에셋·코드 생성 기록 |
+| `Docs/DevLog.md` | 개발 일지 |
 
 ## 에이전트
 
