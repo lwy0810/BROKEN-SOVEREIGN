@@ -3,7 +3,7 @@
 - 대상: 프로토타입 범위 (GDD 11장). 신격 이후 격·각성·초월·태초 클래스 제외
 - 기준 문서: `Docs/GDD.md` 12장 기술 설계 방향, `Docs/Rules/FolderRules.md`, `Docs/Rules/NamingRules.md`
 - 표기: 필드·메서드는 핵심만 기재. 세부 시그니처는 구현 단계 확정
-- 문서 상태: 초안 v0.1. "확인 필요" 표시 항목은 미결정
+- 문서 상태: 초안 v0.2 (직업 선택 방식 반영). "확인 필요" 표시 항목은 미결정
 
 ## 1. 설계 원칙
 
@@ -387,7 +387,7 @@ classDiagram
 | 클래스 | 사용 기술 (에셋) | 주요 파라미터 키 |
 |---|---|---|
 | `ComboMeleeBehaviour` | 맹세의 타격 (`SkillOathStrike`) | 타수, 타별 계수, 마지막 타 범위 |
-| `ConeSmashBehaviour` | 격광 강타 (`SkillRadiantSmite`) | 계수, 반경, 각도, 파동 거리 |
+| `ConeSmashBehaviour` | 격광 강타 (`SkillRadiantSmite`), 공용 기술 잔향 강타 (`SkillResonantStrike`) | 계수, 반경, 각도, 파동 거리 |
 | `ReturningThrowBehaviour` | 잔광 투척 (`SkillAfterglowThrow`) | 계수, 사거리, 착탄 반경 |
 | `DashStrikeBehaviour` | 진격의 맹세 (`SkillAdvancingOath`) | 계수, 거리, 기절 시간 |
 | `LeapSlamBehaviour` | 도약 강하 (`SkillLeapingDescent`) | 계수, 사거리, 착지 반경, 둔화 시간 |
@@ -474,6 +474,8 @@ classDiagram
 ```
 
 - 슬롯 레벨: 슬롯 단위 저장. 기술 교체 후에도 유지 (GDD 5.4)
+- 무직 상태: 우클릭 슬롯만 개방, 공용 기술 `SkillResonantStrike` 장착. `JobSelectedEvent` 수신 시 우클릭을 1차 직업 기본 기술로 교체, 1·2번 슬롯 개방 (GDD 6.6)
+- 무직 상태 자원: `FaithController` 비활성. 직업 선택 시 해당 직업의 `IClassResource` 활성
 - 분기 선택: `_branchChoices`에 기술 ID별 저장. 비전투일 때만 변경 가능 (`inCombat` 검사)
 - 프로토타입 분기 대상: 우클릭 슬롯만. 분기 목록이 비어 있는 기술은 레벨만 상승
 - 충만 강화량: `ConsumeEmpower(cost)`가 `cost / Max` 비율 반환 → `SkillContext.EmpowerRatio`. 반환 후 신앙 전량 소모
@@ -493,7 +495,9 @@ classDiagram
         -AscensionState _ascension
         -RelicInventory _relics
         -TrialTracker _trials
+        -JobDefinition _currentJob
         +TryBreakthrough() BreakthroughResult
+        +SelectJob(JobDefinition job)
         +AllocateStat(StatType stat) bool
         -OnEnemyKilled(EnemyKilledEvent e)
     }
@@ -574,6 +578,8 @@ classDiagram
 - 돌파 성공 시 `AscensionRaisedEvent` 발행 → 신앙 최대치, 기술 슬롯, 신물 칸 개방이 각각 구독
 - 레벨업 시 스탯 3포인트(`StatAllocation`)와 스킬 포인트 1(`SkillPointPool`) 동시 지급. `PlayerLeveledUpEvent` 발행
 - `JobDefinition`: 1차 직업(성기사)·2차 직업(성투사)을 같은 클래스로 표현, `_parentJob`으로 연결. `Scripts/Ascension/`·`Data/Ascension/` 배치
+- 직업 선택: 시작 시 `_currentJob` = null (무직). 구역 1 직업 선택 이벤트에서 `SelectJob` 호출 → `JobSelectedEvent` 발행 (GDD 4.1)
+- 프로토타입 직업 선택 화면: 4개 직업 표시, 성기사만 선택 가능. 잠금 여부는 `JobDefinition`의 `_isSelectable` 값으로 제어 (제안)
 
 ## 8. Hero
 
@@ -779,7 +785,7 @@ classDiagram
     EquipmentLoadout ..|> IStatModifierSource
 ```
 
-- 장착 제한: 1차 직업 `_allowedWeapons` 검사. 주 계열 보너스: 현재 2차 직업 `_masteryWeapons`에 포함 시 `_masteryBonus` 추가
+- 장착 제한: 1차 직업 `_allowedWeapons` 검사. 무직(`_job` = null) 시 규칙은 GDD 확정 필요 항목. 주 계열 보너스: 현재 2차 직업 `_masteryWeapons`에 포함 시 `_masteryBonus` 추가
 - 무기 교체 시 `WeaponChangedEvent` 발행 → 애니메이터 기본 공격 모션 교체 (한손 둔기 ↔ 양손 둔기)
 - 프로토타입 부위: 무기·갑옷·장신구 3칸. 본 기획 7칸은 enum 값 추가로 확장
 
@@ -1012,6 +1018,7 @@ classDiagram
 | `SkillWindow` | 후보 기술 장착, 슬롯 레벨, 분기 선택 | `SkillLoadout`, `SkillPointPool` |
 | `TrialWindow` | 시련 목록·진행 | `TrialTracker` |
 | `NoticeView` | 돌파·해금·과업 알림 | `AscensionRaisedEvent`, `SkillUnlockedEvent`, `HeroLaborCompletedEvent` |
+| `JobSelectView` | 1차 직업 선택 화면 (4개 카드, 프로토타입은 성기사만 활성) | `PlayerProgression`, `JobDefinition` |
 | `HeroPathSelectView` | 영웅의 길 선택 연출 | `HeroPathController` |
 | `BossHealthView` | 보스 체력 | `BossController` |
 
@@ -1044,6 +1051,7 @@ classDiagram
 | `AscensionRaisedEvent` | `PlayerProgression` | `FaithController`, `SkillLoadout`, `RelicInventory`, `NoticeView` | 새 격 |
 | `TrialCompletedEvent` | `TrialTracker` | `PlayerProgression`, `NoticeView` | 시련 ID |
 | `TrialRoomStartedEvent` / `TrialRoomClearedEvent` | `EncounterRoom` | `TimedClearCondition` | 방 ID |
+| `JobSelectedEvent` | `PlayerProgression` | `SkillLoadout`, `FaithController`, `EquipmentLoadout`, `NoticeView` | 직업 ID |
 | `SkillUnlockedEvent` | `SkillLoadout` | `SkillWindow`, `NoticeView` | 기술 ID |
 | `RelicAcquiredEvent` | `RelicInventory` | `RelicWindow`, `CharacterWindow` | 신물 ID |
 | `WeaponChangedEvent` | `EquipmentLoadout` | 플레이어 애니메이터 | 무기 계열 |
