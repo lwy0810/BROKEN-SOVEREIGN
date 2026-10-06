@@ -162,7 +162,11 @@ classDiagram
     class DodgeAction {
         <<MonoBehaviour>>
         -float _distance
+        -float _duration
+        -float _invulnerableDuration
         -float _cooldown
+        +bool IsDodging
+        +bool IsInvulnerable
         +TryDodge(Vector3 direction) bool
     }
     class PotionUser {
@@ -288,6 +292,7 @@ classDiagram
     StatSheet --> IStatModifierSource
 ```
 
+- 회피 무적: 플레이어 `Health.ApplyDamage`는 `DodgeAction.IsInvulnerable`이 참이면 피해 무시 (GDD 6.1). 무적 시간 기본값 = 회피 지속 시간 0.2초
 - `Health`가 피해 적용 후 이벤트 발행: 플레이어 → `PlayerDamagedEvent`, 적 → `DamageDealtEvent`, 사망 시 `EnemyKilledEvent`
 - `CombatStateTracker`: 신앙 비전투 감소(GDD 6.3) 판정용. `_outOfCombatDelay` 값은 GDD 확정 필요 항목 (밸런스 에셋에서 주입)
 - `AttackArea`: 원형·부채꼴·직선 범위 판정 공용 유틸리티. 기술·적 공격이 공유
