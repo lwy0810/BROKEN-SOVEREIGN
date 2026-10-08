@@ -1,4 +1,5 @@
 using System;
+using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using UnityEngine;
 
@@ -6,25 +7,33 @@ namespace BrokenSovereign.Player
 {
     /// <summary>
     /// 입력을 받아 이동·공격·기술·회피·물약으로 분배합니다 (GDD 6.1).
-    /// 기본 공격과 기술 시전은 Combat·Skill 구현 전까지 로그로 대신합니다.
+    /// 대상 공격은 "교전(engage)"으로 처리합니다: 대상과 행동(ITargetedAction)을 기억하고
+    /// 매 프레임 사거리 밖이면 추적, 사거리 안이면 자동 실행합니다.
+    /// 기술 시전은 SkillCaster 구현 전까지 로그로 대신합니다.
     /// </summary>
     [RequireComponent(typeof(ClickMover))]
     [RequireComponent(typeof(DodgeAction))]
     [RequireComponent(typeof(PotionUser))]
     public class PlayerController : MonoBehaviour
     {
-        [SerializeField] private float _basicAttackRange = 2f;
-        [SerializeField] private float _basicAttackInterval = 0.6f;
+        [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
         [SerializeField] private float _heldSkillRepeatInterval = 0.5f;
 
         private ClickMover _mover;
         private DodgeAction _dodge;
         private PotionUser _potion;
-        private float _nextBasicAttackTime;
         private float _nextHeldSkillTime;
+        private float _actionEndTime;
+
+        // 교전 상태
+        private ITargetedAction _engageAction;
+        private Transform _engageTarget;
+        private bool _isEngageHeld;
+        private bool _hasEngageExecuted;
 
         public PlayerState State { get; private set; } = PlayerState.Idle;
-        public float BasicAttackRange => _basicAttackRange;
+        public float BasicAttackRange => _basicAttack.Range;
+        public bool HasEngageTarget => _engageTarget != null;
 
         /// <summary>기본 공격이 실제로 나갔을 때 (공격 지점)</summary>
         public event Action<Vector3> BasicAttacked;
@@ -47,6 +56,11 @@ namespace BrokenSovereign.Player
 
         private void Update()
         {
+            if (_engageTarget != null)
+            {
+                UpdateEngage();
+            }
+
             if (State == PlayerState.Dodging && !_dodge.IsDodging)
             {
                 State = PlayerState.Idle;
@@ -55,7 +69,7 @@ namespace BrokenSovereign.Player
             {
                 State = PlayerState.Idle;
             }
-            else if (State == PlayerState.Attacking && Time.time >= _nextBasicAttackTime)
+            else if (State == PlayerState.Attacking && Time.time >= _actionEndTime)
             {
                 State = PlayerState.Idle;
             }
@@ -71,33 +85,50 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            ClearEngage();
             _mover.MoveTo(point);
             State = PlayerState.Moving;
         }
 
         /// <summary>
-        /// 좌클릭 + 적: 사거리 밖이면 접근, 사거리 안이면 기본 공격.
+        /// 좌클릭 + 적: 기본 공격으로 교전 시작.
         /// </summary>
         public void AttackTarget(Transform target)
         {
-            if (State == PlayerState.Dodging || target == null)
+            Engage(_basicAttack, target);
+        }
+
+        /// <summary>
+        /// 교전 시작: 사거리 밖이면 추적, 사거리 안이면 자동 실행.
+        /// ReleaseEngage 전까지는 반복 실행하고, ReleaseEngage 이후에는 1회 실행되면 해제합니다.
+        /// 대상 지정 기술(원거리 기술 등)도 ITargetedAction을 구현해 이 메서드로 넘기면 같은 흐름을 사용합니다.
+        /// </summary>
+        public void Engage(ITargetedAction action, Transform target)
+        {
+            if (State == PlayerState.Dodging || action == null || target == null)
             {
                 return;
             }
 
-            Vector3 offset = target.position - transform.position;
-            offset.y = 0f;
+            _engageAction = action;
+            _engageTarget = target;
+            _isEngageHeld = true;
+            _hasEngageExecuted = false;
 
-            if (offset.sqrMagnitude > _basicAttackRange * _basicAttackRange)
+            UpdateEngage();
+        }
+
+        /// <summary>
+        /// 교전 버튼을 뗐을 때: 이미 실행했으면 즉시 해제, 아직이면 1회 실행 후 해제.
+        /// </summary>
+        public void ReleaseEngage()
+        {
+            _isEngageHeld = false;
+
+            if (_hasEngageExecuted)
             {
-                _mover.MoveTo(target.position);
-                State = PlayerState.Moving;
-                return;
+                ClearEngage();
             }
-
-            _mover.Stop();
-            _mover.FaceTowards(target.position);
-            TryBasicAttack(target.name, target.position);
         }
 
         /// <summary>
@@ -110,13 +141,15 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            ClearEngage();
             _mover.Stop();
             _mover.FaceTowards(point);
-            TryBasicAttack("제자리", point);
+            PerformAction(_basicAttack, null, point);
         }
 
         /// <summary>
         /// 1~4 (우클릭은 CastWhileHeld 경유): 이동을 멈추지 않고 커서 방향으로 시전 (정지 상태 강요 금지 원칙).
+        /// 교전 중이면 교전을 유지합니다.
         /// </summary>
         public void UseSkill(SkillSlot slot, Vector3 point)
         {
@@ -131,6 +164,7 @@ namespace BrokenSovereign.Player
 
         /// <summary>
         /// 기술 키 유지: 커서 방향으로 이동(또는 제자리)하며 일정 간격으로 기술 반복 시전.
+        /// 유지형 범위 기술(휠윈드 등)도 이 경로를 사용합니다.
         /// 실제 시전 가능 여부(재사용 대기·자원)는 SkillCaster 구현 시 연결.
         /// </summary>
         public void CastWhileHeld(SkillSlot slot, Vector3 point, bool moveTowardCursor)
@@ -139,6 +173,8 @@ namespace BrokenSovereign.Player
             {
                 return;
             }
+
+            ClearEngage();
 
             if (moveTowardCursor)
             {
@@ -170,17 +206,19 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            ClearEngage();
             _mover.Stop();
             State = PlayerState.Idle;
         }
 
         /// <summary>
-        /// Space: 커서 방향 회피.
+        /// Space: 커서 방향 회피. 교전은 해제됩니다.
         /// </summary>
         public void Dodge(Vector3 point)
         {
             if (_dodge.TryDodge(point - transform.position))
             {
+                ClearEngage();
                 State = PlayerState.Dodging;
                 Dodged?.Invoke(_dodge.Direction);
             }
@@ -197,17 +235,96 @@ namespace BrokenSovereign.Player
             }
         }
 
-        private void TryBasicAttack(string targetName, Vector3 point)
+        private void UpdateEngage()
         {
-            if (Time.time < _nextBasicAttackTime)
+            if (State == PlayerState.Dodging)
             {
                 return;
             }
 
-            _nextBasicAttackTime = Time.time + _basicAttackInterval;
+            if (!IsValidTarget(_engageTarget))
+            {
+                ClearEngage();
+
+                if (State == PlayerState.Moving)
+                {
+                    _mover.Stop();
+                    State = PlayerState.Idle;
+                }
+
+                return;
+            }
+
+            Vector3 targetPosition = _engageTarget.position;
+
+            // 사거리 밖: 대상의 현재 위치로 추적 (대상이 움직여도 따라감)
+            if (!IsInRange(targetPosition, _engageAction.Range))
+            {
+                _mover.MoveTo(targetPosition);
+                State = PlayerState.Moving;
+                return;
+            }
+
+            // 사거리 안: 멈춰서 대상을 바라보고 실행 가능해지면 실행
+            _mover.Stop();
+            _mover.FaceTowards(targetPosition);
+
+            if (State == PlayerState.Moving)
+            {
+                State = PlayerState.Idle;
+            }
+
+            if (!PerformAction(_engageAction, _engageTarget, targetPosition))
+            {
+                return;
+            }
+
+            _hasEngageExecuted = true;
+
+            if (!_isEngageHeld)
+            {
+                ClearEngage();
+            }
+        }
+
+        private bool PerformAction(ITargetedAction action, Transform target, Vector3 point)
+        {
+            if (!action.TryExecute(target, point))
+            {
+                return false;
+            }
+
             State = PlayerState.Attacking;
-            Debug.Log($"PlayerController: 기본 공격 → {targetName} (Combat 구현 시 연결)");
-            BasicAttacked?.Invoke(point);
+            _actionEndTime = Time.time + action.Duration;
+
+            if (action == _basicAttack)
+            {
+                BasicAttacked?.Invoke(point);
+            }
+
+            return true;
+        }
+
+        private void ClearEngage()
+        {
+            _engageAction = null;
+            _engageTarget = null;
+            _isEngageHeld = false;
+            _hasEngageExecuted = false;
+        }
+
+        // 대상 유효성: Health 구현 후 사망 여부 검사 추가
+        private static bool IsValidTarget(Transform target)
+        {
+            return target != null && target.gameObject.activeInHierarchy;
+        }
+
+        // 수평 거리 기준. 큰 적은 반경 보정이 필요하면 여기서 처리
+        private bool IsInRange(Vector3 targetPosition, float range)
+        {
+            Vector3 offset = targetPosition - transform.position;
+            offset.y = 0f;
+            return offset.sqrMagnitude <= range * range;
         }
     }
 }

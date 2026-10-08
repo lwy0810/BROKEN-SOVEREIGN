@@ -30,7 +30,7 @@ namespace BrokenSovereign.Player
 
         private bool _isPrimaryHeld;
         private bool _isSecondaryHeld;
-        private Transform _lockedTarget;
+        private bool _isAttackPress;
 
         private void Awake()
         {
@@ -91,7 +91,12 @@ namespace BrokenSovereign.Player
             _map.Disable();
             _isPrimaryHeld = false;
             _isSecondaryHeld = false;
-            _lockedTarget = null;
+
+            if (_isAttackPress)
+            {
+                _controller.ReleaseEngage();
+                _isAttackPress = false;
+            }
         }
 
         private void Update()
@@ -110,12 +115,14 @@ namespace BrokenSovereign.Player
         private void OnPrimaryStarted(InputAction.CallbackContext context)
         {
             _isPrimaryHeld = true;
-            _lockedTarget = null;
+            _isAttackPress = false;
 
-            // 누르기 시작한 순간 적을 가리키고 있으면, 떼기 전까지 그 적을 대상으로 고정
+            // 누르기 시작한 순간 적을 가리키고 있으면 교전 시작 (추적·공격은 PlayerController가 처리)
             if (!_standStill.IsPressed() && TryGetEnemyUnderCursor(out Transform enemy))
             {
-                _lockedTarget = enemy;
+                _isAttackPress = true;
+                _controller.AttackTarget(enemy);
+                return;
             }
 
             HandlePrimaryHeld();
@@ -124,14 +131,20 @@ namespace BrokenSovereign.Player
         private void OnPrimaryCanceled(InputAction.CallbackContext context)
         {
             _isPrimaryHeld = false;
-            _lockedTarget = null;
+
+            // 뗄 때: 아직 공격 전이면 1회 공격 후 해제, 이미 공격했으면 즉시 해제
+            if (_isAttackPress)
+            {
+                _controller.ReleaseEngage();
+                _isAttackPress = false;
+            }
         }
 
         private void HandlePrimaryHeld()
         {
-            if (_lockedTarget != null)
+            // 교전 중이면 PlayerController가 처리. 대상이 사라지면 커서 방향 이동으로 전환
+            if (_isAttackPress && _controller.HasEngageTarget)
             {
-                _controller.AttackTarget(_lockedTarget);
                 return;
             }
 
