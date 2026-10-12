@@ -33,6 +33,7 @@ namespace BrokenSovereign.Combat
         public float Range => _range;
         public float Duration => _interval;
         public bool IsReady => Time.time >= _nextReadyTime;
+        public float CooldownRemaining => Mathf.Max(0f, _nextReadyTime - Time.time);
 
         public bool TryExecute(Transform attacker, Transform target, Vector3 point)
         {

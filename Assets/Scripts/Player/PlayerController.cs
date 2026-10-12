@@ -262,6 +262,23 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
+        /// HUD 기술 슬롯 표시용 상태. 기술 시스템(SkillCaster) 구현 전까지
+        /// 좌클릭은 기본 공격 간격, 우클릭은 유지 시전 간격을 표시하고 1~4번은 미개방(무직)으로 표시합니다.
+        /// </summary>
+        public SkillSlotState GetSlotState(SkillSlot slot)
+        {
+            switch (slot)
+            {
+                case SkillSlot.LeftClick:
+                    return new SkillSlotState(true, _basicAttack.CooldownRemaining, _basicAttack.Duration);
+                case SkillSlot.RightClick:
+                    return new SkillSlotState(true, Mathf.Max(0f, _nextHeldSkillTime - Time.time), _heldSkillRepeatInterval);
+                default:
+                    return SkillSlotState.Locked;
+            }
+        }
+
+        /// <summary>
         /// Q: 물약 사용.
         /// </summary>
         public void UsePotion()

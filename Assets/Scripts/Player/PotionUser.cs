@@ -14,6 +14,8 @@ namespace BrokenSovereign.Player
         private float _nextAvailableTime;
 
         public int Charges => _charges;
+        public float Cooldown => _cooldown;
+        public float CooldownRemaining => Mathf.Max(0f, _nextAvailableTime - Time.time);
 
         private void Awake()
         {
