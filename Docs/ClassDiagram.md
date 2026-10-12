@@ -3,7 +3,8 @@
 - 대상: 프로토타입 범위 (GDD 11장). 신격 이후 격·각성·초월·태초 클래스 제외
 - 기준 문서: `Docs/GDD.md` 12장 기술 설계 방향, `Docs/Rules/FolderRules.md`, `Docs/Rules/NamingRules.md`
 - 표기: 필드·메서드는 핵심만 기재. 세부 시그니처는 구현 단계 확정
-- 문서 상태: 초안 v0.2 (직업 선택 방식 반영). "확인 필요" 표시 항목은 미결정
+- 문서 상태: 초안 v0.3 (전투 코어·교전 구조 구현 반영). "확인 필요" 표시 항목은 미결정
+- 구현 상태 표기: 각 장 상단 "구현 상태" 줄, 다이어그램의 `예정`·`임시` 표기
 
 ## 1. 설계 원칙
 
@@ -23,6 +24,8 @@
 | `<<pure>>` | MonoBehaviour·ScriptableObject를 상속하지 않는 순수 C# 클래스 |
 | `<<struct>>` | 값 형식 (이벤트, 계산 입력·결과) |
 | `<<abstract>>` / `<<interface>>` / `<<enum>>` / `<<static>>` | C# 의미 그대로 |
+| `<<Serializable>>` | MonoBehaviour 필드로 Inspector에 노출되는 일반 C# 클래스 |
+| `예정` / `임시` | 미구현 설계 / 디버그용으로 추후 제거 |
 
 ## 2. 폴더 간 의존 관계
 
@@ -128,63 +131,101 @@ classDiagram
 
 ## 4. Player
 
-클릭 이동, 입력, 회피, 물약, 쿼터뷰 카메라
+클릭 이동, 입력, 교전(대상 추적·자동 공격), 회피, 물약, 쿼터뷰 카메라
+
+- 구현 상태: 구현 완료 (2026-10-08). `SkillCaster` 연결만 예정
 
 ```mermaid
 classDiagram
     class PlayerInputHandler {
         <<MonoBehaviour>>
-        -PlayerController _controller
-        -OnClick(InputAction.CallbackContext ctx)
-        -OnSkillKey(InputAction.CallbackContext ctx)
-        -OnDodge(InputAction.CallbackContext ctx)
-        -OnPotion(InputAction.CallbackContext ctx)
+        -InputActionAsset _inputActions
+        -LayerMask _groundMask
+        -LayerMask _enemyMask
+        -bool _isPrimaryHeld
+        -bool _isSecondaryHeld
+        -bool _isAttackPress
+        -OnPrimaryStarted(ctx)
+        -OnPrimaryCanceled(ctx)
+        -HandlePrimaryHeld()
+        -HandleSecondaryHeld()
+        -TryGetEnemyUnderCursor(out Transform enemy) bool
+        -GetCursorGroundPoint() Vector3
     }
     class PlayerController {
         <<MonoBehaviour>>
-        -ClickMover _mover
-        -SkillCaster _caster
-        -DodgeAction _dodge
+        -BasicAttack _basicAttack
+        -ITargetedAction _engageAction
+        -Transform _engageTarget
+        -bool _isEngageHeld
+        -bool _hasEngageExecuted
         +PlayerState State
+        +bool IsDead
+        +bool HasEngageTarget
         +MoveTo(Vector3 point)
-        +AttackTarget(Health target)
-        +AttackInPlace(Vector3 direction)
-        +UseSkill(SkillSlot slot, Vector3 cursor)
-        +Dodge(Vector3 direction)
+        +AttackTarget(Transform target)
+        +Engage(ITargetedAction action, Transform target)
+        +ReleaseEngage()
+        +AttackInPlace(Vector3 point)
+        +UseSkill(SkillSlot slot, Vector3 point)
+        +CastWhileHeld(SkillSlot slot, Vector3 point, bool moveTowardCursor)
+        +StopMoving()
+        +Dodge(Vector3 point)
+        +UsePotion()
+        -UpdateEngage()
+        -PerformAction(ITargetedAction action, Transform target, Vector3 point) bool
+        +event BasicAttacked
+        +event SkillUsed
+        +event Dodged
+        +event PotionUsed
     }
     class ClickMover {
         <<MonoBehaviour>>
         -NavMeshAgent _agent
+        +bool HasArrived
         +MoveTo(Vector3 point)
         +Stop()
+        +FaceTowards(Vector3 point)
+        +MoveBy(Vector3 delta)
         +SetSpeedMultiplier(float value)
     }
     class DodgeAction {
         <<MonoBehaviour>>
         -float _distance
         -float _duration
-        -float _invulnerableDuration
         -float _cooldown
         +bool IsDodging
         +bool IsInvulnerable
+        +Vector3 Direction
+        +float CooldownRemaining
         +TryDodge(Vector3 direction) bool
     }
     class PotionUser {
         <<MonoBehaviour>>
-        -int _charges
+        -int _maxCharges
+        -float _cooldown
+        +int Charges
         +TryUse() bool
     }
     class QuarterViewCamera {
         <<MonoBehaviour>>
         -Transform _target
-        -Vector3 _offset
+        -float _distance
+        -float _pitch
+        -float _yaw
+        +SetTarget(Transform target)
+    }
+    class PlayerDebugView {
+        <<MonoBehaviour 임시>>
+        -OnBasicAttacked(Vector3 point)
+        -OnSkillUsed(SkillSlot slot, Vector3 point)
+        -OnGUI()
     }
     class PlayerState {
         <<enum>>
         Idle
         Moving
         Attacking
-        Casting
         Dodging
         Dead
     }
@@ -193,41 +234,62 @@ classDiagram
     PlayerController --> DodgeAction
     PlayerController --> PotionUser
     PlayerController --> PlayerState
-    PlayerController ..> SkillCaster : 기술 시전 위임
+    PlayerController --> BasicAttack
+    PlayerController ..> ITargetedAction : 교전 행동
+    PlayerController ..> Health : 사망 구독
+    DodgeAction ..|> IInvulnerabilitySource
+    PlayerDebugView ..> PlayerController : 이벤트 구독
 ```
 
 - 이동: `NavMeshAgent` 기반 클릭 이동 (AI Navigation 패키지)
-- 좌클릭 기본 공격도 `SkillCaster`의 LeftClick 슬롯 기술로 처리. 기본 공격·기술 시전 경로 단일화
-- 이동 중 시전 원칙(GDD 6.1): `Casting` 상태에서도 `ClickMover` 이동 유지, 경직 0.3초 이하
+- 교전(engage): 공격 대상과 행동(`ITargetedAction`)을 `PlayerController`가 보관. 매 프레임 사거리 밖이면 추적, 사거리 안이면 자동 실행 (14.3)
+  - 짧은 클릭: 1회 실행 후 해제 / 누르고 있음: 반복 실행
+  - 해제 조건: 바닥 이동, 제자리 공격, 우클릭 시전, 회피, 대상 소멸·사망
+  - 1~4 기술 시전은 교전 유지 (이동 중 시전 원칙)
+- 우클릭 유지: 커서 방향 이동 + 일정 간격 반복 시전. 유지형 범위 기술(휠윈드 등)도 같은 경로
+- 회피·사망 중에는 모든 행동 입력 무시 (`IsActionLocked`)
+- 기본 공격 경로: 현재 `PlayerController` → `BasicAttack` 직접 실행. `SkillCaster` 구현 시 LeftClick 슬롯 통합 방식은 15장 9번
+- 이동 중 시전 원칙(GDD 6.1): `Casting` 상태(예정)에서도 `ClickMover` 이동 유지, 경직 0.3초 이하
+- `PlayerDebugView`: 기본 도형 플레이어용 임시 시각화. 애니메이션·이펙트 적용 시 제거
 
 ## 5. Combat
 
-체력, 피해 계산, 상태이상, 스탯 합산, 전투 상태 판정
+체력, 피해 계산, 대상 지정 행동, 범위 판정, 무적, 상태이상, 스탯 합산, 전투 상태 판정
+
+- 구현 상태: `IDamageable`, `Health`, `DamageInfo`, `DamageRequest`, `DamageCalculator`, `IInvulnerabilitySource`, `ITargetedAction`, `BasicAttack`, `AttackArea`(부채꼴) 구현 완료 (2026-10-08). 나머지는 예정
 
 ```mermaid
 classDiagram
     class IDamageable {
         <<interface>>
-        +ApplyDamage(DamageInfo info)
         +bool IsDead
+        +ApplyDamage(DamageInfo info)
     }
     class Health {
         <<MonoBehaviour>>
-        -float _current
         -float _max
+        -float _current
+        -IInvulnerabilitySource[] _invulnerabilitySources
+        +float Current
+        +float Max
+        +bool IsDead
         +ApplyDamage(DamageInfo info)
         +Heal(float amount)
-        +SetMax(float value)
-        +bool IsDead
+        +RestoreFull()
+        +event Damaged
+        +event DamageIgnored
+        +event Died
+        +event Restored
+    }
+    class IInvulnerabilitySource {
+        <<interface>>
+        +bool IsInvulnerable
     }
     class DamageInfo {
         <<struct>>
         +GameObject Attacker
         +float Amount
-        +string SkillId
         +bool IsBasicAttack
-        +bool IsEmpowered
-        +StatusEffectApplication Status
     }
     class DamageRequest {
         <<struct>>
@@ -237,32 +299,63 @@ classDiagram
         +float TargetReduction
     }
     class DamageCalculator {
-        <<pure>>
+        <<static>>
         +Calculate(DamageRequest request)$ float
     }
+    class ITargetedAction {
+        <<interface>>
+        +float Range
+        +float Duration
+        +TryExecute(Transform attacker, Transform target, Vector3 point) bool
+    }
+    class BasicAttack {
+        <<Serializable>>
+        -float _range
+        -float _interval
+        -float _attackPower
+        -float _coefficient
+        -float _inPlaceAngle
+        -LayerMask _targetMask
+        +bool IsReady
+        +TryExecute(Transform attacker, Transform target, Vector3 point) bool
+    }
+    class AttackArea {
+        <<static>>
+        +TryFindClosestInCone(origin, forward, radius, angle, mask, out target, out position)$ bool
+        +IsInCone(origin, forward, radius, angle, point)$ bool
+        +Circle(center, radius, mask)$ 예정
+        +Line(from, to, width, mask)$ 예정
+    }
+    class HealthDebugView {
+        <<MonoBehaviour 임시>>
+        -OnDamaged(DamageInfo info)
+        -OnDamageIgnored(DamageInfo info)
+        -OnGUI()
+    }
+    class AttackAreaDebugDrawer {
+        <<static 임시>>
+        +ShowCone(origin, forward, radius, angle, groundY, color, duration)$
+    }
     class StatSheet {
-        <<pure>>
-        -Dictionary~StatType,float~ _base
-        -List~IStatModifierSource~ _sources
+        <<pure 예정>>
         +SetBase(StatType stat, float value)
         +AddSource(IStatModifierSource source)
-        +RemoveSource(IStatModifierSource source)
         +Get(StatType stat) float
     }
     class StatusEffectController {
-        <<MonoBehaviour>>
+        <<MonoBehaviour 예정>>
         +Apply(StatusEffectApplication status)
         +bool IsStunned
         +float SlowMultiplier
     }
     class StatusEffectApplication {
-        <<struct>>
+        <<struct 예정>>
         +StatusEffectType Type
         +float Duration
         +float Strength
     }
     class StatusEffectType {
-        <<enum>>
+        <<enum 예정>>
         None
         Stun
         Slow
@@ -270,32 +363,37 @@ classDiagram
         Airborne
     }
     class CombatStateTracker {
-        <<pure>>
+        <<pure 예정>>
         -float _outOfCombatDelay
-        -float _elapsed
         +NotifyCombatAction()
         +Tick(float deltaTime)
         +bool InCombat
     }
-    class AttackArea {
-        <<pure>>
-        +Circle(Vector3 center, float radius, LayerMask mask)$ List~IDamageable~
-        +Cone(Vector3 origin, Vector3 dir, float radius, float angle, LayerMask mask)$ List~IDamageable~
-        +Line(Vector3 from, Vector3 to, float width, LayerMask mask)$ List~IDamageable~
-    }
     IDamageable <|.. Health
+    Health --> IInvulnerabilitySource : 피해 전 확인
     Health ..> DamageInfo
-    Health --> StatusEffectController
-    DamageInfo --> StatusEffectApplication
-    StatusEffectApplication --> StatusEffectType
+    ITargetedAction <|.. BasicAttack
+    BasicAttack ..> AttackArea : 제자리 공격 대상 탐색
+    BasicAttack ..> DamageCalculator
+    BasicAttack ..> IDamageable : ApplyDamage
+    BasicAttack ..> AttackAreaDebugDrawer : 범위 표시
     DamageCalculator ..> DamageRequest
+    HealthDebugView ..> Health : 이벤트 구독
+    Health --> StatusEffectController
+    StatusEffectApplication --> StatusEffectType
     StatSheet --> IStatModifierSource
 ```
 
-- 회피 무적: 플레이어 `Health.ApplyDamage`는 `DodgeAction.IsInvulnerable`이 참이면 피해 무시 (GDD 6.1). 무적 시간 기본값 = 회피 지속 시간 0.2초
-- `Health`가 피해 적용 후 이벤트 발행: 플레이어 → `PlayerDamagedEvent`, 적 → `DamageDealtEvent`, 사망 시 `EnemyKilledEvent`
+- 피해 계산: 피해량 = 공격력 × 계수 × (1 + 피해 증가) × (1 − 피해 감소). 피해 증가 하한 −100%, 피해 감소 0~100% 제한, 결과 0 이상
+- 회피 무적: `Health`가 같은 오브젝트의 `IInvulnerabilitySource`를 수집해 피해 전 확인. `DodgeAction`이 구현하며 회피 지속 시간(0.2초) 전체 무적 (GDD 6.1). Combat이 Player를 참조하지 않는 의존 방향 유지. 무적 버프(불굴의 갑주 등)도 같은 인터페이스로 확장
+- `ITargetedAction`: 대상에게 접근 후 사거리 안에서 실행하는 행동. 원거리 기본 공격·대상 지정 기술이 구현하면 `PlayerController.Engage`의 추적 흐름 재사용. 지점 지정·유지형 범위 기술은 대상이 없으므로 기술 시전 경로 사용
+- `BasicAttack`: 단일 대상. 대상 지정 시 해당 대상, 제자리 공격 시 전방 부채꼴(90°) 안의 가장 가까운 적. 빗나가도 실행으로 처리(공격 간격 소모)
+- `DamageInfo` 확장 예정: `SkillId`, `IsEmpowered`(신앙 충만), `Status`(상태이상)
+- 이벤트 연결: 현재 `Health`의 C# 이벤트 사용. 신앙 자원 구현 시 `EventBus` 발행 추가 (플레이어 → `PlayerDamagedEvent`, 적 → `DamageDealtEvent`, 사망 시 `EnemyKilledEvent`)
 - `CombatStateTracker`: 신앙 비전투 감소(GDD 6.3) 판정용. `_outOfCombatDelay` 값은 GDD 확정 필요 항목 (밸런스 에셋에서 주입)
-- `AttackArea`: 원형·부채꼴·직선 범위 판정 공용 유틸리티. 기술·적 공격이 공유
+- `AttackArea`: 원형·부채꼴·직선 범위 판정 공용 유틸리티. 기술·적 공격이 공유. 현재 부채꼴만 구현
+- 임시 수치 (테스트용): 플레이어 체력 500, 적 체력 100, 기본 공격 100 (계수 1), 사거리 2, 공격 간격 0.6초
+- `HealthDebugView`·`AttackAreaDebugDrawer`: 임시 디버그 표시 (체력 막대, 피해 숫자, 피격 깜빡임, 빨간 공격 범위). HUD·이펙트 구현 시 제거
 
 ## 6. Skill
 
@@ -929,6 +1027,7 @@ classDiagram
 - 적 공격 동작: 기술과 같은 전략 객체 구조(`EnemyAttackBehaviour`). 근접 휘두르기·돌진·광선 등 파생 클래스
 - `EncounterRoom`: 방 진입 시 적 생성, 전멸 시 출구 개방. 시련 방이면 `TrialRoomStartedEvent`·`TrialRoomClearedEvent` 발행
 - `EnemyGrade` 값과 등급 대응: Retainer 권속 / LesserGod 하위 신 / Sovereign 주신. 챔피언·주신은 프로토타입 미사용
+- 현재 구현 (2026-10-08): 테스트용 `DummyEnemy` (큐브 모형 + `Health` + `HealthDebugView` + `TestDummyRespawner`). `TestDummyRespawner`는 사망 시 모형·충돌체를 숨기고 3초 뒤 체력 회복 후 재등장하는 임시 컴포넌트. `EnemyController` 구현 시 제거
 
 ### 11.2 보스: 우사·풍백, 이랑진군
 
@@ -1093,6 +1192,8 @@ sequenceDiagram
     Bus->>La: OnEnemyKilled → 과업 판정·스택 +1
 ```
 
+- 설계안 기준 흐름. 현재 구현은 `PlayerController` → `BasicAttack` 직접 실행이며 `EventBus` 미도입 (14.4). 신앙 자원 구현 시 이 흐름으로 갱신
+
 ### 14.2 격 돌파 (범인 → 초인)
 
 ```mermaid
@@ -1120,6 +1221,73 @@ sequenceDiagram
 
 - 2차 직업 선택: 프로토타입은 성투사 고정. 초인 돌파 시 자동 전직 (선택 화면 생략, 확인 필요 15장 8번)
 
+### 14.3 적 클릭 → 추적 → 자동 공격 (교전, 구현 완료)
+
+```mermaid
+flowchart TD
+    A[좌클릭 누름] --> B{Shift 없음 + 커서 아래 첫 물체가 적?}
+    B -- 아니오 --> M[바닥 지점으로 이동 / Shift면 제자리 공격]
+    B -- 예 --> C["Engage(BasicAttack, 적)<br/>보관: 대상·행동, 누름 유지 = 참"]
+    C --> D{매 프레임: 대상 유효?<br/>존재·활성·생존}
+    D -- 아니오 --> X[교전 해제, 추적 중이면 정지]
+    D -- 예 --> E{수평 거리 ≤ 사거리?}
+    E -- 아니오 --> F["대상 현재 위치로 이동<br/>State = Moving"] --> D
+    E -- 예 --> G[정지 + 대상 바라보기]
+    G --> H{공격 간격 경과?}
+    H -- 아니오 --> D
+    H -- 예 --> I["TryExecute → 피해 적용<br/>State = Attacking"]
+    I --> J{누름 유지 중?}
+    J -- 예 --> D
+    J -- 아니오 --> X
+    R[좌클릭 뗌] --> S{이미 1회 실행?}
+    S -- 예 --> X
+    S -- 아니오 --> T[누름 유지 = 거짓<br/>다음 1회 실행 후 해제]
+```
+
+- 해제 조건 추가: 바닥 이동, Shift 제자리 공격, 우클릭 시전, 회피 성공
+- 누르고 있는 중 대상이 사라지면 `PlayerInputHandler`가 커서 방향 이동으로 전환
+
+### 14.4 기본 공격 피해 적용 (구현 완료)
+
+```mermaid
+sequenceDiagram
+    participant PC as PlayerController
+    participant BA as BasicAttack
+    participant AA as AttackArea
+    participant DC as DamageCalculator
+    participant HP as Health(대상)
+    participant IV as IInvulnerabilitySource
+    participant DV as HealthDebugView
+
+    PC->>BA: TryExecute(attacker, target, point)
+    alt 공격 간격 미경과
+        BA-->>PC: false (상태 변화 없음)
+    else 실행
+        alt 대상 지정
+            BA->>BA: target의 IDamageable
+        else 제자리 공격 (target = null)
+            BA->>AA: TryFindClosestInCone(전방 90°, 사거리)
+            AA-->>BA: 가장 가까운 생존 대상 또는 없음
+        end
+        BA->>BA: 빨간 부채꼴 표시 (임시)
+        BA->>DC: Calculate(공격력 100, 계수 1)
+        DC-->>BA: 100
+        BA->>HP: ApplyDamage(DamageInfo)
+        HP->>IV: IsInvulnerable?
+        alt 무적 (회피 중)
+            HP->>DV: DamageIgnored → "무적" 표시
+        else 피해 적용
+            HP->>DV: Damaged → 피해 숫자·깜빡임
+            opt 체력 0
+                HP->>HP: Died 발행
+            end
+        end
+        BA-->>PC: true → State = Attacking (Duration 동안)
+    end
+```
+
+- `Died` 구독: 플레이어 → `PlayerController`가 `Dead` 상태 전환·입력 차단 / 테스트 적 → `TestDummyRespawner`가 숨김 후 3초 뒤 `RestoreFull`
+
 ## 15. 확인 필요
 
 ### 확정 (2026-10-02)
@@ -1140,6 +1308,7 @@ sequenceDiagram
 | 6 | 기술 에셋 영어 이름 (6.2 표) | 제안안 사용, 구현 시 NamingRules 예시와 일치 확인 |
 | 7 | 저장·불러오기 | 프로토타입 제외 |
 | 8 | 2차 직업 선택 화면 | 프로토타입은 성투사 자동 전직 |
+| 9 | 기본 공격과 `SkillCaster` 통합 | LeftClick 슬롯 기술이 `ITargetedAction`을 구현하고 `PlayerController.Engage`로 실행 (교전 흐름 재사용) |
 
 - 번호: 본문 참조용으로 기존 번호 유지
 
@@ -1147,7 +1316,7 @@ sequenceDiagram
 
 | 클래스 | 주요 검증 |
 |---|---|
-| `DamageCalculator` | 계수·피해 증가·피해 감소 계산, 감소율 상한 |
+| `DamageCalculator` | 계수·피해 증가·피해 감소 계산, 감소율 상한 (구현 완료: `Tests/EditMode/DamageCalculatorTests`, 4건) |
 | `BreakthroughCondition` | 4개 조건 각각 미충족, 주 스탯 40% 올림 경계값 (예: 총합 92 → 37) |
 | `FaithModel` | 적중·피격 충전, 최대치 초과 방지, 비전투 감소, 격별 최대치, 충만 강화 비율 |
 | `SkillLoadout` | 미해금 기술 장착 거부, 교체 후 슬롯 레벨 유지, 기술별 분기 저장, 전투 중 분기 변경 거부 |
