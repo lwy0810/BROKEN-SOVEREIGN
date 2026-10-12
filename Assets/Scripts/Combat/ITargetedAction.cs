@@ -17,9 +17,11 @@ namespace BrokenSovereign.Combat
 
         /// <summary>
         /// 실행 시도. 재사용 대기 등으로 실행되지 않으면 false를 반환합니다.
+        /// 대상이 없거나 빗나가도 실행 자체가 이뤄졌으면 true입니다.
         /// </summary>
+        /// <param name="attacker">실행하는 주체</param>
         /// <param name="target">대상. 제자리 공격이면 null</param>
         /// <param name="point">공격 지점 (대상 위치 또는 커서 지점)</param>
-        bool TryExecute(Transform target, Vector3 point);
+        bool TryExecute(Transform attacker, Transform target, Vector3 point);
     }
 }

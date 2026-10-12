@@ -1,12 +1,14 @@
+using BrokenSovereign.Combat;
 using UnityEngine;
 
 namespace BrokenSovereign.Player
 {
     /// <summary>
     /// 커서 방향 회피. 짧은 시간 동안 일정 거리를 돌진합니다.
+    /// 회피 지속 시간 전체 동안 무적입니다 (GDD 6.1).
     /// </summary>
     [RequireComponent(typeof(ClickMover))]
-    public class DodgeAction : MonoBehaviour
+    public class DodgeAction : MonoBehaviour, IInvulnerabilitySource
     {
         [SerializeField] private float _distance = 4f;
         [SerializeField] private float _duration = 0.2f;
@@ -18,6 +20,7 @@ namespace BrokenSovereign.Player
         private float _nextAvailableTime;
 
         public bool IsDodging => _remainingTime > 0f;
+        public bool IsInvulnerable => IsDodging;
         public Vector3 Direction => _direction;
         public float CooldownRemaining => Mathf.Max(0f, _nextAvailableTime - Time.time);
 
