@@ -5,7 +5,7 @@ using UnityEngine;
 namespace BrokenSovereign.Combat
 {
     /// <summary>
-    /// 임시 디버그 표시: 머리 위 체력 막대, 피해 숫자, 피격 시 붉은 깜빡임, 무적 표시.
+    /// 임시 디버그 표시: 머리 위 체력 막대(전투 중이고 가까울 때만), 피해 숫자, 피격 시 붉은 깜빡임, 무적 표시.
     /// 플레이어·적 공용. HUD·이펙트 구현 시 제거합니다.
     /// </summary>
     [RequireComponent(typeof(Health))]
@@ -13,8 +13,26 @@ namespace BrokenSovereign.Combat
     {
         private static readonly int BASE_COLOR_ID = Shader.PropertyToID("_BaseColor");
 
+        [Tooltip("머리 위 체력 막대 표시 (HUD가 있는 플레이어는 끔)")]
+        [SerializeField] private bool _showBar = true;
         [SerializeField] private float _barHeight = 2.3f;
-        [SerializeField] private Vector2 _barSize = new Vector2(80f, 8f);
+        [SerializeField] private Vector2 _barPixelSize = new Vector2(40f, 4f);
+
+        [Tooltip("체력 막대 위 수치(현재/최대) 표시")]
+        [SerializeField] private bool _showValueText;
+
+        [Header("표시 조건")]
+        [Tooltip("켜면 전투 중이고 가까이 있을 때만 체력 막대 표시")]
+        [SerializeField] private bool _hideWhenOutOfCombat = true;
+
+        [Tooltip("마지막 피격 후 이 시간(초)까지 전투 중으로 판단")]
+        [SerializeField] private float _combatDuration = 5f;
+
+        [Tooltip("기준 대상(플레이어)과 이 거리(m) 안일 때만 표시")]
+        [SerializeField] private float _showDistance = 12f;
+
+        [Tooltip("거리 기준 대상. 비우면 Player 태그 오브젝트를 찾음")]
+        [SerializeField] private Transform _distanceReference;
         [SerializeField] private Color _barColor = new Color(0.9f, 0.15f, 0.15f);
         [SerializeField] private bool _flashOnHit = true;
         [SerializeField] private Color _flashColor = new Color(1f, 0.2f, 0.2f);
@@ -36,6 +54,7 @@ namespace BrokenSovereign.Combat
         private Coroutine _flashRoutine;
         private GUIStyle _popupStyle;
         private GUIStyle _labelStyle;
+        private float _lastDamagedTime = float.NegativeInfinity;
 
         private void Awake()
         {
@@ -64,8 +83,22 @@ namespace BrokenSovereign.Combat
             _health.DamageIgnored -= OnDamageIgnored;
         }
 
+        private void Start()
+        {
+            if (_distanceReference == null)
+            {
+                GameObject reference = GameObject.FindWithTag("Player");
+
+                if (reference != null && reference.transform != transform)
+                {
+                    _distanceReference = reference.transform;
+                }
+            }
+        }
+
         private void OnDamaged(DamageInfo info)
         {
+            _lastDamagedTime = Time.time;
             AddPopup($"-{info.Amount:0}", Color.white);
 
             if (_flashOnHit && isActiveAndEnabled)
@@ -129,27 +162,46 @@ namespace BrokenSovereign.Combat
                 return;
             }
 
-            float x = screen.x - _barSize.x * 0.5f;
+            float x = screen.x - _barPixelSize.x * 0.5f;
             float y = Screen.height - screen.y;
 
             EnsureStyles();
 
-            if (_health.IsDead)
-            {
-                GUI.Label(new Rect(x, y - 18f, _barSize.x, 20f), "DEAD", _labelStyle);
-            }
-            else
+            if (ShouldShowBar())
             {
                 Color previous = GUI.color;
                 GUI.color = new Color(0f, 0f, 0f, 0.6f);
-                GUI.DrawTexture(new Rect(x, y, _barSize.x, _barSize.y), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(x, y, _barPixelSize.x, _barPixelSize.y), Texture2D.whiteTexture);
                 GUI.color = _barColor;
-                GUI.DrawTexture(new Rect(x, y, _barSize.x * (_health.Current / _health.Max), _barSize.y), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(x, y, _barPixelSize.x * (_health.Current / _health.Max), _barPixelSize.y), Texture2D.whiteTexture);
                 GUI.color = previous;
-                GUI.Label(new Rect(x, y - 18f, _barSize.x, 20f), $"{_health.Current:0}/{_health.Max:0}", _labelStyle);
+
+                if (_showValueText)
+                {
+                    GUI.Label(new Rect(x - 20f, y - 18f, _barPixelSize.x + 40f, 20f), $"{_health.Current:0}/{_health.Max:0}", _labelStyle);
+                }
             }
 
             DrawPopups(screen.x, y);
+        }
+
+        // 사망 시 숨김. 조건부 표시가 켜져 있으면 전투 중(최근 피격) + 기준 대상과 가까울 때만 표시
+        private bool ShouldShowBar()
+        {
+            if (!_showBar || _health.IsDead)
+            {
+                return false;
+            }
+
+            if (!_hideWhenOutOfCombat)
+            {
+                return true;
+            }
+
+            bool inCombat = Time.time - _lastDamagedTime <= _combatDuration;
+            bool isNear = _distanceReference == null
+                || (_distanceReference.position - transform.position).sqrMagnitude <= _showDistance * _showDistance;
+            return inCombat && isNear;
         }
 
         private void DrawPopups(float centerX, float baseY)
