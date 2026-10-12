@@ -1121,6 +1121,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e29969ddb80b6694681f4df2ec5c31cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.HealthDebugView
+  _showBar: 1
   _barHeight: 2.3
   _barSize: {x: 80, y: 8}
   _barColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
@@ -1141,6 +1142,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.Health
   _max: 300
+  _current: 300
 --- !u!1 &1440982568
 GameObject:
   m_ObjectHideFlags: 0
@@ -1501,6 +1503,78 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1477810948}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1585798821
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1585798823}
+  - component: {fileID: 1585798822}
+  m_Layer: 0
+  m_Name: HudView
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1585798822
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585798821}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a84825bc2be61b429ad59720c8af4fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.UI.HudView
+  _player: {fileID: 2092739930}
+  _orbShader: {fileID: 0}
+  _referenceResolution: {x: 1920, y: 1080}
+  _orb:
+    Size: 190
+    GapToBar: 12
+    BottomMargin: 12
+    HealthColor: {r: 0.72, g: 0.07, b: 0.09, a: 1}
+    HealthSurfaceColor: {r: 1, g: 0.5, b: 0.42, a: 1}
+    ResourceColorBlendTime: 0.6
+    SurfaceLighten: 0.55
+    RimColor: {r: 0.78, g: 0.6, b: 0.28, a: 1}
+    ViewTilt: 0.35
+    BounceStrength: 3
+    BounceDecay: 2
+    FillFollowSpeed: 1.5
+    FontSize: 22
+  _bar:
+    SlotSize: 72
+    Spacing: 8
+    GroupSpacing: 28
+    BottomMargin: 28
+    SlotColor: {r: 0.08, g: 0.07, b: 0.1, a: 0.85}
+    FrameColor: {r: 0.78, g: 0.6, b: 0.28, a: 0.9}
+    CooldownColor: {r: 0, g: 0, b: 0, a: 0.65}
+    LockedColor: {r: 0, g: 0, b: 0, a: 0.7}
+    KeyFontSize: 16
+    CooldownFontSize: 24
+--- !u!4 &1585798823
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585798821}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 9.68948, y: -0, z: 15.65107}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1645224227
 GameObject:
   m_ObjectHideFlags: 0
@@ -2092,6 +2166,7 @@ GameObject:
   - component: {fileID: 2092739939}
   - component: {fileID: 2092739940}
   - component: {fileID: 2092739941}
+  - component: {fileID: 2092739942}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -2289,7 +2364,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.Health
   _max: 500
+  _current: 500
 --- !u!114 &2092739941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e29969ddb80b6694681f4df2ec5c31cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.HealthDebugView
+  _showBar: 1
+  _barHeight: 2.3
+  _barSize: {x: 80, y: 8}
+  _barColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
+  _flashOnHit: 1
+  _flashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  _flashDuration: 0.12
+  _popupDuration: 0.8
+--- !u!114 &2092739942
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2298,16 +2394,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 2092739928}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e29969ddb80b6694681f4df2ec5c31cf, type: 3}
+  m_Script: {fileID: 11500000, guid: 172f602f99703394ca6c613539a1ea0b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.HealthDebugView
-  _barHeight: 2.3
-  _barSize: {x: 80, y: 8}
-  _barColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
-  _flashOnHit: 1
-  _flashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
-  _flashDuration: 0.12
-  _popupDuration: 0.8
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Player.TestEnergyGauge
+  _max: 100
+  _costPerSkill: 15
+  _regenPerSecond: 8
+  _displayColor: {r: 0.16, g: 0.38, b: 0.95, a: 1}
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0
@@ -2443,3 +2536,4 @@ SceneRoots:
   - {fileID: 1690522285}
   - {fileID: 2092739938}
   - {fileID: 1311298483}
+  - {fileID: 1585798823}

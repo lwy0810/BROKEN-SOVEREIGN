@@ -142,8 +142,9 @@ namespace BrokenSovereign.Player
 
         private void HandlePrimaryHeld()
         {
-            // 교전 중이면 PlayerController가 처리. 대상이 사라지면 커서 방향 이동으로 전환
-            if (_isAttackPress && _controller.HasEngageTarget)
+            // 적을 눌러 시작한 입력은 PlayerController가 처리.
+            // 대상이 죽거나 사라져도 이동으로 바꾸지 않고 제자리에 멈춤 (다시 눌러야 이동)
+            if (_isAttackPress)
             {
                 return;
             }

@@ -23,6 +23,7 @@ namespace BrokenSovereign.Player
         public bool IsInvulnerable => IsDodging;
         public Vector3 Direction => _direction;
         public float CooldownRemaining => Mathf.Max(0f, _nextAvailableTime - Time.time);
+        public float Cooldown => _cooldown;
 
         private void Awake()
         {

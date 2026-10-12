@@ -12,7 +12,10 @@ namespace BrokenSovereign.Combat
     {
         [SerializeField] private float _max = 100f;
 
-        private float _current;
+        [Tooltip("현재 체력. 0 이하로 시작하면 최대 체력으로 채움. Play 중 변경하면 즉시 반영 (0이 되면 사망 처리)")]
+        [SerializeField] private float _current;
+
+        private bool _hasDied;
         private IInvulnerabilitySource[] _invulnerabilitySources;
 
         public float Current => _current;
@@ -33,7 +36,7 @@ namespace BrokenSovereign.Combat
 
         private void Awake()
         {
-            _current = _max;
+            _current = _current <= 0f ? _max : Mathf.Min(_current, _max);
             _invulnerabilitySources = GetComponents<IInvulnerabilitySource>();
         }
 
@@ -55,7 +58,7 @@ namespace BrokenSovereign.Combat
 
             if (IsDead)
             {
-                Died?.Invoke();
+                RaiseDied();
             }
         }
 
@@ -73,7 +76,44 @@ namespace BrokenSovereign.Combat
         public void RestoreFull()
         {
             _current = _max;
+            _hasDied = false;
             Restored?.Invoke();
+        }
+
+        // Inspector 값 정리. Play 중 현재 체력을 직접 바꾸면 사망·부활 이벤트도 맞춰 발생
+        private void OnValidate()
+        {
+            _max = Mathf.Max(1f, _max);
+
+            // 편집 모드: 비어 있으면(기존 씬 데이터 포함) 최대 체력으로 표시
+            if (!Application.isPlaying)
+            {
+                _current = _current <= 0f ? _max : Mathf.Min(_current, _max);
+                return;
+            }
+
+            _current = Mathf.Clamp(_current, 0f, _max);
+
+            if (_invulnerabilitySources == null)
+            {
+                return;
+            }
+
+            if (IsDead && !_hasDied)
+            {
+                RaiseDied();
+            }
+            else if (!IsDead && _hasDied)
+            {
+                _hasDied = false;
+                Restored?.Invoke();
+            }
+        }
+
+        private void RaiseDied()
+        {
+            _hasDied = true;
+            Died?.Invoke();
         }
 
         private bool IsInvulnerable()
