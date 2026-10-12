@@ -8,6 +8,7 @@ namespace BrokenSovereign.Player
         Idle,
         Moving,
         Attacking,
-        Dodging
+        Dodging,
+        Dead
     }
 }

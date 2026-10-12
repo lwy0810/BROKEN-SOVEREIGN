@@ -14,6 +14,7 @@ namespace BrokenSovereign.Player
     [RequireComponent(typeof(ClickMover))]
     [RequireComponent(typeof(DodgeAction))]
     [RequireComponent(typeof(PotionUser))]
+    [RequireComponent(typeof(Health))]
     public class PlayerController : MonoBehaviour
     {
         [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
@@ -22,6 +23,7 @@ namespace BrokenSovereign.Player
         private ClickMover _mover;
         private DodgeAction _dodge;
         private PotionUser _potion;
+        private Health _health;
         private float _nextHeldSkillTime;
         private float _actionEndTime;
 
@@ -32,6 +34,7 @@ namespace BrokenSovereign.Player
         private bool _hasEngageExecuted;
 
         public PlayerState State { get; private set; } = PlayerState.Idle;
+        public bool IsDead => State == PlayerState.Dead;
         public float BasicAttackRange => _basicAttack.Range;
         public bool HasEngageTarget => _engageTarget != null;
 
@@ -52,10 +55,39 @@ namespace BrokenSovereign.Player
             _mover = GetComponent<ClickMover>();
             _dodge = GetComponent<DodgeAction>();
             _potion = GetComponent<PotionUser>();
+            _health = GetComponent<Health>();
+        }
+
+        private void OnEnable()
+        {
+            if (_health == null)
+            {
+                Debug.LogError("PlayerController: Health 컴포넌트가 없습니다.", this);
+                return;
+            }
+
+            _health.Died += OnDied;
+            _health.Restored += OnRestored;
+        }
+
+        private void OnDisable()
+        {
+            if (_health == null)
+            {
+                return;
+            }
+
+            _health.Died -= OnDied;
+            _health.Restored -= OnRestored;
         }
 
         private void Update()
         {
+            if (IsDead)
+            {
+                return;
+            }
+
             if (_engageTarget != null)
             {
                 UpdateEngage();
@@ -80,7 +112,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void MoveTo(Vector3 point)
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -105,7 +137,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void Engage(ITargetedAction action, Transform target)
         {
-            if (State == PlayerState.Dodging || action == null || target == null)
+            if (IsActionLocked || action == null || target == null)
             {
                 return;
             }
@@ -136,7 +168,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void AttackInPlace(Vector3 point)
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -153,7 +185,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void UseSkill(SkillSlot slot, Vector3 point)
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -169,7 +201,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void CastWhileHeld(SkillSlot slot, Vector3 point, bool moveTowardCursor)
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -201,7 +233,7 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void StopMoving()
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -216,6 +248,11 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void Dodge(Vector3 point)
         {
+            if (IsDead)
+            {
+                return;
+            }
+
             if (_dodge.TryDodge(point - transform.position))
             {
                 ClearEngage();
@@ -229,6 +266,11 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void UsePotion()
         {
+            if (IsDead)
+            {
+                return;
+            }
+
             if (_potion.TryUse())
             {
                 PotionUsed?.Invoke(_potion.Charges);
@@ -237,7 +279,7 @@ namespace BrokenSovereign.Player
 
         private void UpdateEngage()
         {
-            if (State == PlayerState.Dodging)
+            if (IsActionLocked)
             {
                 return;
             }
@@ -289,7 +331,7 @@ namespace BrokenSovereign.Player
 
         private bool PerformAction(ITargetedAction action, Transform target, Vector3 point)
         {
-            if (!action.TryExecute(target, point))
+            if (!action.TryExecute(transform, target, point))
             {
                 return false;
             }
@@ -313,10 +355,32 @@ namespace BrokenSovereign.Player
             _hasEngageExecuted = false;
         }
 
-        // 대상 유효성: Health 구현 후 사망 여부 검사 추가
+        // 회피 중·사망 시 다른 행동 불가
+        private bool IsActionLocked => State == PlayerState.Dodging || State == PlayerState.Dead;
+
+        private void OnDied()
+        {
+            ClearEngage();
+            _mover.Stop();
+            State = PlayerState.Dead;
+            Debug.Log("PlayerController: 사망");
+        }
+
+        private void OnRestored()
+        {
+            State = PlayerState.Idle;
+        }
+
+        // 사라졌거나 죽은 대상은 교전 대상에서 제외
         private static bool IsValidTarget(Transform target)
         {
-            return target != null && target.gameObject.activeInHierarchy;
+            if (target == null || !target.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            IDamageable damageable = target.GetComponentInParent<IDamageable>();
+            return damageable == null || !damageable.IsDead;
         }
 
         // 수평 거리 기준. 큰 적은 반경 보정이 필요하면 여기서 처리
