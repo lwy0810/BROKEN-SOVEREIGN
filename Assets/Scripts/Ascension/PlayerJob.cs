@@ -1,4 +1,5 @@
 using System;
+using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Skill;
 using UnityEngine;
@@ -27,6 +28,7 @@ namespace BrokenSovereign.Ascension
 
         private SkillCaster _caster;
         private FaithController _faith;
+        private CharacterStats _stats;
 
         public JobDefinition Current { get; private set; }
 
@@ -37,6 +39,7 @@ namespace BrokenSovereign.Ascension
         {
             _caster = GetComponent<SkillCaster>();
             _faith = GetComponent<FaithController>();
+            _stats = GetComponent<CharacterStats>();
         }
 
         private void Start()
@@ -72,6 +75,13 @@ namespace BrokenSovereign.Ascension
             }
 
             ApplyResource(job);
+
+            // 주 스탯 (성기사: 힘). 피해 배율 = 1 + 주 스탯 × 0.001
+            if (_stats != null)
+            {
+                _stats.Sheet.SetMainStat(job.MainStat);
+            }
+
             Debug.Log($"직업 전환: {job.DisplayName}");
             JobChanged?.Invoke(job);
         }

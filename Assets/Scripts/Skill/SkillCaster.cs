@@ -40,6 +40,26 @@ namespace BrokenSovereign.Skill
             TickActiveCasts(Time.deltaTime);
         }
 
+        /// <summary>진행 중인 지속 기술 (HUD 버프 표시용)</summary>
+        public IReadOnlyList<SkillContext> ActiveCasts => _activeCasts;
+
+        /// <summary>이동을 잠그는 기술(돌진 등)이 진행 중인지</summary>
+        public bool IsMovementLocked
+        {
+            get
+            {
+                foreach (SkillContext context in _activeCasts)
+                {
+                    if (context.Definition.LocksMovement)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
         public bool HasSkill(SkillSlot slot)
         {
             return GetSkill(slot) != null;

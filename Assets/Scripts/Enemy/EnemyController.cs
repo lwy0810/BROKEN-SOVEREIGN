@@ -1,3 +1,4 @@
+using System;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace BrokenSovereign.Enemy
     /// </summary>
     [RequireComponent(typeof(Health))]
     [RequireComponent(typeof(NavMeshAgent))]
-    public class EnemyController : MonoBehaviour
+    public class EnemyController : MonoBehaviour, IStunnable
     {
         [SerializeField] private EnemyDefinition _definition;
 
@@ -35,7 +36,12 @@ namespace BrokenSovereign.Enemy
         private Vector3 _attackForward;
         private bool _wasDamaged;
 
+        private readonly StunTimer _stun = new StunTimer();
+
         public EnemyState State { get; private set; } = EnemyState.Idle;
+        public bool IsStunned => _stun.IsStunned(Time.time);
+
+        public event Action<float> Stunned;
         public Transform Target => _target;
 
         private void Awake()
@@ -98,6 +104,13 @@ namespace BrokenSovereign.Enemy
 
         private void Update()
         {
+            // 기절 중: 멈춰서 아무것도 하지 않음 (사망 판정은 기절보다 우선)
+            if (IsStunned && !_health.IsDead)
+            {
+                StopAgent();
+                return;
+            }
+
             EnemySense sense = BuildSense();
             _wasDamaged = false;
 
@@ -237,6 +250,26 @@ namespace BrokenSovereign.Enemy
             _targetHealth.ApplyDamage(info);
         }
 
+        /// <summary>기절: 이동 정지, 진행 중인 공격 취소</summary>
+        public void Stun(float duration)
+        {
+            if (_health.IsDead || !_stun.Apply(duration, Time.time))
+            {
+                return;
+            }
+
+            StopAgent();
+
+            if (State == EnemyState.Attack)
+            {
+                // 예비 동작 중이면 타격하지 않고 공격 종료로 처리 (기절이 끝나면 다시 추적)
+                _hasHit = true;
+                _attackEndTime = Time.time;
+            }
+
+            Stunned?.Invoke(duration);
+        }
+
         private void OnDamaged(DamageInfo info)
         {
             _wasDamaged = true;
@@ -250,6 +283,7 @@ namespace BrokenSovereign.Enemy
             transform.rotation = _homeRotation;
             _nextAttackTime = 0f;
             _attackEndTime = 0f;
+            _stun.Clear();
             ChangeState(EnemyState.Idle);
         }
 

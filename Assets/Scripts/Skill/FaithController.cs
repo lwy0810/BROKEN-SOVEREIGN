@@ -104,7 +104,9 @@ namespace BrokenSovereign.Skill
 
             if (victim == _health)
             {
-                gain = _gainPerDamaged;
+                // 피격 충전 증가 능력치 (불굴의 갑주 등)
+                float bonus = _stats != null ? Mathf.Max(0f, _stats.Sheet.Get(StatType.GaugeGainOnDamaged)) : 0f;
+                gain = _gainPerDamaged * (1f + bonus);
             }
             else if (info.Attacker == gameObject)
             {

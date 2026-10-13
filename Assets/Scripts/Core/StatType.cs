@@ -33,6 +33,10 @@ namespace BrokenSovereign.Core
         MoveSpeed,
         CooldownReduction,
         ResourceCostReduction,
-        PotionHealing
+        PotionHealing,
+
+        // 직업
+        /// <summary>피격 시 직업 게이지 충전량 증가 (1 = +100%)</summary>
+        GaugeGainOnDamaged
     }
 }

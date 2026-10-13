@@ -58,6 +58,8 @@ namespace BrokenSovereign.UI
         private JobGaugeView _jobGaugeView;
         private readonly List<IJobGauge> _jobGaugeBuffer = new List<IJobGauge>();
         private Text _noticeText;
+        private Text _buffText;
+        private readonly System.Text.StringBuilder _buffBuilder = new System.Text.StringBuilder();
         private float _noticeEndTime = float.NegativeInfinity;
         private bool _hasShownJob;
         private bool _isBuilt;
@@ -133,6 +135,7 @@ namespace BrokenSovereign.UI
             UpdateSkillNames();
             UpdateNotice();
             _jobGaugeView.SetGauge(FindActiveJobGauge());
+            UpdateBuffs();
         }
 
         private void OnDestroy()
@@ -177,6 +180,33 @@ namespace BrokenSovereign.UI
             float fade = _jobDisplay.NoticeFadeTime;
             color.a *= fade > 0f ? Mathf.Clamp01(remaining / fade) : 1f;
             _noticeText.color = color;
+        }
+
+        // 지속 중인 기술 버프 (불굴의 갑주 등)와 남은 시간
+        private void UpdateBuffs()
+        {
+            _buffBuilder.Clear();
+
+            if (_caster != null)
+            {
+                foreach (SkillContext context in _caster.ActiveCasts)
+                {
+                    if (context.Duration <= 0f)
+                    {
+                        continue;
+                    }
+
+                    if (_buffBuilder.Length > 0)
+                    {
+                        _buffBuilder.Append("   ");
+                    }
+
+                    _buffBuilder.Append(context.Definition.DisplayName).Append(' ')
+                        .Append(context.Remaining.ToString("0.0")).Append('초');
+                }
+            }
+
+            _buffText.text = _buffBuilder.ToString();
         }
 
         // 슬롯별 장착 기술 이름 (좌클릭은 기술이 없으면 기본 공격)
@@ -271,6 +301,8 @@ namespace BrokenSovereign.UI
 
             _jobLabel = CreateLabel("JobLabel", TextAnchor.LowerCenter);
             _jobLabel.text = string.Empty;
+            _buffText = CreateLabel("BuffList", TextAnchor.LowerCenter);
+            _buffText.text = string.Empty;
             _noticeText = CreateLabel("JobNotice", TextAnchor.MiddleCenter);
             _noticeText.fontStyle = FontStyle.Bold;
             _noticeText.enabled = false;
@@ -325,6 +357,13 @@ namespace BrokenSovereign.UI
             PlaceAt(_jobLabel.rectTransform, new Vector2(0.5f, 0f),
                 new Vector2(0f, gaugeBottom + _jobGauge.Height + _jobDisplay.LabelGapToBar),
                 new Vector2(totalWidth, _jobDisplay.LabelFontSize + 8f));
+
+            // 지속 버프 목록: 직업 이름 위
+            _buffText.fontSize = _jobDisplay.LabelFontSize - 4;
+            _buffText.color = new Color(0.75f, 0.9f, 1f);
+            PlaceAt(_buffText.rectTransform, new Vector2(0.5f, 0f),
+                new Vector2(0f, gaugeBottom + _jobGauge.Height + _jobDisplay.LabelGapToBar + _jobDisplay.LabelFontSize + 8f),
+                new Vector2(totalWidth, _jobDisplay.LabelFontSize + 4f));
 
             // 전직 알림: 화면 중앙에서 위쪽
             _noticeText.fontSize = _jobDisplay.NoticeFontSize;

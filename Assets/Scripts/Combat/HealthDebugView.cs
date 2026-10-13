@@ -49,6 +49,7 @@ namespace BrokenSovereign.Combat
 
         private readonly List<Popup> _popups = new List<Popup>();
         private Health _health;
+        private IStunnable _stunnable;
         private Renderer[] _renderers;
         private MaterialPropertyBlock[] _savedBlocks;
         private MaterialPropertyBlock _flashBlock;
@@ -61,6 +62,7 @@ namespace BrokenSovereign.Combat
         private void Awake()
         {
             _health = GetComponent<Health>();
+            _stunnable = GetComponent<IStunnable>();
             _renderers = GetComponentsInChildren<Renderer>();
             _savedBlocks = new MaterialPropertyBlock[_renderers.Length];
 
@@ -78,6 +80,11 @@ namespace BrokenSovereign.Combat
             _health.Damaged += OnDamaged;
             _health.DamageIgnored += OnDamageIgnored;
             _health.Dodged += OnDodged;
+
+            if (_stunnable != null)
+            {
+                _stunnable.Stunned += OnStunned;
+            }
         }
 
         private void OnDisable()
@@ -85,6 +92,11 @@ namespace BrokenSovereign.Combat
             _health.Damaged -= OnDamaged;
             _health.DamageIgnored -= OnDamageIgnored;
             _health.Dodged -= OnDodged;
+
+            if (_stunnable != null)
+            {
+                _stunnable.Stunned -= OnStunned;
+            }
         }
 
         private void Start()
@@ -127,6 +139,11 @@ namespace BrokenSovereign.Combat
         private void OnDamageIgnored(DamageInfo info)
         {
             AddPopup("무적", new Color(0.55f, 0.85f, 1f));
+        }
+
+        private void OnStunned(float duration)
+        {
+            AddPopup("기절", new Color(1f, 0.6f, 0.2f));
         }
 
         private void OnDodged(DamageInfo info)
