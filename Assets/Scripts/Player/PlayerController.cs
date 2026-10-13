@@ -1,6 +1,7 @@
 using System;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
+using BrokenSovereign.Skill;
 using UnityEngine;
 
 namespace BrokenSovereign.Player
@@ -17,6 +18,8 @@ namespace BrokenSovereign.Player
     [RequireComponent(typeof(Health))]
     public class PlayerController : MonoBehaviour
     {
+        private const float SKILL_REACH_RATIO = 0.8f;
+
         [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
         [SerializeField] private float _heldSkillRepeatInterval = 0.5f;
 
@@ -27,6 +30,7 @@ namespace BrokenSovereign.Player
         private DodgeAction _dodge;
         private PotionUser _potion;
         private Health _health;
+        private SkillCaster _skillCaster;
         private float _nextHeldSkillTime;
         private float _actionEndTime;
 
@@ -65,6 +69,7 @@ namespace BrokenSovereign.Player
             _dodge = GetComponent<DodgeAction>();
             _potion = GetComponent<PotionUser>();
             _health = GetComponent<Health>();
+            _skillCaster = GetComponent<SkillCaster>();
         }
 
         private void OnEnable()
@@ -202,7 +207,22 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            Debug.Log($"PlayerController: 기술 시전 {slot} → {point} (SkillCaster 구현 시 연결)");
+            if (_skillCaster != null && _skillCaster.HasSkill(slot))
+            {
+                // 재사용 대기 중이면 시전하지 않음
+                if (!_skillCaster.TryCast(slot, point))
+                {
+                    return;
+                }
+
+                // 시전 순간 시전 방향으로 즉시 회전 (등 뒤 대상도 바로 돌아서 시전)
+                _mover.FaceTowards(point);
+            }
+            else
+            {
+                Debug.Log($"PlayerController: 기술 시전 {slot} → {point} (연결된 기술 없음)");
+            }
+
             SkillUsed?.Invoke(slot, point);
         }
 
@@ -241,6 +261,54 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
+        /// 기술 키 유지 + 커서가 적 위: 적을 대상으로 선택하고, 기술 사거리 밖이면 접근, 안이면 멈춰서 적을 바라보며 반복 시전.
+        /// 이동 방향(회피 경로)이 아닌 적 방향으로 시전하기 위한 경로입니다.
+        /// </summary>
+        public void CastAtTarget(SkillSlot slot, Transform target)
+        {
+            if (IsActionLocked || target == null)
+            {
+                return;
+            }
+
+            ClearEngage();
+            SelectTarget(target);
+
+            Vector3 targetPosition = target.position;
+            float range = GetSkillReach(slot);
+
+            if (!IsInRange(targetPosition, range))
+            {
+                _mover.MoveTo(targetPosition);
+                State = PlayerState.Moving;
+                return;
+            }
+
+            _mover.Stop();
+            _mover.FaceTowards(targetPosition);
+
+            if (State == PlayerState.Moving)
+            {
+                State = PlayerState.Idle;
+            }
+
+            if (Time.time < _nextHeldSkillTime)
+            {
+                return;
+            }
+
+            _nextHeldSkillTime = Time.time + _heldSkillRepeatInterval;
+            UseSkill(slot, targetPosition);
+        }
+
+        // 대상 지정 시전 사거리: 기술 반경의 80% (대상 중심이 범위 안쪽에 확실히 들어오도록). 기술이 없으면 기본 공격 사거리
+        private float GetSkillReach(SkillSlot slot)
+        {
+            float radius = _skillCaster != null ? _skillCaster.GetRange(slot) : 0f;
+            return radius > 0f ? radius * SKILL_REACH_RATIO : _basicAttack.Range;
+        }
+
+        /// <summary>
         /// 이동 중지 (기술 키를 뗄 때).
         /// </summary>
         public void StopMoving()
@@ -274,11 +342,16 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
-        /// HUD 기술 슬롯 표시용 상태. 기술 시스템(SkillCaster) 구현 전까지
-        /// 좌클릭은 기본 공격 간격, 우클릭은 유지 시전 간격을 표시하고 1~4번은 미개방(무직)으로 표시합니다.
+        /// HUD 기술 슬롯 표시용 상태. SkillCaster에 기술이 연결된 슬롯은 기술 재사용 대기를 표시합니다.
+        /// 그 외: 좌클릭은 기본 공격 간격, 우클릭은 유지 시전 간격, 1~4번은 미개방(무직)
         /// </summary>
         public SkillSlotState GetSlotState(SkillSlot slot)
         {
+            if (_skillCaster != null && _skillCaster.HasSkill(slot))
+            {
+                return _skillCaster.GetSlotState(slot);
+            }
+
             switch (slot)
             {
                 case SkillSlot.LeftClick:

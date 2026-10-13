@@ -14,6 +14,8 @@ namespace BrokenSovereign.Player
     {
         [Tooltip("CharacterStats가 없을 때 사용하는 이동 속도")]
         [SerializeField] private float _moveSpeed = 6f;
+        [Tooltip("켜면 이동 방향으로 즉시 회전 (ARPG 방식). 끄면 NavMeshAgent 회전 속도로 서서히 회전")]
+        [SerializeField] private bool _instantTurn = true;
         [SerializeField] private float _angularSpeed = 720f;
         [SerializeField] private float _acceleration = 60f;
         [SerializeField] private float _repathDistance = 0.3f;
@@ -39,6 +41,34 @@ namespace BrokenSovereign.Player
             ApplySpeed();
             _agent.angularSpeed = _angularSpeed;
             _agent.acceleration = _acceleration;
+            _agent.updateRotation = !_instantTurn;
+        }
+
+        // 즉시 회전: 에이전트가 가려는 방향(desiredVelocity)을 바로 바라봄. 출발 직후 가속 중에도 방향은 즉시 전환
+        private void LateUpdate()
+        {
+            if (!_instantTurn || !_agent.isOnNavMesh || _agent.isStopped)
+            {
+                return;
+            }
+
+            Vector3 direction = _agent.desiredVelocity;
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude > 0.01f)
+            {
+                transform.rotation = Quaternion.LookRotation(direction);
+            }
+        }
+
+        // Play 중 Inspector 변경 반영
+        private void OnValidate()
+        {
+            if (_agent != null)
+            {
+                _agent.updateRotation = !_instantTurn;
+                _agent.angularSpeed = _angularSpeed;
+            }
         }
 
         public void MoveTo(Vector3 point)
