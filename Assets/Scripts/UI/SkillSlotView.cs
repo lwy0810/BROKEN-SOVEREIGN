@@ -16,6 +16,8 @@ namespace BrokenSovereign.UI
         private Text _keyText;
         private Text _cooldownText;
         private Text _countText;
+        private Text _nameText;
+        private string _skillName;
 
         public RectTransform Rect => (RectTransform)transform;
 
@@ -41,6 +43,37 @@ namespace BrokenSovereign.UI
             _keyText = CreateText("Key", TextAnchor.LowerRight);
             _keyText.text = key;
             _countText = CreateText("Count", TextAnchor.UpperLeft);
+
+            // 기술 이름: 슬롯 바로 아래 (슬롯 밖)
+            _nameText = CreateText("SkillName", TextAnchor.UpperCenter);
+            RectTransform nameRect = _nameText.rectTransform;
+            nameRect.anchorMin = new Vector2(0f, 0f);
+            nameRect.anchorMax = new Vector2(1f, 0f);
+            nameRect.pivot = new Vector2(0.5f, 1f);
+            _nameText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _nameText.text = string.Empty;
+        }
+
+        /// <summary>장착 기술 이름 표시. null·빈 문자열이면 숨김</summary>
+        public void SetSkillName(string skillName)
+        {
+            skillName ??= string.Empty;
+
+            if (skillName == _skillName)
+            {
+                return;
+            }
+
+            _skillName = skillName;
+            _nameText.text = skillName;
+        }
+
+        public void ApplyNameStyle(JobDisplaySettings settings)
+        {
+            _nameText.fontSize = settings.SkillNameFontSize;
+            RectTransform nameRect = _nameText.rectTransform;
+            nameRect.sizeDelta = new Vector2(0f, settings.SkillNameFontSize + 6f);
+            nameRect.anchoredPosition = new Vector2(0f, -settings.SkillNameGap);
         }
 
         public void ApplyStyle(SkillBarSettings settings)
