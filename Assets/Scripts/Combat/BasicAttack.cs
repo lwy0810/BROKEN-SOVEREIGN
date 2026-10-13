@@ -104,26 +104,7 @@ namespace BrokenSovereign.Combat
 
         private DamageInfo BuildDamage(GameObject attacker, StatSheet stats)
         {
-            const DamageType type = DamageType.Physical;
-
-            if (stats == null)
-            {
-                float plain = DamageCalculator.Calculate(new DamageRequest(_attackPower, _coefficient));
-                return new DamageInfo(attacker, plain, true, type);
-            }
-
-            bool isCritical = StatFormula.RollCrit(stats.Get(StatType.CritChance), UnityEngine.Random.value);
-            float critMultiplier = isCritical ? 1f + Mathf.Max(0f, stats.Get(StatType.CritDamage)) : 1f;
-
-            float amount = DamageCalculator.Calculate(new DamageRequest(
-                stats.Get(StatType.AttackPower),
-                _coefficient,
-                stats.GetDamageBonus(type),
-                0f,
-                stats.MainStatDamageMultiplier,
-                critMultiplier));
-
-            return new DamageInfo(attacker, amount, true, type, isCritical);
+            return AttackDamage.Build(attacker, stats, _coefficient, _attackPower, true);
         }
     }
 }
