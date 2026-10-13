@@ -48,6 +48,9 @@ namespace BrokenSovereign.UI
             _background.color = settings.SlotColor;
             _frame.effectColor = settings.FrameColor;
             _cooldown.color = settings.CooldownColor;
+
+            // 남은 비율만큼 막을 그림. 막을 반시계로 그리면 걷히는 쪽(밝아지는 영역)이 시계 방향으로 진행
+            _cooldown.fillClockwise = !settings.CooldownSweepClockwise;
             _locked.color = settings.LockedColor;
             _keyText.fontSize = settings.KeyFontSize;
             _countText.fontSize = settings.KeyFontSize;

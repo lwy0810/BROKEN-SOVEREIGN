@@ -175,10 +175,19 @@ namespace BrokenSovereign.Player
 
         /// <summary>
         /// 우클릭 유지: 커서 방향으로 이동하며 주력 기술 반복 시전. Shift를 누르고 있으면 제자리 시전.
+        /// 커서가 적 위에 있으면 그 적을 향해 접근·시전.
         /// </summary>
         private void HandleSecondaryHeld()
         {
-            _controller.CastWhileHeld(SkillSlot.RightClick, GetCursorGroundPoint(), !_standStill.IsPressed());
+            bool standStill = _standStill.IsPressed();
+
+            if (!standStill && TryGetEnemyUnderCursor(out Transform enemy))
+            {
+                _controller.CastAtTarget(SkillSlot.RightClick, enemy);
+                return;
+            }
+
+            _controller.CastWhileHeld(SkillSlot.RightClick, GetCursorGroundPoint(), !standStill);
         }
 
         private void OnSkillKeyPerformed(InputAction.CallbackContext context)

@@ -54,6 +54,9 @@ namespace BrokenSovereign.UI
         public Color SlotColor = new Color(0.08f, 0.07f, 0.1f, 0.85f);
         public Color FrameColor = new Color(0.78f, 0.6f, 0.28f, 0.9f);
         public Color CooldownColor = new Color(0f, 0f, 0f, 0.65f);
+
+        [Tooltip("켜면 재사용 대기 막이 12시에서 시계 방향으로 걷히며 사용 가능 영역이 시계 방향으로 차오름")]
+        public bool CooldownSweepClockwise = true;
         public Color LockedColor = new Color(0f, 0f, 0f, 0.7f);
         public int KeyFontSize = 16;
         public int CooldownFontSize = 24;
