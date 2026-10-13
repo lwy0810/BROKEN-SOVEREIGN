@@ -2867,6 +2867,7 @@ MonoBehaviour:
     SlotColor: {r: 0.08, g: 0.07, b: 0.1, a: 0.85}
     FrameColor: {r: 0.78, g: 0.6, b: 0.28, a: 0.9}
     CooldownColor: {r: 0, g: 0, b: 0, a: 0.65}
+    CooldownSweepClockwise: 1
     LockedColor: {r: 0, g: 0, b: 0, a: 0.7}
     KeyFontSize: 16
     CooldownFontSize: 24
@@ -3793,6 +3794,7 @@ GameObject:
   - component: {fileID: 2092739941}
   - component: {fileID: 2092739942}
   - component: {fileID: 2092739943}
+  - component: {fileID: 2092739944}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -3888,6 +3890,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Player.ClickMover
   _moveSpeed: 6
+  _instantTurn: 1
   _angularSpeed: 720
   _acceleration: 60
   _repathDistance: 0.3
@@ -4046,6 +4049,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.CharacterStats
   _data: {fileID: 11400000, guid: b5a0902e2d4a4a0c87f6e42efebc59fa, type: 2}
+--- !u!114 &2092739944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 922432982f774a18867efc3eb3ef5e19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillCaster
+  _bindings:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: 7075b7f3d0994b9e854bd1cd10c3f9c0, type: 2}
+  _targetMask:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0
