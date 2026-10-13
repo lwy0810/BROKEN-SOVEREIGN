@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BrokenSovereign.Core;
 using UnityEngine;
 
 namespace BrokenSovereign.Skill
@@ -24,6 +25,18 @@ namespace BrokenSovereign.Skill
             }
         }
 
+        [Serializable]
+        public struct SkillModifierEntry
+        {
+            [Tooltip("SkillParameterKeys 이름")]
+            public string Key;
+
+            [Tooltip("Flat: 더하기 / Percent: (1 + 값) 곱하기 / Multiplicative: 값 곱하기")]
+            public ModifierType Type;
+
+            public float Value;
+        }
+
         [Tooltip("기술 고유 ID (재사용 대기·분기 저장 키)")]
         [SerializeField] private string _skillId = "skill";
         [SerializeField] private string _displayName = "기술";
@@ -38,6 +51,9 @@ namespace BrokenSovereign.Skill
         {
             new SkillParameter(SkillParameterKeys.COEFFICIENT, 1f)
         };
+
+        [Tooltip("신앙 충만 시 적용할 수치 수정치")]
+        [SerializeField] private List<SkillModifierEntry> _empoweredModifiers = new List<SkillModifierEntry>();
 
         [SerializeField] private SkillBehaviour _behaviour;
 
@@ -62,7 +78,7 @@ namespace BrokenSovereign.Skill
         }
 
         /// <summary>시전마다 새 수치 목록 생성 (분기·충만 수정치가 에셋을 바꾸지 않도록)</summary>
-        public SkillParameterSet CreateParameters()
+        public SkillParameterSet CreateParameters(bool empowered = false)
         {
             var set = new SkillParameterSet();
 
@@ -71,6 +87,17 @@ namespace BrokenSovereign.Skill
                 if (!string.IsNullOrEmpty(parameter.Key))
                 {
                     set.Set(parameter.Key, parameter.Value);
+                }
+            }
+
+            if (empowered)
+            {
+                foreach (SkillModifierEntry entry in _empoweredModifiers)
+                {
+                    if (!string.IsNullOrEmpty(entry.Key))
+                    {
+                        set.Apply(new SkillParameterModifier(entry.Key, entry.Type, entry.Value));
+                    }
                 }
             }
 

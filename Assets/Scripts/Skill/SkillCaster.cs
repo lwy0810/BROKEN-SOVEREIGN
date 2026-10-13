@@ -7,27 +7,23 @@ using UnityEngine;
 namespace BrokenSovereign.Skill
 {
     /// <summary>
-    /// 슬롯에 연결된 기술을 시전합니다: 재사용 대기 확인 → 수치 생성 → SkillBehaviour 실행 → 재사용 대기 시작.
+    /// 슬롯에 연결된 기술을 시전합니다:
+    /// 재사용 대기·마나 확인 → 마나 소모 → 수치 생성(직업 게이지 버프 중이면 충만 수정치) → SkillBehaviour 실행 → 재사용 대기 시작.
     /// 지속 기술은 끝날 때까지 매 프레임 Tick을 호출합니다.
-    /// 슬롯 연결은 임시로 Inspector 목록을 사용하며, SkillLoadout(후보 장착·해금) 구현 시 교체합니다.
-    /// 자원 소모·강화 분기·충만은 다음 단계에서 연결합니다.
+    /// 슬롯 기술은 직업 전환(PlayerJob)이 SetSkill로 교체합니다. Inspector 목록은 초기값입니다.
+    /// 강화 분기는 다음 단계에서 연결합니다.
     /// </summary>
     public class SkillCaster : MonoBehaviour
     {
-        [Serializable]
-        private struct SkillSlotBinding
-        {
-            public SkillSlot Slot;
-            public SkillDefinition Skill;
-        }
-
-        [SerializeField] private List<SkillSlotBinding> _bindings = new List<SkillSlotBinding>();
+        [SerializeField] private List<SkillSlotAssignment> _bindings = new List<SkillSlotAssignment>();
 
         [Tooltip("기술 피해 대상 레이어 (Enemy)")]
         [SerializeField] private LayerMask _targetMask;
 
         private readonly CooldownTracker _cooldowns = new CooldownTracker();
         private readonly List<SkillContext> _activeCasts = new List<SkillContext>();
+        private readonly List<ISkillResource> _resourceBuffer = new List<ISkillResource>();
+        private readonly List<ISkillEmpowerSource> _empowerBuffer = new List<ISkillEmpowerSource>();
         private CharacterStats _stats;
 
         /// <summary>기술을 시전했을 때 (슬롯, 기술)</summary>
@@ -51,7 +47,7 @@ namespace BrokenSovereign.Skill
 
         public SkillDefinition GetSkill(SkillSlot slot)
         {
-            foreach (SkillSlotBinding binding in _bindings)
+            foreach (SkillSlotAssignment binding in _bindings)
             {
                 if (binding.Slot == slot && binding.Skill != null)
                 {
@@ -60,6 +56,22 @@ namespace BrokenSovereign.Skill
             }
 
             return null;
+        }
+
+        /// <summary>슬롯 기술 교체. null이면 슬롯 비움</summary>
+        public void SetSkill(SkillSlot slot, SkillDefinition skill)
+        {
+            _bindings.RemoveAll(binding => binding.Slot == slot);
+
+            if (skill != null)
+            {
+                _bindings.Add(new SkillSlotAssignment(slot, skill));
+            }
+        }
+
+        public void ClearSkills()
+        {
+            _bindings.Clear();
         }
 
         /// <summary>대상 지정 시 접근할 사거리 (기술 반경). 기술이 없거나 반경이 없으면 0</summary>
@@ -84,8 +96,21 @@ namespace BrokenSovereign.Skill
                 return false;
             }
 
+            if (skill.ResourceCost > 0f)
+            {
+                ISkillResource resource = FindActiveResource();
+
+                if (resource == null || !resource.TrySpend(skill.ResourceCost))
+                {
+                    return false;
+                }
+            }
+
+            bool empowered = IsEmpowered();
+
             StatSheet stats = _stats != null ? _stats.Sheet : null;
-            var context = new SkillContext(skill, transform, cursorPoint, skill.CreateParameters(), stats, _targetMask);
+            var context = new SkillContext(skill, transform, cursorPoint, skill.CreateParameters(empowered), stats,
+                _targetMask, empowered);
 
             skill.Behaviour.Begin(context);
             _activeCasts.Add(context);
@@ -105,6 +130,45 @@ namespace BrokenSovereign.Skill
             }
 
             return new SkillSlotState(true, _cooldowns.Remaining(skill.SkillId), _cooldowns.Duration(skill.SkillId));
+        }
+
+        /// <summary>직업 게이지 버프 등으로 기술 강화 중인지</summary>
+        public bool IsEmpowered()
+        {
+            GetComponents(_empowerBuffer);
+
+            foreach (ISkillEmpowerSource source in _empowerBuffer)
+            {
+                if (source is Behaviour behaviour && !behaviour.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (source.IsSkillEmpowered)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // 켜져 있는 기술 비용 자원 (마나)
+        private ISkillResource FindActiveResource()
+        {
+            GetComponents(_resourceBuffer);
+
+            foreach (ISkillResource resource in _resourceBuffer)
+            {
+                if (resource is Behaviour behaviour && !behaviour.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                return resource;
+            }
+
+            return null;
         }
 
         // 재사용 대기 감소 능력치 적용 (최대 90%)

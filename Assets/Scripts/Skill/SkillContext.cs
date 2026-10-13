@@ -23,12 +23,16 @@ namespace BrokenSovereign.Skill
         /// <summary>피해 대상 레이어 (Enemy)</summary>
         public LayerMask TargetMask { get; }
 
+        /// <summary>충만 강화 시전 여부 (수치는 이미 강화 수정치 적용됨. 동작 추가가 필요한 기술만 확인)</summary>
+        public bool IsEmpowered { get; }
+
         /// <summary>시전 후 경과 시간 (지속 기술용)</summary>
         public float Elapsed { get; set; }
 
         public SkillContext(SkillDefinition definition, Transform caster, Vector3 cursorPoint,
-            SkillParameterSet parameters, StatSheet stats, LayerMask targetMask)
+            SkillParameterSet parameters, StatSheet stats, LayerMask targetMask, bool isEmpowered = false)
         {
+            IsEmpowered = isEmpowered;
             Definition = definition;
             Caster = caster;
             CursorPoint = cursorPoint;

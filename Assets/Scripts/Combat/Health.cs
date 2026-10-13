@@ -30,6 +30,12 @@ namespace BrokenSovereign.Combat
         /// <summary>피해가 적용됐을 때</summary>
         public event Action<DamageInfo> Damaged;
 
+        /// <summary>
+        /// 모든 Health의 피해 적용 알림 (피해 입은 쪽, 최종 피해). 자원 충전·전투 상태처럼
+        /// 여러 대상의 피격을 한곳에서 받아야 하는 시스템용. EventBus 도입 시 교체 예정
+        /// </summary>
+        public static event Action<Health, DamageInfo> AnyDamaged;
+
         /// <summary>무적으로 피해를 무시했을 때</summary>
         public event Action<DamageInfo> DamageIgnored;
 
@@ -128,6 +134,7 @@ namespace BrokenSovereign.Combat
 
             _current = Mathf.Max(0f, _current - final.Amount);
             Damaged?.Invoke(final);
+            AnyDamaged?.Invoke(this, final);
 
             if (IsDead)
             {
