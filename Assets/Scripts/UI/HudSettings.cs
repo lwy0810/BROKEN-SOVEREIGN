@@ -58,4 +58,31 @@ namespace BrokenSovereign.UI
         public int KeyFontSize = 16;
         public int CooldownFontSize = 24;
     }
+
+    /// <summary>선택 대상 표시 설정: 발밑 원 테두리와 화면 상단 체력 게이지 (Play 중 Inspector 변경 시 즉시 반영)</summary>
+    [Serializable]
+    public class TargetSettings
+    {
+        [Header("대상 원 테두리")]
+        public Color RingColor = Color.white;
+        public float RingWidth = 0.06f;
+
+        [Tooltip("대상 충돌체 바깥으로 더 벌리는 거리 (m)")]
+        public float RingPadding = 0.25f;
+
+        [Tooltip("바닥에 묻히지 않도록 띄우는 높이 (m)")]
+        public float RingHeightOffset = 0.03f;
+
+        [Header("상단 체력 게이지")]
+        public Vector2 BarSize = new Vector2(420f, 20f);
+
+        [Tooltip("화면 위쪽과 게이지 사이 여백 (이름 표시 공간 포함)")]
+        public float TopMargin = 48f;
+
+        public Color BarColor = new Color(0.72f, 0.07f, 0.09f);
+        public Color BarBackgroundColor = new Color(0f, 0f, 0f, 0.7f);
+        public Color FrameColor = new Color(0.78f, 0.6f, 0.28f, 0.9f);
+        public int NameFontSize = 20;
+        public int PercentFontSize = 15;
+    }
 }

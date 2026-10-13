@@ -20,6 +20,9 @@ namespace BrokenSovereign.Player
         [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
         [SerializeField] private float _heldSkillRepeatInterval = 0.5f;
 
+        [Tooltip("선택한 대상이 이 거리(m)보다 멀어지면 선택 해제")]
+        [SerializeField] private float _targetKeepDistance = 20f;
+
         private ClickMover _mover;
         private DodgeAction _dodge;
         private PotionUser _potion;
@@ -37,6 +40,12 @@ namespace BrokenSovereign.Player
         public bool IsDead => State == PlayerState.Dead;
         public float BasicAttackRange => _basicAttack.Range;
         public bool HasEngageTarget => _engageTarget != null;
+
+        /// <summary>
+        /// 선택한 대상 (원 테두리·상단 체력 게이지 표시용). 교전과 별개로 유지되며,
+        /// 다른 적을 선택하거나 대상이 죽거나 멀어지면 바뀝니다. 바닥 클릭 이동으로는 해제되지 않습니다.
+        /// </summary>
+        public Health CurrentTarget { get; private set; }
 
         /// <summary>기본 공격이 실제로 나갔을 때 (공격 지점)</summary>
         public event Action<Vector3> BasicAttacked;
@@ -87,6 +96,8 @@ namespace BrokenSovereign.Player
             {
                 return;
             }
+
+            UpdateSelectedTarget();
 
             if (_engageTarget != null)
             {
@@ -144,6 +155,7 @@ namespace BrokenSovereign.Player
 
             _engageAction = action;
             _engageTarget = target;
+            SelectTarget(target);
             _isEngageHeld = true;
             _hasEngageExecuted = false;
 
@@ -364,6 +376,38 @@ namespace BrokenSovereign.Player
             return true;
         }
 
+        /// <summary>선택 대상 해제</summary>
+        public void ClearTarget()
+        {
+            CurrentTarget = null;
+        }
+
+        private void SelectTarget(Transform target)
+        {
+            Health health = target.GetComponentInParent<Health>();
+
+            if (health != null)
+            {
+                CurrentTarget = health;
+            }
+        }
+
+        // 사라졌거나 죽었거나 멀어진 대상은 선택 해제
+        private void UpdateSelectedTarget()
+        {
+            if (CurrentTarget == null)
+            {
+                return;
+            }
+
+            if (CurrentTarget.IsDead
+                || !CurrentTarget.gameObject.activeInHierarchy
+                || !IsInRange(CurrentTarget.transform.position, _targetKeepDistance))
+            {
+                ClearTarget();
+            }
+        }
+
         private void ClearEngage()
         {
             _engageAction = null;
@@ -378,6 +422,7 @@ namespace BrokenSovereign.Player
         private void OnDied()
         {
             ClearEngage();
+            ClearTarget();
             _mover.Stop();
             State = PlayerState.Dead;
             Debug.Log("PlayerController: 사망");

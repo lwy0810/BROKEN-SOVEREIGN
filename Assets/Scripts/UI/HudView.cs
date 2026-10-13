@@ -8,7 +8,8 @@ using UnityEngine.UI;
 namespace BrokenSovereign.UI
 {
     /// <summary>
-    /// 전투 HUD (GDD 10장): 가운데 기술 슬롯과 물약·회피, 그 양 옆에 체력 구슬(왼쪽)과 직업 자원 구슬(오른쪽).
+    /// 전투 HUD (GDD 10장): 가운데 기술 슬롯과 물약·회피, 그 양 옆에 체력 구슬(왼쪽)과 직업 자원 구슬(오른쪽),
+    /// 선택한 대상의 상단 체력 게이지와 발밑 원 테두리.
     /// 시작 시 코드로 UI를 만들고, 매 프레임 플레이어 상태를 읽어 표시합니다 (UI는 읽기 전용).
     /// 배치·색·연출 값은 Play 중 Inspector에서 바꾸면 즉시 반영됩니다.
     /// 아트 확정 후 프리팹으로 옮길 예정입니다.
@@ -29,6 +30,7 @@ namespace BrokenSovereign.UI
         [SerializeField] private Vector2 _referenceResolution = new Vector2(1920f, 1080f);
         [SerializeField] private OrbSettings _orb = new OrbSettings();
         [SerializeField] private SkillBarSettings _bar = new SkillBarSettings();
+        [SerializeField] private TargetSettings _target = new TargetSettings();
 
         private Health _health;
         private IResourceGauge _resource;
@@ -43,6 +45,9 @@ namespace BrokenSovereign.UI
         private SkillSlotView[] _skillSlots;
         private SkillSlotView _potionSlot;
         private SkillSlotView _dodgeSlot;
+        private TargetFrameView _targetFrame;
+        private TargetRingView _targetRing;
+        private Health _shownTarget;
         private bool _isBuilt;
 
         private void Awake()
@@ -103,6 +108,31 @@ namespace BrokenSovereign.UI
             {
                 _dodgeSlot.SetState(new SkillSlotState(true, _dodge.CooldownRemaining, _dodge.Cooldown));
             }
+
+            UpdateTarget();
+        }
+
+        private void OnDestroy()
+        {
+            if (_targetRing != null)
+            {
+                Destroy(_targetRing.gameObject);
+            }
+        }
+
+        // 플레이어가 선택한 대상이 바뀌면 원 테두리와 상단 게이지를 새 대상으로 전환
+        private void UpdateTarget()
+        {
+            Health target = _player.CurrentTarget;
+
+            if (target == _shownTarget)
+            {
+                return;
+            }
+
+            _shownTarget = target;
+            _targetFrame.SetTarget(target);
+            _targetRing.SetTarget(target);
         }
 
         // Play 중 Inspector 값 변경을 즉시 반영
@@ -157,6 +187,13 @@ namespace BrokenSovereign.UI
 
             _potionSlot = CreateSlot("Slot_Potion", "Q");
             _dodgeSlot = CreateSlot("Slot_Dodge", "SPACE");
+
+            _targetFrame = HudGraphics.CreateRect("TargetFrame", transform).gameObject.AddComponent<TargetFrameView>();
+            _targetFrame.Initialize();
+
+            // 원 테두리는 월드에 그리므로 Canvas 밖에 생성
+            _targetRing = new GameObject("TargetRing", typeof(LineRenderer)).AddComponent<TargetRingView>();
+            _targetRing.Initialize(_target);
             _isBuilt = true;
         }
 
@@ -195,6 +232,11 @@ namespace BrokenSovereign.UI
             PlaceSlot(_potionSlot, x);
             x += slot + _bar.Spacing;
             PlaceSlot(_dodgeSlot, x);
+
+            // 대상 체력 게이지는 화면 위 가운데
+            PlaceCorner(_targetFrame.Rect, new Vector2(0.5f, 1f), new Vector2(0f, -_target.TopMargin), _target.BarSize);
+            _targetFrame.ApplyStyle(_target);
+            _targetRing.ApplyStyle(_target);
         }
 
         // 활성화된 자원 컴포넌트 중 첫 번째. 전직 시 이전 자원을 끄고 새 자원을 켜면 HUD가 따라감
