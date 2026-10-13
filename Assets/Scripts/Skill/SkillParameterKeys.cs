@@ -13,5 +13,23 @@ namespace BrokenSovereign.Skill
 
         /// <summary>부채꼴 각도 (도)</summary>
         public const string ANGLE = "angle";
+
+        /// <summary>이동 거리 (m, 돌진 등)</summary>
+        public const string DISTANCE = "distance";
+
+        /// <summary>지속 시간 (초, 돌진·버프)</summary>
+        public const string DURATION = "duration";
+
+        /// <summary>경로 판정 반경 (m)</summary>
+        public const string HIT_RADIUS = "hitRadius";
+
+        /// <summary>기절 시간 (초)</summary>
+        public const string STUN_DURATION = "stunDuration";
+
+        /// <summary>받는 피해 감소 (0.3 = 30%)</summary>
+        public const string DAMAGE_REDUCTION = "damageReduction";
+
+        /// <summary>피격 시 직업 게이지 충전량 증가 (1 = +100%, 2배)</summary>
+        public const string GAUGE_GAIN_ON_DAMAGED = "gaugeGainOnDamaged";
     }
 }

@@ -29,6 +29,14 @@ namespace BrokenSovereign.Skill
         /// <summary>시전 후 경과 시간 (지속 기술용)</summary>
         public float Elapsed { get; set; }
 
+        /// <summary>지속 기술의 전체 시간. 0보다 크면 HUD에 남은 시간 표시 (버프 등)</summary>
+        public float Duration { get; set; }
+
+        public float Remaining => Mathf.Max(0f, Duration - Elapsed);
+
+        /// <summary>동작별 시전 상태 저장 (SkillBehaviour 에셋은 공유되므로 시전마다 여기에 보관)</summary>
+        public object State { get; set; }
+
         public SkillContext(SkillDefinition definition, Transform caster, Vector3 cursorPoint,
             SkillParameterSet parameters, StatSheet stats, LayerMask targetMask, bool isEmpowered = false)
         {

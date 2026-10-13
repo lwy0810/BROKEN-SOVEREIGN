@@ -52,6 +52,9 @@ namespace BrokenSovereign.Skill
             new SkillParameter(SkillParameterKeys.COEFFICIENT, 1f)
         };
 
+        [Tooltip("켜면 기술이 진행되는 동안 이동·다른 행동 잠금 (돌진 등). 회피는 가능")]
+        [SerializeField] private bool _locksMovement;
+
         [Tooltip("신앙 충만 시 적용할 수치 수정치")]
         [SerializeField] private List<SkillModifierEntry> _empoweredModifiers = new List<SkillModifierEntry>();
 
@@ -62,6 +65,7 @@ namespace BrokenSovereign.Skill
         public float Cooldown => _cooldown;
         public float ResourceCost => _resourceCost;
         public SkillBehaviour Behaviour => _behaviour;
+        public bool LocksMovement => _locksMovement;
 
         /// <summary>에셋에 적힌 기본 수치 하나 (분기·충만 적용 전). 없으면 fallback</summary>
         public float GetBaseParameter(string key, float fallback = 0f)

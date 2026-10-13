@@ -64,6 +64,10 @@ namespace BrokenSovereign.Combat
         [Tooltip("물약 회복량 증가")]
         [SerializeField] private float _potionHealing;
 
+        [Header("직업")]
+        [Tooltip("피격 시 직업 게이지 충전량 증가 (1 = +100%)")]
+        [SerializeField] private float _gaugeGainOnDamaged;
+
         /// <summary>주 스탯. 무직이면 null</summary>
         public StatType? MainStat => _hasMainStat ? _mainStat : (StatType?)null;
 
@@ -92,6 +96,7 @@ namespace BrokenSovereign.Combat
                 case StatType.CooldownReduction: return _cooldownReduction;
                 case StatType.ResourceCostReduction: return _resourceCostReduction;
                 case StatType.PotionHealing: return _potionHealing;
+                case StatType.GaugeGainOnDamaged: return _gaugeGainOnDamaged;
                 default: throw new ArgumentOutOfRangeException(nameof(stat), stat, "CharacterStatsData에 필드가 없는 능력치입니다.");
             }
         }

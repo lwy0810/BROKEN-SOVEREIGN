@@ -490,7 +490,9 @@ namespace BrokenSovereign.Player
         }
 
         // 회피 중·사망 시 다른 행동 불가
-        private bool IsActionLocked => State == PlayerState.Dodging || State == PlayerState.Dead;
+        // 회피·사망·이동 잠금 기술(돌진 등) 진행 중에는 다른 행동 불가
+        private bool IsActionLocked => State == PlayerState.Dodging || State == PlayerState.Dead
+            || (_skillCaster != null && _skillCaster.IsMovementLocked);
 
         private void OnDied()
         {
