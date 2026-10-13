@@ -14,6 +14,10 @@ namespace BrokenSovereign.Ascension
     {
         [SerializeField] private string _jobId = "job";
         [SerializeField] private string _displayName = "직업";
+        [Tooltip("주 스탯 사용 여부. 무직은 끔 (주 스탯 피해 보너스 없음)")]
+        [SerializeField] private bool _hasMainStat;
+        [SerializeField] private StatType _mainStat = StatType.Strength;
+
         [Tooltip("직업 게이지 (기술 바 위 막대). 무직은 None")]
         [SerializeField] private JobResourceType _resource = JobResourceType.None;
 
@@ -26,5 +30,8 @@ namespace BrokenSovereign.Ascension
         public JobResourceType Resource => _resource;
         public IReadOnlyList<SkillSlotAssignment> Skills => _skills;
         public GaugeBuffSettings GaugeBuff => _gaugeBuff;
+
+        /// <summary>주 스탯. 무직이면 null</summary>
+        public StatType? MainStat => _hasMainStat ? _mainStat : (StatType?)null;
     }
 }

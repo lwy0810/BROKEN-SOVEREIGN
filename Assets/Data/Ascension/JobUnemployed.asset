@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.JobDefinition
   _jobId: unemployed
   _displayName: "\uBB34\uC9C1"
+  _hasMainStat: 0
+  _mainStat: 0
   _resource: 0
   _gaugeBuff:
     DisplayName: "\uCDA9\uB9CC"
