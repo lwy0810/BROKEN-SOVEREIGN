@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.JobDefinition
   _jobId: paladin
   _displayName: "\uC131\uAE30\uC0AC"
+  _hasMainStat: 1
+  _mainStat: 0
   _resource: 1
   _gaugeBuff:
     DisplayName: "\uCDA9\uB9CC"
@@ -29,3 +31,7 @@ MonoBehaviour:
   _skills:
   - Slot: 1
     Skill: {fileID: 11400000, guid: ca3c4dc4c7844062967a8e7097a31c76, type: 2}
+  - Slot: 2
+    Skill: {fileID: 11400000, guid: 73b3cb488b4945e8acdd01b90ef35a22, type: 2}
+  - Slot: 3
+    Skill: {fileID: 11400000, guid: 57013d9399064fbc8de038862311ede3, type: 2}

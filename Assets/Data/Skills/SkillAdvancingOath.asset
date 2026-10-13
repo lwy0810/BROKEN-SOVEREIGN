@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 829de8fe4427461e880102b35fec0811, type: 3}
+  m_Name: SkillAdvancingOath
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
+  _skillId: advancing_oath
+  _displayName: "\uC9C4\uACA9\uC758 \uB9F9\uC138"
+  _cooldown: 6
+  _resourceCost: 20
+  _parameters:
+  - Key: coefficient
+    Value: 1.2
+  - Key: distance
+    Value: 5
+  - Key: duration
+    Value: 0.25
+  - Key: hitRadius
+    Value: 1
+  - Key: stunDuration
+    Value: 0.5
+  _locksMovement: 1
+  _empoweredModifiers:
+  - Key: coefficient
+    Type: 1
+    Value: 0.5
+  - Key: distance
+    Type: 1
+    Value: 0.3
+  _behaviour: {fileID: 11400000, guid: 1ab6b59977cc4fdb8b37a57cf2b4cfa5, type: 2}
