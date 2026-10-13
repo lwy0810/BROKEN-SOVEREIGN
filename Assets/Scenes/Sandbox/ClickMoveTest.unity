@@ -2883,6 +2883,25 @@ MonoBehaviour:
     FrameColor: {r: 0.78, g: 0.6, b: 0.28, a: 0.9}
     NameFontSize: 20
     PercentFontSize: 15
+  _jobDisplay:
+    LabelFontSize: 20
+    LabelGapToBar: 10
+    LabelColor: {r: 1, g: 0.92, b: 0.7, a: 1}
+    NoticeFontSize: 52
+    NoticeOffsetY: 160
+    NoticeDuration: 1.5
+    NoticeFadeTime: 0.5
+    NoticeColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+    SkillNameFontSize: 13
+    SkillNameGap: 2
+  _jobGauge:
+    Height: 16
+    GapToBar: 8
+    BackgroundColor: {r: 0, g: 0, b: 0, a: 0.7}
+    FrameColor: {r: 0.78, g: 0.6, b: 0.28, a: 0.9}
+    FontSize: 13
+    BuffPulseSpeed: 6
+    BuffPulseStrength: 0.5
 --- !u!4 &1585798823
 Transform:
   m_ObjectHideFlags: 0
@@ -3792,9 +3811,11 @@ GameObject:
   - component: {fileID: 2092739939}
   - component: {fileID: 2092739940}
   - component: {fileID: 2092739941}
-  - component: {fileID: 2092739942}
   - component: {fileID: 2092739943}
   - component: {fileID: 2092739944}
+  - component: {fileID: 2092739946}
+  - component: {fileID: 2092739945}
+  - component: {fileID: 2092739947}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -3948,7 +3969,7 @@ Transform:
   m_GameObject: {fileID: 2092739928}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 1, z: -7.98}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4020,22 +4041,6 @@ MonoBehaviour:
   _flashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
   _flashDuration: 0.12
   _popupDuration: 0.8
---- !u!114 &2092739942
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2092739928}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 172f602f99703394ca6c613539a1ea0b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Player.TestEnergyGauge
-  _max: 100
-  _costPerSkill: 15
-  _regenPerSecond: 8
-  _displayColor: {r: 0.16, g: 0.38, b: 0.95, a: 1}
 --- !u!114 &2092739943
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4067,6 +4072,66 @@ MonoBehaviour:
   _targetMask:
     serializedVersion: 2
     m_Bits: 512
+--- !u!114 &2092739945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a14fcdcb31f493f82c3f4c11a6097bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.PlayerJob
+  _unemployed: {fileID: 11400000, guid: 02d74b951d8d4c638026ecd24cad9323, type: 2}
+  _debugJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
+  _startWithDebugJob: 0
+  _enableDebugKey: 1
+--- !u!114 &2092739946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba44130559b64f04aac1721e37815c46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.FaithController
+  _max: 100
+  _gainPerBasicHit: 5
+  _gainPerDamaged: 3
+  _decayPerSecond: 5
+  _outOfCombatDelay: 5
+  _displayColor: {r: 1, g: 0.78, b: 0.25, a: 1}
+  _buff:
+    DisplayName: "\uCDA9\uB9CC"
+    Duration: 10
+    EmpowerSkills: 1
+    Modifiers:
+    - Stat: 4
+      Type: 0
+      Value: 0.25
+    - Stat: 16
+      Type: 0
+      Value: 0.15
+--- !u!114 &2092739947
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6fa14920e07f464e8f34887360f29dda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.ManaController
+  _max: 100
+  _regenPerSecond: 8
+  _displayColor: {r: 0.16, g: 0.38, b: 0.95, a: 1}
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0

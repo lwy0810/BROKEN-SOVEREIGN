@@ -17,7 +17,7 @@ MonoBehaviour:
   _strength: 0
   _agility: 0
   _intelligence: 0
-  _attackPower: 40
+  _attackPower: 5
   _damageBonus: 0
   _physicalDamageBonus: 0
   _elementalDamageBonus: 0
