@@ -1,0 +1,19 @@
+{
+    "name": "BrokenSovereign.Editor",
+    "rootNamespace": "BrokenSovereign.Editor",
+    "references": [
+        "BrokenSovereign",
+        "Unity.AI.Navigation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
