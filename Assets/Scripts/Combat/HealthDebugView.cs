@@ -44,6 +44,7 @@ namespace BrokenSovereign.Combat
             public string Text;
             public Color Color;
             public float StartTime;
+            public float Scale;
         }
 
         private readonly List<Popup> _popups = new List<Popup>();
@@ -53,6 +54,7 @@ namespace BrokenSovereign.Combat
         private MaterialPropertyBlock _flashBlock;
         private Coroutine _flashRoutine;
         private GUIStyle _popupStyle;
+        private int _popupBaseFontSize;
         private GUIStyle _labelStyle;
         private float _lastDamagedTime = float.NegativeInfinity;
 
@@ -75,12 +77,14 @@ namespace BrokenSovereign.Combat
         {
             _health.Damaged += OnDamaged;
             _health.DamageIgnored += OnDamageIgnored;
+            _health.Dodged += OnDodged;
         }
 
         private void OnDisable()
         {
             _health.Damaged -= OnDamaged;
             _health.DamageIgnored -= OnDamageIgnored;
+            _health.Dodged -= OnDodged;
         }
 
         private void Start()
@@ -99,7 +103,14 @@ namespace BrokenSovereign.Combat
         private void OnDamaged(DamageInfo info)
         {
             _lastDamagedTime = Time.time;
-            AddPopup($"-{info.Amount:0}", Color.white);
+            if (info.IsCritical)
+            {
+                AddPopup($"{info.Amount:0}!", new Color(1f, 0.85f, 0.2f), 1.5f);
+            }
+            else
+            {
+                AddPopup($"{info.Amount:0}", Color.white);
+            }
 
             if (_flashOnHit && isActiveAndEnabled)
             {
@@ -118,9 +129,14 @@ namespace BrokenSovereign.Combat
             AddPopup("무적", new Color(0.55f, 0.85f, 1f));
         }
 
-        private void AddPopup(string text, Color color)
+        private void OnDodged(DamageInfo info)
         {
-            _popups.Add(new Popup { Text = text, Color = color, StartTime = Time.time });
+            AddPopup("회피", new Color(0.7f, 0.7f, 0.7f));
+        }
+
+        private void AddPopup(string text, Color color, float scale = 1f)
+        {
+            _popups.Add(new Popup { Text = text, Color = color, StartTime = Time.time, Scale = scale });
         }
 
         private IEnumerator FlashRoutine()
@@ -218,8 +234,13 @@ namespace BrokenSovereign.Combat
 
                 Color color = _popups[i].Color;
                 color.a = 1f - t;
+                float scale = Mathf.Max(1f, _popups[i].Scale);
                 _popupStyle.normal.textColor = color;
-                GUI.Label(new Rect(centerX - 40f, baseY - 40f - t * 30f, 80f, 24f), _popups[i].Text, _popupStyle);
+                _popupStyle.fontSize = Mathf.RoundToInt(_popupBaseFontSize * scale);
+                float width = 80f * scale;
+                float height = 24f * scale;
+                GUI.Label(new Rect(centerX - width * 0.5f, baseY - 40f - t * 30f - height * 0.5f, width, height),
+                    _popups[i].Text, _popupStyle);
             }
         }
 
@@ -238,6 +259,7 @@ namespace BrokenSovereign.Combat
                 fontSize = 18,
                 fontStyle = FontStyle.Bold
             };
+            _popupBaseFontSize = _popupStyle.fontSize;
         }
     }
 }

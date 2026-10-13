@@ -1,4 +1,5 @@
 using System;
+using BrokenSovereign.Core;
 using UnityEngine;
 
 namespace BrokenSovereign.Combat
@@ -6,10 +7,13 @@ namespace BrokenSovereign.Combat
     /// <summary>
     /// 체력. 피해 적용, 회복, 사망 판정을 담당합니다.
     /// 같은 오브젝트의 IInvulnerabilitySource가 무적이면 피해를 무시합니다 (회피 무적, GDD 6.1).
+    /// CharacterStats가 있으면 최대 체력·생명력 회복·회피율·방어력·원소 저항·피해 감소를 능력치에서 읽습니다.
+    /// 피해 처리 순서: 무적 → 회피율 판정 → 속성 감소(방어력·원소 저항) × 전체 피해 감소 → 체력 차감.
     /// </summary>
     [DisallowMultipleComponent]
     public class Health : MonoBehaviour, IDamageable
     {
+        [Tooltip("최대 체력. CharacterStats가 있으면 능력치 값으로 덮어씀")]
         [SerializeField] private float _max = 100f;
 
         [Tooltip("현재 체력. 0 이하로 시작하면 최대 체력으로 채움. Play 중 변경하면 즉시 반영 (0이 되면 사망 처리)")]
@@ -17,6 +21,7 @@ namespace BrokenSovereign.Combat
 
         private bool _hasDied;
         private IInvulnerabilitySource[] _invulnerabilitySources;
+        private CharacterStats _stats;
 
         public float Current => _current;
         public float Max => _max;
@@ -28,6 +33,9 @@ namespace BrokenSovereign.Combat
         /// <summary>무적으로 피해를 무시했을 때</summary>
         public event Action<DamageInfo> DamageIgnored;
 
+        /// <summary>회피율 판정으로 피해를 피했을 때</summary>
+        public event Action<DamageInfo> Dodged;
+
         /// <summary>체력이 0이 됐을 때</summary>
         public event Action Died;
 
@@ -36,8 +44,58 @@ namespace BrokenSovereign.Combat
 
         private void Awake()
         {
+            _stats = GetComponent<CharacterStats>();
+
+            if (_stats != null)
+            {
+                _max = Mathf.Max(1f, _stats.Sheet.Get(StatType.MaxHealth));
+                _stats.Sheet.Changed += OnStatsChanged;
+            }
+
             _current = _current <= 0f ? _max : Mathf.Min(_current, _max);
             _invulnerabilitySources = GetComponents<IInvulnerabilitySource>();
+        }
+
+        private void OnDestroy()
+        {
+            if (_stats != null)
+            {
+                _stats.Sheet.Changed -= OnStatsChanged;
+            }
+        }
+
+        private void Update()
+        {
+            if (_stats == null || IsDead)
+            {
+                return;
+            }
+
+            float regen = _stats.Sheet.Get(StatType.LifeRegen);
+
+            if (regen > 0f)
+            {
+                Heal(regen * Time.deltaTime);
+            }
+        }
+
+        // 최대 체력이 바뀌면 현재 체력 비율 유지
+        private void OnStatsChanged()
+        {
+            float newMax = Mathf.Max(1f, _stats.Sheet.Get(StatType.MaxHealth));
+
+            if (Mathf.Approximately(newMax, _max))
+            {
+                return;
+            }
+
+            float ratio = _max > 0f ? _current / _max : 1f;
+            _max = newMax;
+
+            if (!IsDead)
+            {
+                _current = Mathf.Max(0.01f, ratio * _max);
+            }
         }
 
         public void ApplyDamage(DamageInfo info)
@@ -53,8 +111,23 @@ namespace BrokenSovereign.Combat
                 return;
             }
 
-            _current = Mathf.Max(0f, _current - info.Amount);
-            Damaged?.Invoke(info);
+            DamageInfo final = info;
+
+            if (_stats != null)
+            {
+                StatSheet sheet = _stats.Sheet;
+
+                if (UnityEngine.Random.value < sheet.Get(StatType.DodgeChance))
+                {
+                    Dodged?.Invoke(info);
+                    return;
+                }
+
+                final = info.WithAmount(DamageCalculator.ApplyMitigation(info.Amount, sheet.GetMitigation(info.Type)));
+            }
+
+            _current = Mathf.Max(0f, _current - final.Amount);
+            Damaged?.Invoke(final);
 
             if (IsDead)
             {

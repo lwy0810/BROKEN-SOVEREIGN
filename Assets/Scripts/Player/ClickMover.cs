@@ -1,3 +1,5 @@
+using BrokenSovereign.Combat;
+using BrokenSovereign.Core;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -5,16 +7,20 @@ namespace BrokenSovereign.Player
 {
     /// <summary>
     /// NavMeshAgent 기반 클릭 이동. 이동·정지·회전만 담당합니다.
+    /// CharacterStats가 있으면 이동 속도를 능력치(MoveSpeed)에서 읽습니다.
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
     public class ClickMover : MonoBehaviour
     {
+        [Tooltip("CharacterStats가 없을 때 사용하는 이동 속도")]
         [SerializeField] private float _moveSpeed = 6f;
         [SerializeField] private float _angularSpeed = 720f;
         [SerializeField] private float _acceleration = 60f;
         [SerializeField] private float _repathDistance = 0.3f;
 
         private NavMeshAgent _agent;
+        private CharacterStats _stats;
+        private float _speedMultiplier = 1f;
 
         public bool HasArrived =>
             !_agent.isOnNavMesh
@@ -23,7 +29,14 @@ namespace BrokenSovereign.Player
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
-            _agent.speed = _moveSpeed;
+            _stats = GetComponent<CharacterStats>();
+
+            if (_stats != null)
+            {
+                _stats.Sheet.Changed += ApplySpeed;
+            }
+
+            ApplySpeed();
             _agent.angularSpeed = _angularSpeed;
             _agent.acceleration = _acceleration;
         }
@@ -85,7 +98,22 @@ namespace BrokenSovereign.Player
 
         public void SetSpeedMultiplier(float multiplier)
         {
-            _agent.speed = _moveSpeed * multiplier;
+            _speedMultiplier = multiplier;
+            ApplySpeed();
+        }
+
+        private void OnDestroy()
+        {
+            if (_stats != null)
+            {
+                _stats.Sheet.Changed -= ApplySpeed;
+            }
+        }
+
+        private void ApplySpeed()
+        {
+            float baseSpeed = _stats != null ? _stats.Sheet.Get(StatType.MoveSpeed) : _moveSpeed;
+            _agent.speed = Mathf.Max(0f, baseSpeed) * _speedMultiplier;
         }
     }
 }
