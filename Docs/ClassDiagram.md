@@ -3,7 +3,7 @@
 - 대상: 프로토타입 범위 (GDD 11장). 신격 이후 격·각성·초월·태초 클래스 제외
 - 기준 문서: `Docs/GDD.md` 12장 기술 설계 방향, `Docs/Rules/FolderRules.md`, `Docs/Rules/NamingRules.md`
 - 표기: 필드·메서드는 핵심만 기재. 세부 시그니처는 구현 단계 확정
-- 문서 상태: 초안 v0.3 (전투 코어·교전 구조 구현 반영). "확인 필요" 표시 항목은 미결정
+- 문서 상태: 초안 v0.4 (능력치 시스템·치명타·대상 선택 구현 반영). "확인 필요" 표시 항목은 미결정
 - 구현 상태 표기: 각 장 상단 "구현 상태" 줄, 다이어그램의 `예정`·`임시` 표기
 
 ## 1. 설계 원칙
@@ -90,17 +90,31 @@ classDiagram
         <<enum>>
         Strength
         Agility
-        Spirit
+        Intelligence
         AttackPower
         DamageBonus
-        DamageReduction
+        PhysicalDamageBonus
+        ElementalDamageBonus
+        AttackSpeed
+        CritChance
+        CritDamage
         MaxHealth
+        LifeRegen
+        Armor
+        ElementalResistance
+        MaxElementalResistance
+        DodgeChance
+        DamageReduction
         MoveSpeed
+        CooldownReduction
+        ResourceCostReduction
+        PotionHealing
     }
     class ModifierType {
         <<enum>>
         Flat
         Percent
+        Multiplicative
     }
     class AscensionRank {
         <<enum>>
@@ -127,13 +141,16 @@ classDiagram
 
 - `AscensionRank` 값과 격 대응: Mortal 범인 / Superhuman 초인 / Demigod 반신 / Divine 신격 / Transcendent 초월 / Primordial 태초
 - `SkillSlot`: 프로토타입은 4번 키까지. 5·6번은 본 기획 단계 추가
+- 구현 상태: `StatType`, `ModifierType`, `StatModifier`, `IStatModifierSource`, `SkillSlot` 구현 완료 (2026-10-13)
+- `StatType` 구분: 1차 스탯(힘·민첩·지능) / 공격 / 방어 / 유틸. 비율 능력치는 소수로 저장 (0.05 = 5%)
+- `ModifierType` 합산 순서: (기본값 + Flat 합) × (1 + Percent 합) × Multiplicative 곱
 - 이벤트 구조체 목록: 13장 참고
 
 ## 4. Player
 
 클릭 이동, 입력, 교전(대상 추적·자동 공격), 회피, 물약, 쿼터뷰 카메라
 
-- 구현 상태: 구현 완료 (2026-10-08). `SkillCaster` 연결만 예정
+- 구현 상태: 구현 완료 (2026-10-08), 대상 선택 추가 (2026-10-13). `SkillCaster` 연결만 예정
 
 ```mermaid
 classDiagram
@@ -155,6 +172,7 @@ classDiagram
     class PlayerController {
         <<MonoBehaviour>>
         -BasicAttack _basicAttack
+        -float _targetKeepDistance
         -ITargetedAction _engageAction
         -Transform _engageTarget
         -bool _isEngageHeld
@@ -162,6 +180,7 @@ classDiagram
         +PlayerState State
         +bool IsDead
         +bool HasEngageTarget
+        +Health CurrentTarget
         +MoveTo(Vector3 point)
         +AttackTarget(Transform target)
         +Engage(ITargetedAction action, Transform target)
@@ -172,7 +191,9 @@ classDiagram
         +StopMoving()
         +Dodge(Vector3 point)
         +UsePotion()
+        +ClearTarget()
         -UpdateEngage()
+        -UpdateSelectedTarget()
         -PerformAction(ITargetedAction action, Transform target, Vector3 point) bool
         +event BasicAttacked
         +event SkillUsed
@@ -236,7 +257,8 @@ classDiagram
     PlayerController --> PlayerState
     PlayerController --> BasicAttack
     PlayerController ..> ITargetedAction : 교전 행동
-    PlayerController ..> Health : 사망 구독
+    PlayerController ..> Health : 사망 구독, 선택 대상
+    ClickMover ..> CharacterStats : 이동 속도
     DodgeAction ..|> IInvulnerabilitySource
     PlayerDebugView ..> PlayerController : 이벤트 구독
 ```
@@ -247,6 +269,10 @@ classDiagram
   - 해제 조건: 바닥 이동, 제자리 공격, 우클릭 시전, 회피, 대상 소멸·사망
   - 1~4 기술 시전은 교전 유지 (이동 중 시전 원칙)
 - 우클릭 유지: 커서 방향 이동 + 일정 간격 반복 시전. 유지형 범위 기술(휠윈드 등)도 같은 경로
+- 대상 선택(`CurrentTarget`): 교전 시작 시 대상의 `Health` 보관. 교전과 별개로 유지 (원 테두리·상단 체력 게이지 표시용, 12.1)
+  - 교체: 다른 적 클릭
+  - 해제: 대상 사망·비활성화, `_targetKeepDistance`(기본 20m) 이탈, 플레이어 사망
+  - 유지: 바닥 클릭 이동 (이동 중 대상 체력 확인 목적)
 - 회피·사망 중에는 모든 행동 입력 무시 (`IsActionLocked`)
 - 기본 공격 경로: 현재 `PlayerController` → `BasicAttack` 직접 실행. `SkillCaster` 구현 시 LeftClick 슬롯 통합 방식은 15장 9번
 - 이동 중 시전 원칙(GDD 6.1): `Casting` 상태(예정)에서도 `ClickMover` 이동 유지, 경직 0.3초 이하
@@ -256,7 +282,7 @@ classDiagram
 
 체력, 피해 계산, 대상 지정 행동, 범위 판정, 무적, 상태이상, 스탯 합산, 전투 상태 판정
 
-- 구현 상태: `IDamageable`, `Health`, `DamageInfo`, `DamageRequest`, `DamageCalculator`, `IInvulnerabilitySource`, `ITargetedAction`, `BasicAttack`, `AttackArea`(부채꼴) 구현 완료 (2026-10-08). 나머지는 예정
+- 구현 상태: `IDamageable`, `Health`, `DamageInfo`, `DamageRequest`, `DamageCalculator`, `IInvulnerabilitySource`, `ITargetedAction`, `BasicAttack`, `AttackArea`(부채꼴) 구현 완료 (2026-10-08). `StatSheet`, `StatFormula`, `CharacterStats`, `CharacterStatsData`, `DamageType`, 치명타 구현 완료 (2026-10-13). 나머지는 예정
 
 ```mermaid
 classDiagram
@@ -270,6 +296,7 @@ classDiagram
         -float _max
         -float _current
         -IInvulnerabilitySource[] _invulnerabilitySources
+        -CharacterStats _stats
         +float Current
         +float Max
         +bool IsDead
@@ -278,6 +305,7 @@ classDiagram
         +RestoreFull()
         +event Damaged
         +event DamageIgnored
+        +event Dodged
         +event Died
         +event Restored
     }
@@ -290,6 +318,14 @@ classDiagram
         +GameObject Attacker
         +float Amount
         +bool IsBasicAttack
+        +DamageType Type
+        +bool IsCritical
+        +WithAmount(float amount) DamageInfo
+    }
+    class DamageType {
+        <<enum>>
+        Physical
+        Elemental
     }
     class DamageRequest {
         <<struct>>
@@ -297,10 +333,13 @@ classDiagram
         +float Coefficient
         +float DamageBonus
         +float TargetReduction
+        +float MainStatMultiplier
+        +float CritMultiplier
     }
     class DamageCalculator {
         <<static>>
         +Calculate(DamageRequest request)$ float
+        +ApplyMitigation(float amount, float mitigation)$ float
     }
     class ITargetedAction {
         <<interface>>
@@ -337,10 +376,44 @@ classDiagram
         +ShowCone(origin, forward, radius, angle, groundY, color, duration)$
     }
     class StatSheet {
-        <<pure 예정>>
+        <<pure>>
+        +StatType? MainStat
+        +float MainStatDamageMultiplier
         +SetBase(StatType stat, float value)
+        +GetBase(StatType stat) float
+        +SetMainStat(StatType? stat)
         +AddSource(IStatModifierSource source)
+        +RemoveSource(IStatModifierSource source)
+        +NotifySourcesChanged()
         +Get(StatType stat) float
+        +GetRaw(StatType stat) float
+        +GetDamageBonus(DamageType type) float
+        +GetMitigation(DamageType type) float
+        +event Changed
+    }
+    class StatFormula {
+        <<static>>
+        +Converge(value, max, k)$ float
+        +ArmorReduction(float armor)$ float
+        +ResistanceCap(float maxResistanceBonus)$ float
+        +StackMultiplicative(float a, float b)$ float
+        +RollCrit(float critChance, float roll)$ bool
+    }
+    class CharacterStats {
+        <<MonoBehaviour>>
+        -CharacterStatsData _data
+        +StatSheet Sheet
+        +CharacterStatsData Data
+    }
+    class CharacterStatsData {
+        <<ScriptableObject>>
+        -bool _hasMainStat
+        -StatType _mainStat
+        -float 능력치별 기본값 21종
+        +StatType? MainStat
+        +GetBaseValue(StatType stat) float
+        +ApplyTo(StatSheet sheet)
+        +event Changed
     }
     class StatusEffectController {
         <<MonoBehaviour 예정>>
@@ -382,9 +455,37 @@ classDiagram
     Health --> StatusEffectController
     StatusEffectApplication --> StatusEffectType
     StatSheet --> IStatModifierSource
+    StatSheet ..> StatFormula
+    CharacterStats --> StatSheet
+    CharacterStats --> CharacterStatsData : 기본값
+    CharacterStatsData ..> StatSheet : ApplyTo
+    Health ..> CharacterStats : 최대 체력·회피·감소
+    BasicAttack ..> CharacterStats : 공격 측 능력치
+    DamageInfo --> DamageType
 ```
 
-- 피해 계산: 피해량 = 공격력 × 계수 × (1 + 피해 증가) × (1 − 피해 감소). 피해 증가 하한 −100%, 피해 감소 0~100% 제한, 결과 0 이상
+- 피해 계산 (공격 측, `DamageCalculator.Calculate`): 피해량 = 공격력 × 계수 × (1 + 피해 증가) × 주 스탯 배율 × 치명타 배율. 피해 증가 하한 −100%, 결과 0 이상
+  - 피해 증가 = 모든 피해 증가 + 타입별(물리·원소) 피해 증가
+  - 주 스탯 배율 = 1 + 주 스탯 × 0.001 (무직은 1)
+  - 치명타 배율 = 1 + 치명타 피해 (치명타 발생 시, 기본 +50%)
+- 받는 피해 (방어 측, `Health.ApplyDamage`): 무적 확인 → 회피 판정(`Dodged`) → 감소 적용(`ApplyMitigation`) → `Damaged`(최종 값)
+  - 감소 = 타입별 감소(물리: 방어력, 원소: 원소 저항)와 피해 감소를 곱셈 쌓기. 1 − (1 − a)(1 − b)
+  - `CharacterStats`가 없는 대상은 감소 없이 그대로 적용
+- 능력치 구조
+  - `CharacterStatsData`: 캐릭터별 기본값 에셋 (`Data/Balance/PlayerBaseStats`). 적은 같은 항목·다른 수치의 에셋을 따로 만들어 연결
+  - `CharacterStats`: 에셋 기본값으로 `StatSheet` 구성. Play 중 에셋 수정 즉시 반영. 디버그 버프 메뉴(임시)
+  - `StatSheet`: 기본값 + 출처(`IStatModifierSource`: 버프·장비·신물) 합산. 버프는 개체별 `StatSheet`에만 적용, 에셋 값 불변
+- 1차 스탯 변환 (`StatFormula`, 디아블로4 방식 상한)
+
+| 1차 스탯 | 효과 | 계산 |
+|---|---|---|
+| 힘 | 방어력 | 1당 +1. 감소율 = 방어력 / (방어력 + 1000), 상한 85% |
+| 민첩 | 공격 속도 | 수렴식 0.5 × 민첩 / (민첩 + 1000), 최대 +50% |
+| 지능 | 원소 저항 | 수렴식 0.5 × 지능 / (지능 + 1000), 최대 +50%. 저항 상한 70% (+ 상한 증가, 최대 85%) |
+| 주 스탯 | 피해 | 1당 +0.1% |
+
+- 기타 상한: 치명타 확률 0~1, 피해 감소·재사용 대기 감소는 곱셈 쌓기
+- 공격 속도 적용: 공격 간격 = 기본 간격 / (1 + 공격 속도)
 - 회피 무적: `Health`가 같은 오브젝트의 `IInvulnerabilitySource`를 수집해 피해 전 확인. `DodgeAction`이 구현하며 회피 지속 시간(0.2초) 전체 무적 (GDD 6.1). Combat이 Player를 참조하지 않는 의존 방향 유지. 무적 버프(불굴의 갑주 등)도 같은 인터페이스로 확장
 - `ITargetedAction`: 대상에게 접근 후 사거리 안에서 실행하는 행동. 원거리 기본 공격·대상 지정 기술이 구현하면 `PlayerController.Engage`의 추적 흐름 재사용. 지점 지정·유지형 범위 기술은 대상이 없으므로 기술 시전 경로 사용
 - `BasicAttack`: 단일 대상. 대상 지정 시 해당 대상, 제자리 공격 시 전방 부채꼴(90°) 안의 가장 가까운 적. 빗나가도 실행으로 처리(공격 간격 소모)
@@ -392,8 +493,9 @@ classDiagram
 - 이벤트 연결: 현재 `Health`의 C# 이벤트 사용. 신앙 자원 구현 시 `EventBus` 발행 추가 (플레이어 → `PlayerDamagedEvent`, 적 → `DamageDealtEvent`, 사망 시 `EnemyKilledEvent`)
 - `CombatStateTracker`: 신앙 비전투 감소(GDD 6.3) 판정용. `_outOfCombatDelay` 값은 GDD 확정 필요 항목 (밸런스 에셋에서 주입)
 - `AttackArea`: 원형·부채꼴·직선 범위 판정 공용 유틸리티. 기술·적 공격이 공유. 현재 부채꼴만 구현
-- 임시 수치 (테스트용): 플레이어 체력 500, 적 체력 100, 기본 공격 100 (계수 1), 사거리 2, 공격 간격 0.6초
+- 임시 수치 (테스트용): 플레이어 체력 500·공격력 100·이동 속도 6·치명타 5%/+50%·힘·민첩·지능 각 10 (`PlayerBaseStats`), 적 체력 100 (`Health` 필드), 기본 공격 계수 1, 사거리 2, 공격 간격 0.6초
 - `HealthDebugView`·`AttackAreaDebugDrawer`: 임시 디버그 표시 (체력 막대, 피해 숫자, 피격 깜빡임, 빨간 공격 범위). HUD·이펙트 구현 시 제거
+  - 피해 숫자: 일반 흰색 `100`, 치명타 노란색 1.5배 `150!`, 회피 "회피", 무적 "무적"
 
 ## 6. Skill
 
@@ -614,7 +716,7 @@ classDiagram
         <<pure>>
         +int Strength
         +int Agility
-        +int Spirit
+        +int Intelligence
         +int UnspentPoints
         +int Total
         +Allocate(StatType stat) bool
@@ -1112,7 +1214,9 @@ classDiagram
 
 | 클래스 | 화면 | 구독 이벤트·참조 |
 |---|---|---|
-| `HudView` | HUD 전체 묶음 | - |
+| `HudView` | HUD 전체 묶음 (코드로 생성, 구현 완료) | `PlayerController`, `Health`, `IResourceGauge` |
+| `TargetFrameView` | 화면 상단 가운데 선택 대상 이름·체력 막대·남은 비율(%) (구현 완료) | `PlayerController.CurrentTarget`, `Health` |
+| `TargetRingView` | 선택 대상 발밑 흰색 원 테두리 (LineRenderer, 구현 완료) | `PlayerController.CurrentTarget` |
 | `HealthBarView` | 체력 | `PlayerDamagedEvent`, `Health` |
 | `FaithBarView` | 신앙, 충만 표시 | `FaithChangedEvent` |
 | `SkillSlotView` | 기술 슬롯·재사용 대기 | `SkillCastEvent`, `CooldownTracker` |
@@ -1127,6 +1231,8 @@ classDiagram
 | `BossHealthView` | 보스 체력 | `BossController` |
 
 - UI는 화면 표시와 버튼 입력만 담당. 규칙 판정은 각 시스템 클래스에서 처리
+- 대상 표시 설정: `HudView`의 `TargetSettings` (원 색·두께·여백, 게이지 크기·색·위쪽 여백). Play 중 Inspector 변경 즉시 반영
+- `BossHealthView`: 구현 시 `TargetFrameView`와 위치 겹침. 보스전 중 대상 게이지 숨김 여부 확인 필요
 
 ### 12.2 Manager
 
@@ -1245,6 +1351,7 @@ flowchart TD
 ```
 
 - 해제 조건 추가: 바닥 이동, Shift 제자리 공격, 우클릭 시전, 회피 성공
+- 교전 시작(`Engage`) 시 대상 선택(`CurrentTarget`) 동시 갱신. 교전 해제와 무관하게 선택 유지 (4장)
 - 누르고 있는 중 대상이 사라지면 `PlayerInputHandler`가 커서 방향 이동으로 전환
 
 ### 14.4 기본 공격 피해 적용 (구현 완료)
@@ -1270,14 +1377,18 @@ sequenceDiagram
             AA-->>BA: 가장 가까운 생존 대상 또는 없음
         end
         BA->>BA: 빨간 부채꼴 표시 (임시)
-        BA->>DC: Calculate(공격력 100, 계수 1)
-        DC-->>BA: 100
+        BA->>BA: 공격자 CharacterStats 조회, 치명타 판정
+        BA->>DC: Calculate(공격력, 계수, 피해 증가, 주 스탯 배율, 치명타 배율)
+        DC-->>BA: 피해량 (기본값 기준 100, 치명타 150)
         BA->>HP: ApplyDamage(DamageInfo)
         HP->>IV: IsInvulnerable?
-        alt 무적 (회피 중)
+        alt 무적 (회피 무적 중)
             HP->>DV: DamageIgnored → "무적" 표시
+        else 회피 확률 성공 (대상 CharacterStats)
+            HP->>DV: Dodged → "회피" 표시
         else 피해 적용
-            HP->>DV: Damaged → 피해 숫자·깜빡임
+            HP->>HP: ApplyMitigation(방어력·원소 저항·피해 감소)
+            HP->>DV: Damaged(최종 값) → 피해 숫자·깜빡임
             opt 체력 0
                 HP->>HP: Died 발행
             end
@@ -1316,7 +1427,10 @@ sequenceDiagram
 
 | 클래스 | 주요 검증 |
 |---|---|
-| `DamageCalculator` | 계수·피해 증가·피해 감소 계산, 감소율 상한 (구현 완료: `Tests/EditMode/DamageCalculatorTests`, 4건) |
+| `DamageCalculator` | 계수·피해 증가·피해 감소 계산, 감소율 상한, 주 스탯·치명타 배율, 감소 적용 (구현 완료: `DamageCalculatorTests`, 6건) |
+| `StatSheet` | Flat·Percent·Multiplicative 합산, 출처 추가·제거, 1차 스탯 변환, 상한, 주 스탯 배율, 감소 곱셈 쌓기 (구현 완료: `StatSheetTests`, 11건) |
+| `StatFormula` | 수렴식, 방어력 감소율 상한, 저항 상한, 곱셈 쌓기, 치명타 판정 경계값 (구현 완료: `StatFormulaTests`, 7건) |
+| `CharacterStatsData` | 모든 `StatType` 필드 존재, `StatSheet` 기본값 기록 (구현 완료: `CharacterStatsDataTests`, 2건) |
 | `BreakthroughCondition` | 4개 조건 각각 미충족, 주 스탯 40% 올림 경계값 (예: 총합 92 → 37) |
 | `FaithModel` | 적중·피격 충전, 최대치 초과 방지, 비전투 감소, 격별 최대치, 충만 강화 비율 |
 | `SkillLoadout` | 미해금 기술 장착 거부, 교체 후 슬롯 레벨 유지, 기술별 분기 저장, 전투 중 분기 변경 거부 |

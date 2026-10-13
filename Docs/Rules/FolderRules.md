@@ -39,6 +39,7 @@
 	- `Sprites/` - 이미지 (UI 아이콘 포함)
 	- `Audio/` - 효과음·배경음
 	- `Materials/` - 머티리얼
+	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
 	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`)
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
 
