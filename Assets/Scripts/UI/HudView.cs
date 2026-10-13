@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using BrokenSovereign.Ascension;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Player;
+using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,7 +11,7 @@ namespace BrokenSovereign.UI
 {
     /// <summary>
     /// 전투 HUD (GDD 10장): 가운데 기술 슬롯과 물약·회피, 그 양 옆에 체력 구슬(왼쪽)과 직업 자원 구슬(오른쪽),
-    /// 선택한 대상의 상단 체력 게이지와 발밑 원 테두리.
+    /// 선택한 대상의 상단 체력 게이지와 발밑 원 테두리, 직업 이름·전직 알림·슬롯 기술 이름.
     /// 시작 시 코드로 UI를 만들고, 매 프레임 플레이어 상태를 읽어 표시합니다 (UI는 읽기 전용).
     /// 배치·색·연출 값은 Play 중 Inspector에서 바꾸면 즉시 반영됩니다.
     /// 아트 확정 후 프리팹으로 옮길 예정입니다.
@@ -31,6 +33,8 @@ namespace BrokenSovereign.UI
         [SerializeField] private OrbSettings _orb = new OrbSettings();
         [SerializeField] private SkillBarSettings _bar = new SkillBarSettings();
         [SerializeField] private TargetSettings _target = new TargetSettings();
+        [SerializeField] private JobDisplaySettings _jobDisplay = new JobDisplaySettings();
+        [SerializeField] private JobGaugeSettings _jobGauge = new JobGaugeSettings();
 
         private Health _health;
         private IResourceGauge _resource;
@@ -48,6 +52,14 @@ namespace BrokenSovereign.UI
         private TargetFrameView _targetFrame;
         private TargetRingView _targetRing;
         private Health _shownTarget;
+        private PlayerJob _job;
+        private SkillCaster _caster;
+        private Text _jobLabel;
+        private JobGaugeView _jobGaugeView;
+        private readonly List<IJobGauge> _jobGaugeBuffer = new List<IJobGauge>();
+        private Text _noticeText;
+        private float _noticeEndTime = float.NegativeInfinity;
+        private bool _hasShownJob;
         private bool _isBuilt;
 
         private void Awake()
@@ -68,9 +80,17 @@ namespace BrokenSovereign.UI
             _resource = FindActiveResource();
             _potion = _player.GetComponent<PotionUser>();
             _dodge = _player.GetComponent<DodgeAction>();
+            _job = _player.GetComponent<PlayerJob>();
+            _caster = _player.GetComponent<SkillCaster>();
 
             Build();
             ApplyLayout();
+
+            // PlayerJob.Start의 첫 직업 적용보다 먼저 구독
+            if (_job != null)
+            {
+                _job.JobChanged += OnJobChanged;
+            }
         }
 
         private void Update()
@@ -110,13 +130,64 @@ namespace BrokenSovereign.UI
             }
 
             UpdateTarget();
+            UpdateSkillNames();
+            UpdateNotice();
+            _jobGaugeView.SetGauge(FindActiveJobGauge());
         }
 
         private void OnDestroy()
         {
+            if (_job != null)
+            {
+                _job.JobChanged -= OnJobChanged;
+            }
+
             if (_targetRing != null)
             {
                 Destroy(_targetRing.gameObject);
+            }
+        }
+
+        // 직업 이름 갱신. 시작 시 첫 적용은 알림 없이, 이후 전환부터 화면 중앙 알림
+        private void OnJobChanged(JobDefinition job)
+        {
+            _jobLabel.text = job.DisplayName;
+
+            if (_hasShownJob)
+            {
+                _noticeText.text = job.DisplayName;
+                _noticeEndTime = Time.time + _jobDisplay.NoticeDuration;
+            }
+
+            _hasShownJob = true;
+        }
+
+        private void UpdateNotice()
+        {
+            float remaining = _noticeEndTime - Time.time;
+            bool visible = remaining > 0f;
+            _noticeText.enabled = visible;
+
+            if (!visible)
+            {
+                return;
+            }
+
+            Color color = _jobDisplay.NoticeColor;
+            float fade = _jobDisplay.NoticeFadeTime;
+            color.a *= fade > 0f ? Mathf.Clamp01(remaining / fade) : 1f;
+            _noticeText.color = color;
+        }
+
+        // 슬롯별 장착 기술 이름 (좌클릭은 기술이 없으면 기본 공격)
+        private void UpdateSkillNames()
+        {
+            for (int i = 0; i < SKILL_SLOTS.Length; i++)
+            {
+                SkillDefinition skill = _caster != null ? _caster.GetSkill(SKILL_SLOTS[i]) : null;
+                string skillName = skill != null ? skill.DisplayName
+                    : SKILL_SLOTS[i] == SkillSlot.LeftClick ? "기본 공격" : string.Empty;
+                _skillSlots[i].SetSkillName(skillName);
             }
         }
 
@@ -194,6 +265,15 @@ namespace BrokenSovereign.UI
             // 원 테두리는 월드에 그리므로 Canvas 밖에 생성
             _targetRing = new GameObject("TargetRing", typeof(LineRenderer)).AddComponent<TargetRingView>();
             _targetRing.Initialize(_target);
+
+            _jobGaugeView = HudGraphics.CreateRect("JobGauge", transform).gameObject.AddComponent<JobGaugeView>();
+            _jobGaugeView.Initialize();
+
+            _jobLabel = CreateLabel("JobLabel", TextAnchor.LowerCenter);
+            _jobLabel.text = string.Empty;
+            _noticeText = CreateLabel("JobNotice", TextAnchor.MiddleCenter);
+            _noticeText.fontStyle = FontStyle.Bold;
+            _noticeText.enabled = false;
             _isBuilt = true;
         }
 
@@ -233,10 +313,54 @@ namespace BrokenSovereign.UI
             x += slot + _bar.Spacing;
             PlaceSlot(_dodgeSlot, x);
 
+            // 직업 게이지: 기술 바 바로 위 (기술 바 너비)
+            float gaugeBottom = _bar.BottomMargin + slot + _jobGauge.GapToBar;
+            PlaceAt(_jobGaugeView.Rect, new Vector2(0.5f, 0f), new Vector2(0f, gaugeBottom),
+                new Vector2(totalWidth, _jobGauge.Height));
+            _jobGaugeView.ApplyStyle(_jobGauge);
+
+            // 직업 이름: 게이지 위 가운데 (게이지가 없어도 같은 자리)
+            _jobLabel.fontSize = _jobDisplay.LabelFontSize;
+            _jobLabel.color = _jobDisplay.LabelColor;
+            PlaceAt(_jobLabel.rectTransform, new Vector2(0.5f, 0f),
+                new Vector2(0f, gaugeBottom + _jobGauge.Height + _jobDisplay.LabelGapToBar),
+                new Vector2(totalWidth, _jobDisplay.LabelFontSize + 8f));
+
+            // 전직 알림: 화면 중앙에서 위쪽
+            _noticeText.fontSize = _jobDisplay.NoticeFontSize;
+            RectTransform noticeRect = _noticeText.rectTransform;
+            noticeRect.anchorMin = noticeRect.anchorMax = new Vector2(0.5f, 0.5f);
+            noticeRect.pivot = new Vector2(0.5f, 0.5f);
+            noticeRect.sizeDelta = new Vector2(800f, _jobDisplay.NoticeFontSize + 20f);
+            noticeRect.anchoredPosition = new Vector2(0f, _jobDisplay.NoticeOffsetY);
+
+            foreach (SkillSlotView skillSlot in _skillSlots)
+            {
+                skillSlot.ApplyNameStyle(_jobDisplay);
+            }
+
             // 대상 체력 게이지는 화면 위 가운데
             PlaceCorner(_targetFrame.Rect, new Vector2(0.5f, 1f), new Vector2(0f, -_target.TopMargin), _target.BarSize);
             _targetFrame.ApplyStyle(_target);
             _targetRing.ApplyStyle(_target);
+        }
+
+        // 켜져 있는 직업 게이지 (무직이면 없음)
+        private IJobGauge FindActiveJobGauge()
+        {
+            _player.GetComponents(_jobGaugeBuffer);
+
+            foreach (IJobGauge gauge in _jobGaugeBuffer)
+            {
+                if (gauge is Behaviour behaviour && !behaviour.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                return gauge;
+            }
+
+            return null;
         }
 
         // 활성화된 자원 컴포넌트 중 첫 번째. 전직 시 이전 자원을 끄고 새 자원을 켜면 HUD가 따라감
@@ -289,6 +413,18 @@ namespace BrokenSovereign.UI
             ResourceOrbView orb = HudGraphics.CreateRect(orbName, transform).gameObject.AddComponent<ResourceOrbView>();
             orb.Initialize(shader);
             return orb;
+        }
+
+        private Text CreateLabel(string labelName, TextAnchor alignment)
+        {
+            Text text = HudGraphics.CreateRect(labelName, transform).gameObject.AddComponent<Text>();
+            text.font = HudGraphics.Font;
+            text.alignment = alignment;
+            text.color = Color.white;
+            text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2f, -2f);
+            return text;
         }
 
         private SkillSlotView CreateSlot(string slotName, string key)

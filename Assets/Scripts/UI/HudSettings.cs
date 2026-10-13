@@ -88,4 +88,52 @@ namespace BrokenSovereign.UI
         public int NameFontSize = 20;
         public int PercentFontSize = 15;
     }
+
+    /// <summary>직업 표시 설정: 기술 바 위 직업 이름, 전직 알림 문구, 슬롯 기술 이름 (Play 중 Inspector 변경 시 즉시 반영)</summary>
+    [Serializable]
+    public class JobDisplaySettings
+    {
+        [Header("직업 이름 (기술 바 위)")]
+        public int LabelFontSize = 20;
+        public float LabelGapToBar = 10f;
+        public Color LabelColor = new Color(1f, 0.92f, 0.7f);
+
+        [Header("전직 알림 (화면 중앙)")]
+        public int NoticeFontSize = 52;
+
+        [Tooltip("화면 중앙에서 위쪽으로 띄우는 거리")]
+        public float NoticeOffsetY = 160f;
+
+        public float NoticeDuration = 1.5f;
+
+        [Tooltip("사라지기 시작하는 시점부터 완전히 사라질 때까지 시간")]
+        public float NoticeFadeTime = 0.5f;
+
+        public Color NoticeColor = new Color(1f, 0.85f, 0.4f);
+
+        [Header("슬롯 기술 이름 (슬롯 아래)")]
+        public int SkillNameFontSize = 13;
+        public float SkillNameGap = 2f;
+    }
+
+    /// <summary>기술 바 위 직업 게이지 막대 설정 (Play 중 Inspector 변경 시 즉시 반영)</summary>
+    [Serializable]
+    public class JobGaugeSettings
+    {
+        [Tooltip("막대 높이. 너비는 기술 바와 같음")]
+        public float Height = 16f;
+
+        [Tooltip("기술 바와 막대 사이 간격")]
+        public float GapToBar = 8f;
+
+        public Color BackgroundColor = new Color(0f, 0f, 0f, 0.7f);
+        public Color FrameColor = new Color(0.78f, 0.6f, 0.28f, 0.9f);
+        public int FontSize = 13;
+
+        [Tooltip("버프 중 깜빡임 속도")]
+        public float BuffPulseSpeed = 6f;
+
+        [Tooltip("버프 중 밝아지는 정도 (0~1)")]
+        [Range(0f, 1f)] public float BuffPulseStrength = 0.5f;
+    }
 }

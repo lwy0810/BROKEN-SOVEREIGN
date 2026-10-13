@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 387e6b36afbe4a2dad788ab3914d8827, type: 3}
+  m_Name: JobPaladin
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.JobDefinition
+  _jobId: paladin
+  _displayName: "\uC131\uAE30\uC0AC"
+  _resource: 1
+  _gaugeBuff:
+    DisplayName: "\uCDA9\uB9CC"
+    Duration: 10
+    EmpowerSkills: 1
+    Modifiers:
+    - Stat: 4
+      Type: 0
+      Value: 0.25
+    - Stat: 16
+      Type: 0
+      Value: 0.15
+  _skills:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: ca3c4dc4c7844062967a8e7097a31c76, type: 2}
