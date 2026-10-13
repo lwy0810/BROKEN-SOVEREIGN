@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BrokenSovereign.Combat
@@ -49,6 +50,33 @@ namespace BrokenSovereign.Combat
             }
 
             return target != null;
+        }
+
+        /// <summary>
+        /// 부채꼴 안의 살아 있는 대상을 모두 찾습니다 (범위 기술용). 한 대상에 충돌체가 여러 개여도 한 번만 담습니다.
+        /// </summary>
+        public static int FindAllInCone(Vector3 origin, Vector3 forward, float radius, float angle, LayerMask mask,
+            List<IDamageable> results)
+        {
+            results.Clear();
+            int count = Physics.OverlapSphereNonAlloc(origin, radius, _buffer, mask, QueryTriggerInteraction.Ignore);
+
+            for (int i = 0; i < count; i++)
+            {
+                IDamageable candidate = _buffer[i].GetComponentInParent<IDamageable>();
+
+                if (candidate == null || candidate.IsDead || results.Contains(candidate))
+                {
+                    continue;
+                }
+
+                if (IsInCone(origin, forward, radius, angle, _buffer[i].transform.position))
+                {
+                    results.Add(candidate);
+                }
+            }
+
+            return results.Count;
         }
 
         public static bool IsInCone(Vector3 origin, Vector3 forward, float radius, float angle, Vector3 point)

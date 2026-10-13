@@ -1,0 +1,80 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace BrokenSovereign.Skill
+{
+    /// <summary>
+    /// 기술 정의 데이터. 수치는 키-값 목록(SkillParameterKeys)으로, 동작은 SkillBehaviour 에셋으로 지정합니다.
+    /// </summary>
+    [CreateAssetMenu(fileName = "SkillDefinition", menuName = "BrokenSovereign/Skill Definition")]
+    public class SkillDefinition : ScriptableObject
+    {
+        [Serializable]
+        public struct SkillParameter
+        {
+            [Tooltip("SkillParameterKeys 이름 (예: coefficient, radius, angle)")]
+            public string Key;
+            public float Value;
+
+            public SkillParameter(string key, float value)
+            {
+                Key = key;
+                Value = value;
+            }
+        }
+
+        [Tooltip("기술 고유 ID (재사용 대기·분기 저장 키)")]
+        [SerializeField] private string _skillId = "skill";
+        [SerializeField] private string _displayName = "기술";
+
+        [Tooltip("재사용 대기(초). 재사용 대기 감소 능력치 적용 전 값")]
+        [SerializeField, Min(0f)] private float _cooldown;
+
+        [Tooltip("직업 자원 소모량 (신앙 등). 무직 공용 기술은 0. 자원 연결은 다음 단계")]
+        [SerializeField, Min(0f)] private float _resourceCost;
+
+        [SerializeField] private List<SkillParameter> _parameters = new List<SkillParameter>
+        {
+            new SkillParameter(SkillParameterKeys.COEFFICIENT, 1f)
+        };
+
+        [SerializeField] private SkillBehaviour _behaviour;
+
+        public string SkillId => _skillId;
+        public string DisplayName => _displayName;
+        public float Cooldown => _cooldown;
+        public float ResourceCost => _resourceCost;
+        public SkillBehaviour Behaviour => _behaviour;
+
+        /// <summary>에셋에 적힌 기본 수치 하나 (분기·충만 적용 전). 없으면 fallback</summary>
+        public float GetBaseParameter(string key, float fallback = 0f)
+        {
+            foreach (SkillParameter parameter in _parameters)
+            {
+                if (parameter.Key == key)
+                {
+                    return parameter.Value;
+                }
+            }
+
+            return fallback;
+        }
+
+        /// <summary>시전마다 새 수치 목록 생성 (분기·충만 수정치가 에셋을 바꾸지 않도록)</summary>
+        public SkillParameterSet CreateParameters()
+        {
+            var set = new SkillParameterSet();
+
+            foreach (SkillParameter parameter in _parameters)
+            {
+                if (!string.IsNullOrEmpty(parameter.Key))
+                {
+                    set.Set(parameter.Key, parameter.Value);
+                }
+            }
+
+            return set;
+        }
+    }
+}
