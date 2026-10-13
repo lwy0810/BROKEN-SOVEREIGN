@@ -33,5 +33,19 @@ namespace BrokenSovereign.Tests
             float result = DamageCalculator.Calculate(new DamageRequest(100f, 1f, -2f));
             Assert.AreEqual(0f, result, 0.001f);
         }
+
+        [Test]
+        public void Calculate_WithMainStatAndCrit_MultipliesBoth()
+        {
+            // 100 × 1 × 1.2 × 2(주 스탯) × 1.5(치명타) = 360
+            float result = DamageCalculator.Calculate(new DamageRequest(100f, 1f, 0.2f, 0f, 2f, 1.5f));
+            Assert.AreEqual(360f, result, 0.001f);
+        }
+
+        [Test]
+        public void ApplyMitigation_HalvesDamage()
+        {
+            Assert.AreEqual(50f, DamageCalculator.ApplyMitigation(100f, 0.5f), 0.001f);
+        }
     }
 }

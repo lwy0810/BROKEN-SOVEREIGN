@@ -1123,7 +1123,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.HealthDebugView
   _showBar: 1
   _barHeight: 2.3
-  _barSize: {x: 80, y: 8}
+  _barPixelSize: {x: 40, y: 4}
+  _showValueText: 0
+  _hideWhenOutOfCombat: 1
+  _combatDuration: 5
+  _showDistance: 12
+  _distanceReference: {fileID: 0}
   _barColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
   _flashOnHit: 1
   _flashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
@@ -2167,6 +2172,7 @@ GameObject:
   - component: {fileID: 2092739940}
   - component: {fileID: 2092739941}
   - component: {fileID: 2092739942}
+  - component: {fileID: 2092739943}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -2379,7 +2385,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.HealthDebugView
   _showBar: 1
   _barHeight: 2.3
-  _barSize: {x: 80, y: 8}
+  _barPixelSize: {x: 40, y: 4}
+  _showValueText: 0
+  _hideWhenOutOfCombat: 1
+  _combatDuration: 5
+  _showDistance: 12
+  _distanceReference: {fileID: 0}
   _barColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
   _flashOnHit: 1
   _flashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
@@ -2401,6 +2412,19 @@ MonoBehaviour:
   _costPerSkill: 15
   _regenPerSecond: 8
   _displayColor: {r: 0.16, g: 0.38, b: 0.95, a: 1}
+--- !u!114 &2092739943
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd55cf5106b42844aab751404efb8d34, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Combat.CharacterStats
+  _data: {fileID: 11400000, guid: b5a0902e2d4a4a0c87f6e42efebc59fa, type: 2}
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0
