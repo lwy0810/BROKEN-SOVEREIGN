@@ -18,7 +18,10 @@ namespace BrokenSovereign.Combat
         [SerializeField] private float _range = 2f;
 
         [Tooltip("공격 속도 0%일 때의 공격 간격(초). 실제 간격 = 이 값 ÷ (1 + 공격 속도)")]
-        [SerializeField] private float _interval = 0.6f;
+        [SerializeField] private float _interval = 1f;
+
+        [Tooltip("공격 동작 시간(초, 공격 속도 0% 기준). 이 시간 동안만 이동 불가. 공격 간격과 별개 (0 = 발동 즉시 이동 가능)")]
+        [SerializeField, Min(0f)] private float _actionTime = 0f;
 
         [Tooltip("공격자에게 CharacterStats가 없을 때 사용하는 공격력")]
         [SerializeField] private float _attackPower = 100f;
@@ -38,11 +41,15 @@ namespace BrokenSovereign.Combat
 
         private float _nextReadyTime;
         private float _lastInterval = -1f;
+        private float _lastActionTime;
 
         public float Range => _range;
 
-        /// <summary>마지막 공격에 적용된 공격 간격 (공격 속도 반영)</summary>
-        public float Duration => _lastInterval > 0f ? _lastInterval : _interval;
+        /// <summary>마지막 공격에 적용된 공격 간격 (공격 속도 반영). HUD 재사용 대기 표시용</summary>
+        public float Interval => _lastInterval > 0f ? _lastInterval : _interval;
+
+        /// <summary>공격 동작 시간 (이동 잠금, 공격 속도 반영). 공격 간격보다 짧아 다음 공격 전에 이동 가능</summary>
+        public float Duration => _lastActionTime;
 
         public bool IsReady => Time.time >= _nextReadyTime;
         public float CooldownRemaining => Mathf.Max(0f, _nextReadyTime - Time.time);
@@ -58,6 +65,7 @@ namespace BrokenSovereign.Combat
             float attackSpeed = stats != null ? Mathf.Max(0f, stats.Get(StatType.AttackSpeed)) : 0f;
             _lastInterval = _interval / (1f + attackSpeed);
             _nextReadyTime = Time.time + _lastInterval;
+            _lastActionTime = Mathf.Min(_actionTime, _interval) / (1f + attackSpeed);
 
             Vector3 origin = attacker.position;
             Vector3 forward = point - origin;
