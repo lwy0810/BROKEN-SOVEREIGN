@@ -100,6 +100,11 @@ namespace BrokenSovereign.UI
             if (_job != null)
             {
                 _job.JobChanged += OnJobChanged;
+
+                if (_progression != null)
+                {
+                    _job.Advanced += OnJobAdvanced;
+                }
             }
 
             if (_progression != null)
@@ -163,6 +168,7 @@ namespace BrokenSovereign.UI
             if (_job != null)
             {
                 _job.JobChanged -= OnJobChanged;
+                _job.Advanced -= OnJobAdvanced;
             }
 
             if (_progression != null)
@@ -200,6 +206,12 @@ namespace BrokenSovereign.UI
         private void OnAscended(AscensionTier tier)
         {
             ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}");
+        }
+
+        // 격 돌파 알림에 전직을 이어 붙임 (JobChanged 알림이 돌파 알림을 덮어쓰지 않도록)
+        private void OnJobAdvanced(JobDefinition job)
+        {
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(_progression.Tier)} · {job.DisplayName} 전직");
         }
 
         private void OnJobSelectionRequested()

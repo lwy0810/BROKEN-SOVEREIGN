@@ -263,6 +263,12 @@ namespace BrokenSovereign.Ascension
                 Ascended?.Invoke(Tier);
                 next = AscensionModel.GetNext(Tier, Level, hasJob, _ascension.SuperhumanLevel, _ascension.DemigodLevel);
             }
+
+            // 격에 맞는 다음 직업이 있으면 전직 (성기사 → 초인 → 성투사). 전직하면 OnJobChanged에서 다시 확인
+            if (_job != null)
+            {
+                _job.TryAdvance(Tier);
+            }
         }
 
         private void RebuildModifiers()

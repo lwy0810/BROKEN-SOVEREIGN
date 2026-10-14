@@ -11,7 +11,8 @@ namespace BrokenSovereign.Ascension
     /// <summary>
     /// 플레이어 현재 직업. 직업이 바뀌면 SkillCaster의 기술 구성(SkillLoadout)과 직업 게이지(신앙 등)를 교체합니다.
     /// 마나는 모든 직업 공용이라 전환해도 유지됩니다.
-    /// 직업 선택 화면(JobSelectView) 구현 전까지 F1로 무직 ↔ 전직 직업을 전환합니다 (디버그).
+    /// 격 돌파 시 PlayerProgression이 TryAdvance로 다음 직업 전직을 확인합니다 (성기사 → 초인 → 성투사).
+    /// F1: 무직 ↔ 1차 직업 전환 (디버그).
     /// </summary>
     [RequireComponent(typeof(SkillCaster))]
     public class PlayerJob : MonoBehaviour
@@ -46,6 +47,9 @@ namespace BrokenSovereign.Ascension
         /// <summary>직업이 바뀌었을 때 (새 직업). 시작 시 첫 적용도 포함</summary>
         public event Action<JobDefinition> JobChanged;
 
+        /// <summary>격 돌파로 다음 직업에 전직했을 때 (JobChanged 다음에 호출)</summary>
+        public event Action<JobDefinition> Advanced;
+
         private void Awake()
         {
             _caster = GetComponent<SkillCaster>();
@@ -65,7 +69,7 @@ namespace BrokenSovereign.Ascension
                 return;
             }
 
-            ChangeJob(Current == _firstJob ? _unemployed : _firstJob);
+            ChangeJob(HasJob ? _unemployed : _firstJob);
         }
 
         /// <summary>직업 선택 화면에서 1차 직업 선택 (무직일 때만)</summary>
@@ -79,8 +83,36 @@ namespace BrokenSovereign.Ascension
             ChangeJob(job);
         }
 
+        /// <summary>
+        /// 격 돌파 후 다음 직업 전직. 현재 직업의 다음 직업 중 격 조건을 만족하는 첫 번째로 전직합니다.
+        /// 직업 게이지(신앙)는 유지합니다. 전직하면 true
+        /// </summary>
+        public bool TryAdvance(AscensionTier tier)
+        {
+            if (!HasJob)
+            {
+                return false;
+            }
+
+            JobDefinition next = Current.FindAdvancement(tier);
+
+            if (next == null)
+            {
+                return false;
+            }
+
+            ChangeJob(next, false);
+            Advanced?.Invoke(next);
+            return true;
+        }
+
         /// <summary>직업 교체: 슬롯 후보를 직업 구성으로 바꾸고 기본 기술 장착, 자원을 켜고 끔</summary>
         public void ChangeJob(JobDefinition job)
+        {
+            ChangeJob(job, true);
+        }
+
+        private void ChangeJob(JobDefinition job, bool resetGauge)
         {
             if (job == null)
             {
@@ -91,7 +123,7 @@ namespace BrokenSovereign.Ascension
             Current = job;
             BuildLoadout(job);
 
-            ApplyResource(job);
+            ApplyResource(job, resetGauge);
 
             // 주 스탯 (성기사: 힘). 피해 배율 = 1 + 주 스탯 × 0.001
             if (_stats != null)
@@ -109,7 +141,7 @@ namespace BrokenSovereign.Ascension
             SkillLoadout loadout = _caster.Loadout;
             loadout.ClearSlots();
 
-            foreach (SkillSlotCandidates slot in job.SkillSlots)
+            foreach (SkillSlotCandidates slot in job.ResolveSkillSlots())
             {
                 loadout.SetCandidates(slot.Slot, slot.AllCandidates());
                 loadout.Unlock(slot.Default);
@@ -134,7 +166,7 @@ namespace BrokenSovereign.Ascension
         // 같은 기술을 여러 슬롯의 기본 기술로 지정하면 마지막 슬롯에만 장착되고 앞 슬롯은 비게 됨
         private void WarnIfDefaultMissing(JobDefinition job, SkillLoadout loadout)
         {
-            foreach (SkillSlotCandidates slot in job.SkillSlots)
+            foreach (SkillSlotCandidates slot in job.ResolveSkillSlots())
             {
                 if (slot.Default != null && loadout.GetEquipped(slot.Slot) != slot.Default)
                 {
@@ -144,7 +176,7 @@ namespace BrokenSovereign.Ascension
             }
         }
 
-        private void ApplyResource(JobDefinition job)
+        private void ApplyResource(JobDefinition job, bool resetGauge)
         {
             if (_faith == null)
             {
@@ -157,7 +189,13 @@ namespace BrokenSovereign.Ascension
             }
 
             bool useFaith = job.Resource == JobResourceType.Faith;
-            _faith.ResetGauge();
+
+            // 전직(성기사 → 성투사)은 같은 신앙을 쓰므로 게이지 유지
+            if (resetGauge || !useFaith)
+            {
+                _faith.ResetGauge();
+            }
+
             _faith.SetBuff(job.GaugeBuff);
             _faith.enabled = useFaith;
         }

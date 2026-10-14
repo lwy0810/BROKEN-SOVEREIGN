@@ -32,6 +32,10 @@ namespace BrokenSovereign.Player
         private float _nextHeldSkillTime;
         private float _actionEndTime;
 
+        // 공격·시전 동작 중에 누른 이동 (동작이 끝나면 바로 이동)
+        private bool _hasBufferedMove;
+        private Vector3 _bufferedMove;
+
         // 교전 상태
         private ITargetedAction _engageAction;
         private Transform _engageTarget;
@@ -51,6 +55,9 @@ namespace BrokenSovereign.Player
 
         /// <summary>기본 공격이 실제로 나갔을 때 (공격 지점)</summary>
         public event Action<Vector3> BasicAttacked;
+
+        /// <summary>현재 기본 공격 간격 (공격 속도 반영). 공격 모션 재생 속도 맞추기용</summary>
+        public float BasicAttackInterval => _basicAttack.Interval;
 
         /// <summary>기술을 시전했을 때 (슬롯, 커서 지점)</summary>
         public event Action<SkillSlot, Vector3> SkillUsed;
@@ -118,6 +125,12 @@ namespace BrokenSovereign.Player
             else if (State == PlayerState.Attacking && Time.time >= _actionEndTime)
             {
                 State = PlayerState.Idle;
+
+                if (_hasBufferedMove)
+                {
+                    _hasBufferedMove = false;
+                    MoveTo(_bufferedMove);
+                }
             }
         }
 
@@ -126,11 +139,20 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void MoveTo(Vector3 point)
         {
-            // 공격·시전 동작 중에는 이동하지 않음 (누르고 있으면 동작이 끝난 뒤 이어서 이동)
-            if (IsActionLocked || IsActing)
+            if (IsActionLocked)
             {
                 return;
             }
+
+            // 공격·시전 동작 중: 마지막 이동 지점을 저장해 두고 동작이 끝나면 바로 이동
+            if (IsActing)
+            {
+                _bufferedMove = point;
+                _hasBufferedMove = true;
+                return;
+            }
+
+            _hasBufferedMove = false;
 
             ClearEngage();
             _mover.MoveTo(point);
@@ -367,6 +389,7 @@ namespace BrokenSovereign.Player
             if (_dodge.TryDodge(point - transform.position))
             {
                 ClearEngage();
+                _hasBufferedMove = false;
                 State = PlayerState.Dodging;
                 Dodged?.Invoke(_dodge.Direction);
             }
@@ -386,7 +409,7 @@ namespace BrokenSovereign.Player
             switch (slot)
             {
                 case SkillSlot.LeftClick:
-                    return new SkillSlotState(true, _basicAttack.CooldownRemaining, _basicAttack.Duration);
+                    return new SkillSlotState(true, _basicAttack.CooldownRemaining, _basicAttack.Interval);
                 case SkillSlot.RightClick:
                     return new SkillSlotState(true, Mathf.Max(0f, _nextHeldSkillTime - Time.time), _heldSkillRepeatInterval);
                 default:
@@ -488,6 +511,7 @@ namespace BrokenSovereign.Player
         private void BeginAction(float duration)
         {
             _mover.Stop();
+            _hasBufferedMove = false;
             State = PlayerState.Attacking;
             _actionEndTime = Time.time + Mathf.Max(0f, duration);
         }

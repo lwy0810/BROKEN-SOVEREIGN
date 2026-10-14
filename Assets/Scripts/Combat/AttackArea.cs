@@ -79,6 +79,12 @@ namespace BrokenSovereign.Combat
             return results.Count;
         }
 
+        /// <summary>원 안의 살아 있는 대상을 모두 찾습니다 (중심 원형 범위 기술용)</summary>
+        public static int FindAllInCircle(Vector3 origin, float radius, LayerMask mask, List<IDamageable> results)
+        {
+            return FindAllInCone(origin, Vector3.forward, radius, 360f, mask, results);
+        }
+
         public static bool IsInCone(Vector3 origin, Vector3 forward, float radius, float angle, Vector3 point)
         {
             Vector3 offset = FlatOffset(origin, point);
