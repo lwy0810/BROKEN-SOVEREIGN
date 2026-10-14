@@ -118,11 +118,14 @@ namespace BrokenSovereign.Skill
             return skill != null ? skill.CastMovement : SkillCastMovement.StopInRange;
         }
 
-        /// <summary>대상 지정 시 접근할 사거리 (기술 반경). 기술이 없거나 반경이 없으면 0</summary>
-        public float GetRange(SkillSlot slot)
+        /// <summary>
+        /// 시전 사거리 (SkillRange 규칙: castRange → 반경 × 0.8 → 0). 충만 중이면 강화된 수치로 계산.
+        /// 기술이 없거나 사거리 수치가 없으면 0
+        /// </summary>
+        public float GetCastRange(SkillSlot slot)
         {
             SkillDefinition skill = GetSkill(slot);
-            return skill != null ? skill.GetBaseParameter(SkillParameterKeys.RADIUS) : 0f;
+            return skill != null ? SkillRange.Resolve(skill.CreateParameters(IsEmpowered())) : 0f;
         }
 
         public bool TryCast(SkillSlot slot, Vector3 cursorPoint)
