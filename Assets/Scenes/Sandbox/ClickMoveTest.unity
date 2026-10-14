@@ -3816,6 +3816,7 @@ GameObject:
   - component: {fileID: 2092739946}
   - component: {fileID: 2092739945}
   - component: {fileID: 2092739947}
+  - component: {fileID: 2092739948}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -4066,9 +4067,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 922432982f774a18867efc3eb3ef5e19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillCaster
-  _bindings:
-  - Slot: 1
-    Skill: {fileID: 11400000, guid: 7075b7f3d0994b9e854bd1cd10c3f9c0, type: 2}
+  _outOfCombatDelay: 5
   _targetMask:
     serializedVersion: 2
     m_Bits: 512
@@ -4085,9 +4084,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.PlayerJob
   _unemployed: {fileID: 11400000, guid: 02d74b951d8d4c638026ecd24cad9323, type: 2}
-  _debugJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
+  _firstJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
   _startWithDebugJob: 0
   _enableDebugKey: 1
+  _unlockAllCandidates: 1
 --- !u!114 &2092739946
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4132,6 +4132,32 @@ MonoBehaviour:
   _max: 100
   _regenPerSecond: 8
   _displayColor: {r: 0.16, g: 0.38, b: 0.95, a: 1}
+--- !u!114 &2092739948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9f756cb6de5d6f43b163a691e6955e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.PlayerProgression
+  _level:
+    BaseExperience: 100
+    Growth: 1.25
+    MaxLevel: 15
+    MainStatPerLevel: 5
+    AllStatsPerLevel: 2
+    MaxHealthPerLevel: 10
+    JobSelectLevel: 2
+  _ascension:
+    SuperhumanLevel: 5
+    DemigodLevel: 10
+    MaxHealthPerTier: 50
+    AttackPowerPerTier: 5
+  _enableDebugKey: 1
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0

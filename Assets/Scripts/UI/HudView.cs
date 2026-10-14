@@ -63,6 +63,13 @@ namespace BrokenSovereign.UI
         private float _noticeEndTime = float.NegativeInfinity;
         private bool _hasShownJob;
         private bool _isBuilt;
+        private PlayerProgression _progression;
+        private JobSelectView _jobSelect;
+        private RectTransform _expRoot;
+        private Image _expFill;
+        private string _jobName = string.Empty;
+        private int _shownLevel = -1;
+        private AscensionTier _shownTier;
 
         private void Awake()
         {
@@ -84,6 +91,7 @@ namespace BrokenSovereign.UI
             _dodge = _player.GetComponent<DodgeAction>();
             _job = _player.GetComponent<PlayerJob>();
             _caster = _player.GetComponent<SkillCaster>();
+            _progression = _player.GetComponent<PlayerProgression>();
 
             Build();
             ApplyLayout();
@@ -92,6 +100,17 @@ namespace BrokenSovereign.UI
             if (_job != null)
             {
                 _job.JobChanged += OnJobChanged;
+            }
+
+            if (_progression != null)
+            {
+                _progression.LeveledUp += OnLeveledUp;
+                _progression.Ascended += OnAscended;
+                _progression.JobSelectionRequested += OnJobSelectionRequested;
+            }
+            else
+            {
+                Debug.LogWarning("HudView: Player에 PlayerProgression이 없어 경험치·레벨·직업 선택을 표시하지 않습니다.", this);
             }
         }
 
@@ -136,6 +155,7 @@ namespace BrokenSovereign.UI
             UpdateNotice();
             _jobGaugeView.SetGauge(FindActiveJobGauge());
             UpdateBuffs();
+            UpdateProgression();
         }
 
         private void OnDestroy()
@@ -143,6 +163,13 @@ namespace BrokenSovereign.UI
             if (_job != null)
             {
                 _job.JobChanged -= OnJobChanged;
+            }
+
+            if (_progression != null)
+            {
+                _progression.LeveledUp -= OnLeveledUp;
+                _progression.Ascended -= OnAscended;
+                _progression.JobSelectionRequested -= OnJobSelectionRequested;
             }
 
             if (_targetRing != null)
@@ -154,15 +181,66 @@ namespace BrokenSovereign.UI
         // 직업 이름 갱신. 시작 시 첫 적용은 알림 없이, 이후 전환부터 화면 중앙 알림
         private void OnJobChanged(JobDefinition job)
         {
-            _jobLabel.text = job.DisplayName;
+            _jobName = job.DisplayName;
+            RefreshJobLabel();
 
             if (_hasShownJob)
             {
-                _noticeText.text = job.DisplayName;
-                _noticeEndTime = Time.time + _jobDisplay.NoticeDuration;
+                ShowNotice(job.DisplayName);
             }
 
             _hasShownJob = true;
+        }
+
+        private void OnLeveledUp(int level)
+        {
+            ShowNotice($"레벨 {level}");
+        }
+
+        private void OnAscended(AscensionTier tier)
+        {
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}");
+        }
+
+        private void OnJobSelectionRequested()
+        {
+            _jobSelect.Open();
+        }
+
+        private void ShowNotice(string message)
+        {
+            _noticeText.text = message;
+            _noticeEndTime = Time.time + _jobDisplay.NoticeDuration;
+        }
+
+        // 경험치 막대와 "직업 · 격 · 레벨" 표시 (값이 바뀔 때만 문자열 갱신)
+        private void UpdateProgression()
+        {
+            if (_progression == null)
+            {
+                _expRoot.gameObject.SetActive(false);
+                return;
+            }
+
+            _expFill.fillAmount = _progression.Progress;
+
+            if (_progression.Level != _shownLevel || _progression.Tier != _shownTier)
+            {
+                RefreshJobLabel();
+            }
+        }
+
+        private void RefreshJobLabel()
+        {
+            if (_progression == null)
+            {
+                _jobLabel.text = _jobName;
+                return;
+            }
+
+            _shownLevel = _progression.Level;
+            _shownTier = _progression.Tier;
+            _jobLabel.text = $"{_jobName} · {AscensionModel.DisplayName(_shownTier)} · Lv {_shownLevel}";
         }
 
         private void UpdateNotice()
@@ -306,6 +384,26 @@ namespace BrokenSovereign.UI
             _noticeText = CreateLabel("JobNotice", TextAnchor.MiddleCenter);
             _noticeText.fontStyle = FontStyle.Bold;
             _noticeText.enabled = false;
+
+            // 경험치 막대: 기술 바 바로 아래
+            _expRoot = HudGraphics.CreateRect("ExpBar", transform);
+            Image expBackground = _expRoot.gameObject.AddComponent<Image>();
+            expBackground.sprite = HudGraphics.WhiteSprite;
+            expBackground.color = new Color(0f, 0f, 0f, 0.7f);
+            expBackground.raycastTarget = false;
+            RectTransform fillRect = HudGraphics.CreateRect("Fill", _expRoot);
+            HudGraphics.Stretch(fillRect);
+            _expFill = fillRect.gameObject.AddComponent<Image>();
+            _expFill.sprite = HudGraphics.WhiteSprite;
+            _expFill.color = new Color(0.95f, 0.78f, 0.3f);
+            _expFill.type = Image.Type.Filled;
+            _expFill.fillMethod = Image.FillMethod.Horizontal;
+            _expFill.fillAmount = 0f;
+            _expFill.raycastTarget = false;
+
+            // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
+            _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
+            _jobSelect.Initialize(_job);
             _isBuilt = true;
         }
 
@@ -344,6 +442,10 @@ namespace BrokenSovereign.UI
             PlaceSlot(_potionSlot, x);
             x += slot + _bar.Spacing;
             PlaceSlot(_dodgeSlot, x);
+
+            // 경험치 막대: 기술 바 아래 (기술 바 너비)
+            PlaceAt(_expRoot, new Vector2(0.5f, 0f), new Vector2(0f, Mathf.Max(2f, _bar.BottomMargin - 14f)),
+                new Vector2(totalWidth, 8f));
 
             // 직업 게이지: 기술 바 바로 위 (기술 바 너비)
             float gaugeBottom = _bar.BottomMargin + slot + _jobGauge.GapToBar;

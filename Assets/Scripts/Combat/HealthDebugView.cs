@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using BrokenSovereign.Core;
 using UnityEngine;
 
 namespace BrokenSovereign.Combat
@@ -181,6 +182,12 @@ namespace BrokenSovereign.Combat
 
         private void OnGUI()
         {
+            // OnGUI는 모든 Canvas 위에 그려지므로 직업 선택 화면 등 전체 화면 UI가 열려 있으면 숨김
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             Camera cam = Camera.main;
 
             if (cam == null)

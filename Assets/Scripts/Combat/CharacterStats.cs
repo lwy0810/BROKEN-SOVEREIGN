@@ -151,16 +151,90 @@ namespace BrokenSovereign.Combat
         }
 
         [ContextMenu("Debug: 현재 최종 능력치 출력")]
-        private void DebugLogStats()
+        // 로그 1건에 전부 출력 (Console에서 클릭하면 전체 표시). 형식: 능력치 = 최종 (기본)
+        public void DebugLogStats()
         {
-            foreach (StatType stat in (StatType[])Enum.GetValues(typeof(StatType)))
+            var builder = new System.Text.StringBuilder();
+            string mainStat = Sheet.MainStat.HasValue ? Sheet.MainStat.Value.ToString() : "없음";
+            builder.Append($"[{name}] 최종 능력치 — 주 스탯 {mainStat}, 피해 배율 {Sheet.MainStatDamageMultiplier:0.###}, ")
+                .Append($"물리 피해 감소 {Sheet.GetMitigation(DamageType.Physical):P1}, ")
+                .Append($"원소 피해 감소 {Sheet.GetMitigation(DamageType.Elemental):P1}");
+
+            // 레벨·격 등 다른 컴포넌트 정보 (PlayerProgression 등)
+            foreach (IDebugInfoProvider provider in GetComponents<IDebugInfoProvider>())
             {
-                Debug.Log($"{name} {stat}: {Sheet.Get(stat):0.###}");
+                builder.Append('\n').Append(provider.DebugInfo);
             }
 
-            Debug.Log($"{name} 주 스탯 피해 배율: {Sheet.MainStatDamageMultiplier:0.###}, "
-                + $"물리 피해 감소: {Sheet.GetMitigation(DamageType.Physical):P1}, "
-                + $"원소 피해 감소: {Sheet.GetMitigation(DamageType.Elemental):P1}");
+            foreach (StatType stat in (StatType[])Enum.GetValues(typeof(StatType)))
+            {
+                builder.Append('\n').Append($"{stat} = {Sheet.Get(stat):0.###} (기본 {Sheet.GetBase(stat):0.###}");
+                AppendSourceBreakdown(builder, stat);
+                builder.Append(')');
+            }
+
+            Debug.Log(builder.ToString(), this);
+        }
+
+        // 출처별 기여: "| 레벨 +17, 격 +5, 충만 +25%" (Flat +값 / Percent +값% / Multiplicative ×(1−값))
+        private void AppendSourceBreakdown(System.Text.StringBuilder builder, StatType stat)
+        {
+            bool first = true;
+
+            foreach (IStatModifierSource source in Sheet.Sources)
+            {
+                float flat = 0f;
+                float percent = 0f;
+                float multiplier = 1f;
+                bool found = false;
+
+                foreach (StatModifier modifier in source.GetModifiers())
+                {
+                    if (modifier.Stat != stat)
+                    {
+                        continue;
+                    }
+
+                    found = true;
+
+                    switch (modifier.Type)
+                    {
+                        case ModifierType.Flat:
+                            flat += modifier.Value;
+                            break;
+                        case ModifierType.Percent:
+                            percent += modifier.Value;
+                            break;
+                        case ModifierType.Multiplicative:
+                            multiplier *= 1f - modifier.Value;
+                            break;
+                    }
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+
+                builder.Append(first ? " | " : ", ");
+                first = false;
+                builder.Append(source is INamedStatSource named ? named.SourceName : source.GetType().Name);
+
+                if (!Mathf.Approximately(flat, 0f))
+                {
+                    builder.Append($" {flat:+0.###;-0.###}");
+                }
+
+                if (!Mathf.Approximately(percent, 0f))
+                {
+                    builder.Append($" {percent * 100f:+0.#;-0.#}%");
+                }
+
+                if (!Mathf.Approximately(multiplier, 1f))
+                {
+                    builder.Append($" ×{multiplier:0.###}");
+                }
+            }
         }
 
         private void ToggleDebugBuff(StatModifier modifier)
@@ -180,8 +254,10 @@ namespace BrokenSovereign.Combat
             Debug.Log($"{name}: 디버그 버프 {modifier.Stat} {(_debugBuff.Contains(modifier.Stat) ? "적용" : "해제")}");
         }
 
-        private class DebugBuff : IStatModifierSource
+        private class DebugBuff : IStatModifierSource, INamedStatSource
         {
+            public string SourceName => "디버그 버프";
+
             private readonly List<StatModifier> _modifiers = new List<StatModifier>();
 
             public IEnumerable<StatModifier> GetModifiers() => _modifiers;

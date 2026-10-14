@@ -45,6 +45,9 @@ namespace BrokenSovereign.Combat
         /// <summary>체력이 0이 됐을 때</summary>
         public event Action Died;
 
+        /// <summary>어떤 Health든 사망했을 때 (경험치 획득 등 전역 구독용)</summary>
+        public static event Action<Health> AnyDied;
+
         /// <summary>체력을 최대치로 되돌렸을 때 (부활)</summary>
         public event Action Restored;
 
@@ -194,6 +197,7 @@ namespace BrokenSovereign.Combat
         {
             _hasDied = true;
             Died?.Invoke();
+            AnyDied?.Invoke(this);
         }
 
         private bool IsInvulnerable()

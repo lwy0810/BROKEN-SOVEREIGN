@@ -43,6 +43,7 @@ namespace BrokenSovereign.Enemy
 
         public event Action<float> Stunned;
         public Transform Target => _target;
+        public EnemyDefinition Definition => _definition;
 
         private void Awake()
         {

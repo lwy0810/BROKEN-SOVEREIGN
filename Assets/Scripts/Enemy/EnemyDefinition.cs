@@ -49,10 +49,15 @@ namespace BrokenSovereign.Enemy
         [Tooltip("CharacterStats가 없을 때 사용하는 공격력")]
         [SerializeField, Min(0f)] private float _fallbackAttackPower = 40f;
 
+        [Header("보상")]
+        [Tooltip("처치 시 플레이어 경험치 (일반 20, 정예 60 기준)")]
+        [SerializeField, Min(0)] private int _experienceReward = 20;
+
         [Header("디버그 표시 (임시)")]
         [SerializeField] private bool _showAttackArea = true;
         [SerializeField] private Color _attackAreaColor = new Color(1f, 0.1f, 0.1f, 0.35f);
 
+        public int ExperienceReward => _experienceReward;
         public float DetectRange => _detectRange;
         public float LoseRange => _detectRange * _loseRangeMultiplier;
         public float LeashDistance => _leashDistance;
