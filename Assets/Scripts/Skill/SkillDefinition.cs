@@ -55,6 +55,12 @@ namespace BrokenSovereign.Skill
         [Tooltip("켜면 기술이 진행되는 동안 이동·다른 행동 잠금 (돌진 등). 회피는 가능")]
         [SerializeField] private bool _locksMovement;
 
+        [Tooltip("기술 키 유지 시 이동 방식. StopInRange: 사거리 안이면 멈춰서 시전 / MoveWhileCasting: 이동하며 시전 (휠윈드)")]
+        [SerializeField] private SkillCastMovement _castMovement = SkillCastMovement.StopInRange;
+
+        [Tooltip("시전 동작 시간(초). 이 시간 동안 시전자는 멈춰 있고 이동·다른 공격 불가 (회피는 가능). MoveWhileCasting 기술은 적용 안 함")]
+        [SerializeField, Min(0f)] private float _castTime = 0.4f;
+
         [Tooltip("신앙 충만 시 적용할 수치 수정치")]
         [SerializeField] private List<SkillModifierEntry> _empoweredModifiers = new List<SkillModifierEntry>();
 
@@ -66,6 +72,8 @@ namespace BrokenSovereign.Skill
         public float ResourceCost => _resourceCost;
         public SkillBehaviour Behaviour => _behaviour;
         public bool LocksMovement => _locksMovement;
+        public SkillCastMovement CastMovement => _castMovement;
+        public float CastTime => _castTime;
 
         /// <summary>에셋에 적힌 기본 수치 하나 (분기·충만 적용 전). 없으면 fallback</summary>
         public float GetBaseParameter(string key, float fallback = 0f)

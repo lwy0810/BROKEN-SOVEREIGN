@@ -10,12 +10,13 @@ namespace BrokenSovereign.Skill
     /// 슬롯에 연결된 기술을 시전합니다:
     /// 재사용 대기·마나 확인 → 마나 소모 → 수치 생성(직업 게이지 버프 중이면 충만 수정치) → SkillBehaviour 실행 → 재사용 대기 시작.
     /// 지속 기술은 끝날 때까지 매 프레임 Tick을 호출합니다.
-    /// 슬롯 기술은 직업 전환(PlayerJob)이 SetSkill로 교체합니다. Inspector 목록은 초기값입니다.
-    /// 강화 분기는 다음 단계에서 연결합니다.
+    /// 슬롯 기술은 SkillLoadout(후보·해금·장착)에서 읽습니다. 직업 전환(PlayerJob)이 Loadout을 구성합니다.
+    /// 기술 교체는 비전투 상태에서만 가능합니다 (마지막 시전·적중·피격 후 일정 시간).
     /// </summary>
     public class SkillCaster : MonoBehaviour
     {
-        [SerializeField] private List<SkillSlotAssignment> _bindings = new List<SkillSlotAssignment>();
+        [Tooltip("마지막 전투 행동 후 비전투로 보는 시간 (초). 비전투일 때만 기술 교체 가능")]
+        [SerializeField, Min(0f)] private float _outOfCombatDelay = 5f;
 
         [Tooltip("기술 피해 대상 레이어 (Enemy)")]
         [SerializeField] private LayerMask _targetMask;
@@ -25,17 +26,38 @@ namespace BrokenSovereign.Skill
         private readonly List<ISkillResource> _resourceBuffer = new List<ISkillResource>();
         private readonly List<ISkillEmpowerSource> _empowerBuffer = new List<ISkillEmpowerSource>();
         private CharacterStats _stats;
+        private Health _health;
+        private CombatStateTracker _combat;
 
         /// <summary>기술을 시전했을 때 (슬롯, 기술)</summary>
         public event Action<SkillSlot, SkillDefinition> SkillCast;
 
+        /// <summary>슬롯 기술 구성 (후보·해금·장착)</summary>
+        public SkillLoadout Loadout { get; } = new SkillLoadout();
+
+        /// <summary>전투 중이면 기술 교체 불가</summary>
+        public bool InCombat => _combat != null && _combat.InCombat;
+
         private void Awake()
         {
             _stats = GetComponent<CharacterStats>();
+            _health = GetComponent<Health>();
+            _combat = new CombatStateTracker(_outOfCombatDelay);
+        }
+
+        private void OnEnable()
+        {
+            Health.AnyDamaged += OnAnyDamaged;
+        }
+
+        private void OnDisable()
+        {
+            Health.AnyDamaged -= OnAnyDamaged;
         }
 
         private void Update()
         {
+            _combat.Tick(Time.deltaTime);
             _cooldowns.Tick(Time.deltaTime);
             TickActiveCasts(Time.deltaTime);
         }
@@ -67,31 +89,33 @@ namespace BrokenSovereign.Skill
 
         public SkillDefinition GetSkill(SkillSlot slot)
         {
-            foreach (SkillSlotAssignment binding in _bindings)
-            {
-                if (binding.Slot == slot && binding.Skill != null)
-                {
-                    return binding.Skill;
-                }
-            }
-
-            return null;
+            return Loadout.GetEquipped(slot);
         }
 
-        /// <summary>슬롯 기술 교체. null이면 슬롯 비움</summary>
-        public void SetSkill(SkillSlot slot, SkillDefinition skill)
+        /// <summary>후보 기술 장착 (비전투일 때만). 재사용 대기는 기술 ID 기준이라 교체해도 유지</summary>
+        public EquipResult TryEquip(SkillSlot slot, SkillDefinition skill)
         {
-            _bindings.RemoveAll(binding => binding.Slot == slot);
-
-            if (skill != null)
-            {
-                _bindings.Add(new SkillSlotAssignment(slot, skill));
-            }
+            return Loadout.Equip(slot, skill, InCombat);
         }
 
-        public void ClearSkills()
+        /// <summary>해금된 다음 후보로 교체 (디버그 순환 장착)</summary>
+        public EquipResult EquipNext(SkillSlot slot)
         {
-            _bindings.Clear();
+            return Loadout.EquipNext(slot, InCombat);
+        }
+
+        /// <summary>기술 키 유지 시 이동 방식. 기술이 없으면 StopInRange</summary>
+        /// <summary>시전 동작 시간 (이동 불가 시간). 기술이 없으면 0</summary>
+        public float GetCastTime(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null ? skill.CastTime : 0f;
+        }
+
+        public SkillCastMovement GetCastMovement(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null ? skill.CastMovement : SkillCastMovement.StopInRange;
         }
 
         /// <summary>대상 지정 시 접근할 사거리 (기술 반경). 기술이 없거나 반경이 없으면 0</summary>
@@ -135,6 +159,7 @@ namespace BrokenSovereign.Skill
             skill.Behaviour.Begin(context);
             _activeCasts.Add(context);
             _cooldowns.Start(skill.SkillId, GetCooldown(skill, stats));
+            _combat.NotifyCombatAction();
             SkillCast?.Invoke(slot, skill);
             return true;
         }
@@ -171,6 +196,15 @@ namespace BrokenSovereign.Skill
             }
 
             return false;
+        }
+
+        // 내 피격·내 공격 적중이면 전투 상태 갱신
+        private void OnAnyDamaged(Health victim, DamageInfo info)
+        {
+            if (victim == _health || info.Attacker == gameObject)
+            {
+                _combat.NotifyCombatAction();
+            }
         }
 
         // 켜져 있는 기술 비용 자원 (마나)

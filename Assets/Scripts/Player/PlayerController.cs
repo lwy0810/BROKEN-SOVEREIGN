@@ -128,7 +128,8 @@ namespace BrokenSovereign.Player
         /// </summary>
         public void MoveTo(Vector3 point)
         {
-            if (IsActionLocked)
+            // 공격·시전 동작 중에는 이동하지 않음 (누르고 있으면 동작이 끝난 뒤 이어서 이동)
+            if (IsActionLocked || IsActing)
             {
                 return;
             }
@@ -197,8 +198,8 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
-        /// 1~4 (우클릭은 CastWhileHeld 경유): 이동을 멈추지 않고 커서 방향으로 시전 (정지 상태 강요 금지 원칙).
-        /// 교전 중이면 교전을 유지합니다.
+        /// 1~4 (우클릭은 CastWhileHeld 경유): 커서 방향으로 시전.
+        /// 시전하면 멈춰서 기술의 시전 시간 동안 이동·다른 공격 불가. MoveWhileCasting 기술(휠윈드 등)은 이동을 유지합니다.
         /// </summary>
         public void UseSkill(SkillSlot slot, Vector3 point)
         {
@@ -207,9 +208,16 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            bool moveWhileCasting = GetCastMovement(slot) == SkillCastMovement.MoveWhileCasting;
+
+            if (!moveWhileCasting && IsActing)
+            {
+                return;
+            }
+
             if (_skillCaster != null && _skillCaster.HasSkill(slot))
             {
-                // 재사용 대기 중이면 시전하지 않음
+                // 재사용 대기·자원 부족이면 시전하지 않음 (이동도 멈추지 않음)
                 if (!_skillCaster.TryCast(slot, point))
                 {
                     return;
@@ -217,6 +225,11 @@ namespace BrokenSovereign.Player
 
                 // 시전 순간 시전 방향으로 즉시 회전 (등 뒤 대상도 바로 돌아서 시전)
                 _mover.FaceTowards(point);
+
+                if (!moveWhileCasting)
+                {
+                    BeginAction(_skillCaster.GetCastTime(slot));
+                }
             }
             else
             {
@@ -240,6 +253,31 @@ namespace BrokenSovereign.Player
 
             ClearEngage();
 
+            // InPlace 기술: 거리와 상관없이 그 자리에서 커서 방향으로 시전
+            if (GetCastMovement(slot) == SkillCastMovement.InPlace)
+            {
+                moveTowardCursor = false;
+            }
+
+            // StopInRange 기술: 사거리 밖이면 커서 지점으로 다가가기만 하고, 사거리 안에 들면 멈춰서 시전
+            // MoveWhileCasting 기술(휠윈드 등): 사거리와 상관없이 계속 이동하며 시전
+            if (GetCastMovement(slot) != SkillCastMovement.MoveWhileCasting)
+            {
+                if (IsActing)
+                {
+                    return;
+                }
+
+                if (moveTowardCursor && !IsInRange(point, GetSkillReach(slot)))
+                {
+                    _mover.MoveTo(point);
+                    State = PlayerState.Moving;
+                    return;
+                }
+
+                moveTowardCursor = false;
+            }
+
             if (moveTowardCursor)
             {
                 _mover.MoveTo(point);
@@ -249,6 +287,11 @@ namespace BrokenSovereign.Player
             {
                 _mover.Stop();
                 _mover.FaceTowards(point);
+
+                if (State == PlayerState.Moving)
+                {
+                    State = PlayerState.Idle;
+                }
             }
 
             if (Time.time < _nextHeldSkillTime)
@@ -261,44 +304,34 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
-        /// 기술 키 유지 + 커서가 적 위: 적을 대상으로 선택하고, 기술 사거리 밖이면 접근, 안이면 멈춰서 적을 바라보며 반복 시전.
-        /// 이동 방향(회피 경로)이 아닌 적 방향으로 시전하기 위한 경로입니다.
+        /// 기술 키 + 커서가 적 위: 기본 공격과 같은 교전 흐름으로 처리.
+        /// 사거리 밖이면 접근, 사거리 안에 들면 멈춰서 적을 바라보고 시전. 짧게 누르면 1회, 누르고 있으면 반복.
+        /// 버튼을 떼면 ReleaseEngage를 호출해야 합니다.
         /// </summary>
         public void CastAtTarget(SkillSlot slot, Transform target)
         {
-            if (IsActionLocked || target == null)
+            if (_skillCaster == null || !_skillCaster.HasSkill(slot))
             {
                 return;
             }
 
-            ClearEngage();
-            SelectTarget(target);
-
-            Vector3 targetPosition = target.position;
-            float range = GetSkillReach(slot);
-
-            if (!IsInRange(targetPosition, range))
-            {
-                _mover.MoveTo(targetPosition);
-                State = PlayerState.Moving;
-                return;
-            }
-
-            _mover.Stop();
-            _mover.FaceTowards(targetPosition);
-
-            if (State == PlayerState.Moving)
-            {
-                State = PlayerState.Idle;
-            }
-
-            if (Time.time < _nextHeldSkillTime)
+            if (_isEngageHeld && _engageTarget == target && _engageAction is SkillSlotAction current && current.Slot == slot)
             {
                 return;
             }
 
-            _nextHeldSkillTime = Time.time + _heldSkillRepeatInterval;
-            UseSkill(slot, targetPosition);
+            Engage(new SkillSlotAction(_skillCaster, slot, GetSkillReach), target);
+        }
+
+        /// <summary>제자리 즉시 시전 기술인지 (적을 클릭해도 접근하지 않음)</summary>
+        public bool CastsInPlace(SkillSlot slot)
+        {
+            return GetCastMovement(slot) == SkillCastMovement.InPlace;
+        }
+
+        private SkillCastMovement GetCastMovement(SkillSlot slot)
+        {
+            return _skillCaster != null ? _skillCaster.GetCastMovement(slot) : SkillCastMovement.StopInRange;
         }
 
         // 대상 지정 시전 사거리: 기술 반경의 80% (대상 중심이 범위 안쪽에 확실히 들어오도록). 기술이 없으면 기본 공격 사거리
@@ -381,7 +414,8 @@ namespace BrokenSovereign.Player
 
         private void UpdateEngage()
         {
-            if (IsActionLocked)
+            // 회피·이동 잠금 기술·공격 동작 중에는 추적·실행 보류
+            if (IsActionLocked || IsActing)
             {
                 return;
             }
@@ -438,16 +472,30 @@ namespace BrokenSovereign.Player
                 return false;
             }
 
-            State = PlayerState.Attacking;
-            _actionEndTime = Time.time + action.Duration;
+            BeginAction(action.Duration);
 
             if (action == _basicAttack)
             {
                 BasicAttacked?.Invoke(point);
             }
+            else if (action is SkillSlotAction skillAction)
+            {
+                SkillUsed?.Invoke(skillAction.Slot, point);
+            }
 
             return true;
         }
+
+        // 공격·시전 동작 시작: 멈추고 동작 시간 동안 Attacking 유지 (이동·다른 공격 불가, 회피는 가능)
+        private void BeginAction(float duration)
+        {
+            _mover.Stop();
+            State = PlayerState.Attacking;
+            _actionEndTime = Time.time + Mathf.Max(0f, duration);
+        }
+
+        /// <summary>공격·시전 동작 중 (이동·다른 공격 불가)</summary>
+        public bool IsActing => State == PlayerState.Attacking && Time.time < _actionEndTime;
 
         /// <summary>선택 대상 해제</summary>
         public void ClearTarget()

@@ -60,6 +60,9 @@ namespace BrokenSovereign.Enemy
             _homePosition = transform.position;
             _homeRotation = transform.rotation;
             _agent.stoppingDistance = 0f;
+
+            // 회전은 직접 처리 (NavMeshAgent 기본 회전 120도/초는 추적 시작 시 너무 느림)
+            _agent.updateRotation = false;
         }
 
         private void OnEnable()
@@ -122,6 +125,30 @@ namespace BrokenSovereign.Enemy
             }
 
             TickState(sense);
+            UpdateMoveFacing(sense);
+        }
+
+        // 추적·복귀 이동 중 진행 방향으로 회전 (TurnSpeed 적용). 경로 계산 전에는 대상 방향을 바라봄
+        private void UpdateMoveFacing(EnemySense sense)
+        {
+            bool chasing = State == EnemyState.Chase && sense.DistanceToTarget > _definition.AttackRange;
+
+            if (!chasing && State != EnemyState.Return)
+            {
+                return;
+            }
+
+            Vector3 velocity = _agent.enabled ? _agent.desiredVelocity : Vector3.zero;
+            velocity.y = 0f;
+
+            if (velocity.sqrMagnitude > 0.01f)
+            {
+                FaceTowards(transform.position + velocity);
+            }
+            else if (chasing && _target != null)
+            {
+                FaceTowards(_target.position);
+            }
         }
 
         private EnemySense BuildSense()
