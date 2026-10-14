@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
   _skillId: advancing_oath
   _displayName: "\uC9C4\uACA9"
-  _cooldown: 2
+  _cooldown: 10
   _resourceCost: 20
   _parameters:
   - Key: coefficient

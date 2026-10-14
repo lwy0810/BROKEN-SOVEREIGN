@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 829de8fe4427461e880102b35fec0811, type: 3}
+  m_Name: SkillBattleCry
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
+  _skillId: battle_cry
+  _displayName: "\uC804\uC7A5\uC758 \uD568\uC131"
+  _cooldown: 30
+  _resourceCost: 50
+  _parameters:
+  - Key: radius
+    Value: 5
+  - Key: duration
+    Value: 10
+  - Key: attackPowerReduction
+    Value: 0.2
+  - Key: armorReduction
+    Value: 0.2
+  _locksMovement: 0
+  _castMovement: 2
+  _castTime: 0.4
+  _empoweredModifiers: []
+  _behaviour: {fileID: 11400000, guid: 2831be1ea11b4876879b7b4f3a8fd086, type: 2}

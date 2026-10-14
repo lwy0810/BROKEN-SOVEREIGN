@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 829de8fe4427461e880102b35fec0811, type: 3}
-  m_Name: SkillResonantStrike
+  m_Name: SkillStrike
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
-  _skillId: resonant_strike
-  _displayName: "\uC794\uD5A5 \uAC15\uD0C0"
+  _skillId: strike
+  _displayName: "\uAC15\uD0C0"
   _cooldown: 0
-  _resourceCost: 30
+  _resourceCost: 25
   _parameters:
   - Key: coefficient
     Value: 1.5
   - Key: radius
-    Value: 3
+    Value: 2.5
   - Key: angle
     Value: 120
   _locksMovement: 0
-  _castMovement: 2
-  _castTime: 0.6
+  _castMovement: 0
+  _castTime: 0.4
   _empoweredModifiers: []
-  _behaviour: {fileID: 11400000, guid: a5397770804b4ece95025b33b67f55b0, type: 2}
+  _behaviour: {fileID: 11400000, guid: bf2e950786c04761b9629a20d67925c2, type: 2}

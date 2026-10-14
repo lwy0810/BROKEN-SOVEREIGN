@@ -7,7 +7,7 @@ namespace BrokenSovereign.Skill
     /// <summary>
     /// 커서 방향 전방 부채꼴 내려찍기. 범위 안의 모든 적에게 피해 (즉발).
     /// 수치 키: coefficient(계수), radius(반경 m), angle(각도)
-    /// 사용 기술: 잔향 강타, 격광 강타(예정)
+    /// 사용 기술: 격광 강타
     /// </summary>
     [CreateAssetMenu(fileName = "ConeSmashBehaviour", menuName = "BrokenSovereign/Skill Behaviour/Cone Smash")]
     public class ConeSmashBehaviour : SkillBehaviour
