@@ -18,8 +18,6 @@ namespace BrokenSovereign.Player
     [RequireComponent(typeof(Health))]
     public class PlayerController : MonoBehaviour
     {
-        private const float SKILL_REACH_RATIO = 0.8f;
-
         [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
         [SerializeField] private float _heldSkillRepeatInterval = 0.5f;
 
@@ -334,11 +332,11 @@ namespace BrokenSovereign.Player
             return _skillCaster != null ? _skillCaster.GetCastMovement(slot) : SkillCastMovement.StopInRange;
         }
 
-        // 대상 지정 시전 사거리: 기술 반경의 80% (대상 중심이 범위 안쪽에 확실히 들어오도록). 기술이 없으면 기본 공격 사거리
+        // 시전 사거리 (castRange → 반경 × 0.8, SkillRange). 사거리 수치가 없는 기술은 기본 공격 사거리
         private float GetSkillReach(SkillSlot slot)
         {
-            float radius = _skillCaster != null ? _skillCaster.GetRange(slot) : 0f;
-            return radius > 0f ? radius * SKILL_REACH_RATIO : _basicAttack.Range;
+            float range = _skillCaster != null ? _skillCaster.GetCastRange(slot) : 0f;
+            return range > 0f ? range : _basicAttack.Range;
         }
 
         /// <summary>

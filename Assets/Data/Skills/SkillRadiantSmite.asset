@@ -15,7 +15,7 @@ MonoBehaviour:
   _skillId: radiant_smite
   _displayName: "\uACA9\uAD11 \uAC15\uD0C0"
   _cooldown: 0
-  _resourceCost: 15
+  _resourceCost: 30
   _parameters:
   - Key: coefficient
     Value: 2.2
@@ -23,6 +23,9 @@ MonoBehaviour:
     Value: 3.5
   - Key: angle
     Value: 120
+  _locksMovement: 0
+  _castMovement: 2
+  _castTime: 0.4
   _empoweredModifiers:
   - Key: radius
     Type: 1

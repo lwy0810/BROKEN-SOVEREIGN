@@ -108,6 +108,21 @@ namespace BrokenSovereign.Ascension
                     loadout.Equip(slot.Slot, slot.Default, false);
                 }
             }
+
+            WarnIfDefaultMissing(job, loadout);
+        }
+
+        // 같은 기술을 여러 슬롯의 기본 기술로 지정하면 마지막 슬롯에만 장착되고 앞 슬롯은 비게 됨
+        private void WarnIfDefaultMissing(JobDefinition job, SkillLoadout loadout)
+        {
+            foreach (SkillSlotCandidates slot in job.SkillSlots)
+            {
+                if (slot.Default != null && loadout.GetEquipped(slot.Slot) != slot.Default)
+                {
+                    Debug.LogWarning($"{job.DisplayName}: {slot.Slot} 슬롯의 기본 기술 '{slot.Default.DisplayName}'이 " +
+                        "다른 슬롯에도 기본 기술로 지정되어 이 슬롯이 비었습니다. JobDefinition의 Skill Slots를 확인하세요.", job);
+                }
+            }
         }
 
         private void ApplyResource(JobDefinition job)

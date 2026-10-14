@@ -26,6 +26,9 @@ namespace BrokenSovereign.Skill
         /// <summary>기절 시간 (초)</summary>
         public const string STUN_DURATION = "stunDuration";
 
+        /// <summary>시전 사거리(m): 대상·커서 지점까지 이 거리 안에 들어오면 시전. 없으면 반경 × 0.8 (SkillRange)</summary>
+        public const string CAST_RANGE = "castRange";
+
         /// <summary>받는 피해 감소 (0.3 = 30%)</summary>
         public const string DAMAGE_REDUCTION = "damageReduction";
 
