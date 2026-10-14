@@ -583,8 +583,8 @@ classDiagram
 ```
 
 - 시전 순서: 슬롯의 장착 기술 조회 → 재사용 대기·신앙 확인 → 기본 수치 + 선택 분기 수정치 적용 → `ISkillParameterModifier` 적용(영웅 규칙 등) → 충만이면 충만 수치 적용 → `SkillBehaviour.Begin`
-- 지속 시전 기술(대뇨천궁): `Tick`이 `false`를 돌려주거나 키를 떼면(`ReleaseSlot`) `End` 호출
-- `ISkillParameterModifier`: 시전 전에 수치를 바꿔야 하는 규칙(손오공 여의) 전용 연결 지점. 이벤트는 사후 통지라 시전 전 개입 불가. GDD 12장 '이벤트 연결' 원칙의 유일한 예외
+- 지속 시전 기술(난천무): `Tick`이 `false`를 돌려주거나 키를 떼면(`ReleaseSlot`) `End` 호출
+- `ISkillParameterModifier`: 시전 전에 수치를 바꿔야 하는 규칙(석천 여의) 전용 연결 지점. 이벤트는 사후 통지라 시전 전 개입 불가. GDD 12장 '이벤트 연결' 원칙의 유일한 예외
 - `SkillCastEvent` 발행 시점: `Begin` 직후
 
 ### 6.2 SkillBehaviour 파생 클래스
@@ -598,8 +598,8 @@ classDiagram
 | `LeapSlamBehaviour` | 도약 강하 (`SkillLeapingDescent`) | 계수, 사거리, 착지 반경, 둔화 시간 |
 | `TimedBuffBehaviour` | 불굴의 갑주 (`SkillUnyieldingAegis`), 보복의 맹세 (`SkillOathOfRetribution`) | 지속 시간, 피해 감소율, 신앙 충전 배율, 피해 저장 비율 |
 | `ExpandingShockwaveBehaviour` | 격진 (`SkillSovereignQuake`) | 파동 수, 반경 증가량, 띄우기 시간 |
-| `StackConsumeStrikeBehaviour` | 과업의 일격 (`SkillLaborStrike`) | 기본 계수, 스택당 계수, 여진 기준 스택 |
-| `ChannelSpinBehaviour` | 대뇨천궁 (`SkillHavocInHeaven`) | 타격 간격, 계수, 반경, 이동 속도 배율, 초당 소모 |
+| `ExecuteStrikeBehaviour` | 분쇄 일격 (`SkillCrushingStrike`) | 기본 계수, 처형 계수, 처형 충격파 반경·계수, 충만 시 게이지 감소율 |
+| `ChannelSpinBehaviour` | 난천무 (`SkillSkyRampage`) | 타격 간격, 계수, 반경, 이동 속도 배율, 초당 소모 |
 
 - 행동 9종으로 기술 10개 처리. 불굴의 갑주·보복의 맹세는 `TimedBuffBehaviour` 공유, 파라미터로 방어형·반격형 구분
 - 기술 에셋 영어 이름: 제안 (확인 필요 15장 6번)
@@ -829,30 +829,37 @@ classDiagram
         +SelectPath(HeroPathDefinition path)
         +GetVfx(SkillDefinition skill) GameObject
     }
-    class HeraclesLaborRuleDefinition {
+    class CrushRuleDefinition {
         <<ScriptableObject>>
-        -int _maxStacks
-        -float _damagePerStack
-        -float _reductionPerStack
-        -int _hordeKillCount
-        -float _hordeWindow
+        -float _staggerPerCoefficient
     }
-    class HeraclesLaborRule {
+    class CrushRule {
         <<pure>>
-        +int Stacks
-        +ConsumeAll() int
-        -OnEnemyKilled(EnemyKilledEvent e)
         -OnDamageDealt(DamageDealtEvent e)
-        -OnPlayerDied(PlayerDiedEvent e)
     }
-    class SunWukongRuyiRuleDefinition {
+    class IStaggerable {
+        <<interface>>
+        +StaggerGauge Gauge
+        +ReduceStagger(float amount)
+        +bool IsBroken
+    }
+    class StaggerGauge {
+        <<pure>>
+        +float Current
+        +float Max
+        +bool IsBroken
+        +Reduce(float amount, float now) bool
+        +Tick(float now)
+        +Recover()
+    }
+    class ReachShiftRuleDefinition {
         <<ScriptableObject>>
         -float _nearDistance
         -float _farDistance
         -SkillParameterSet _shortStaff
         -SkillParameterSet _longStaff
     }
-    class SunWukongRuyiRule {
+    class ReachShiftRule {
         <<pure>>
         +StaffLength CurrentLength
         +Modify(SkillDefinition skill, SkillContext ctx)
@@ -863,19 +870,22 @@ classDiagram
     HeroRule --> HeroRuleContext
     HeroPathController --> HeroPathDefinition
     HeroPathController --> HeroRule
-    HeroRuleDefinition <|-- HeraclesLaborRuleDefinition
-    HeroRuleDefinition <|-- SunWukongRuyiRuleDefinition
-    HeroRule <|-- HeraclesLaborRule
-    HeroRule <|-- SunWukongRuyiRule
-    SunWukongRuyiRule ..|> ISkillParameterModifier
-    HeraclesLaborRule ..|> IStatModifierSource
+    HeroRuleDefinition <|-- CrushRuleDefinition
+    HeroRuleDefinition <|-- ReachShiftRuleDefinition
+    HeroRule <|-- CrushRule
+    HeroRule <|-- ReachShiftRule
+    ReachShiftRule ..|> ISkillParameterModifier
+    CrushRule ..> IStaggerable : 게이지 감소
+    IStaggerable --> StaggerGauge
 ```
 
 - 규칙 객체 수명: `SelectPath`에서 `CreateRule` → `Activate`(이벤트 구독·등록), 사망·씬 종료 시 `Deactivate`(해제)
-- 헤라클레스: 과업 달성은 이벤트 구독으로 판정. 스택 효과는 `IStatModifierSource`로 `StatSheet`에 등록. 과업의 일격은 `StackConsumeStrikeBehaviour`가 `ConsumeAll()` 호출
-- 손오공: 좌클릭 시전 직전 대상 거리로 봉 길이 결정 → `ISkillParameterModifier`로 좌클릭 수치 교체
+- 야로미르(분쇄): `CrushRule`이 `DamageDealtEvent`를 구독해 대상 `IStaggerable`의 버팀 게이지를 계수 × 10만큼 감소. 0이 되면 적이 무력화(기존 `IStunnable.Stun` + 받는 피해 증가 수정치)하고 `EnemyStaggeredEvent` 발행. 분쇄 일격은 `ExecuteStrikeBehaviour`가 `IsBroken`이면 처형 수치 적용
+- `StaggerGauge`는 순수 클래스 (게이지 감소·회복 대기·무력화 후 저항 시간). 영웅 미선택 시에도 적 컴포넌트에 존재하며 감소 주체만 영웅 규칙
+- 석천(사거리 전환): 좌클릭 시전 직전 대상 거리로 봉 길이 결정 → `ISkillParameterModifier`로 좌클릭 수치 교체
 - 성물 기술 변형: `_visualOverrides`로 이펙트 프리팹만 교체 (영웅 2명 × 기술 3개 = 6개). `SkillBehaviour`는 `HeroPathController.GetVfx` 결과 사용
-- 과업 달성 알림(과업 이름 표시): `HeroLaborCompletedEvent` 발행 → UI 구독
+- 무력화 알림(금이 간 방패 표시): `EnemyStaggeredEvent` 발행 → UI 구독
+- 클래스 이름은 영웅 이름이 아닌 메커니즘 이름 사용 (영웅 이름·칭호 변경에 영향받지 않도록)
 
 ## 9. Relic · Equipment
 
@@ -1225,7 +1235,7 @@ classDiagram
 | `EquipmentWindow` | 장비창 | `EquipmentLoadout` |
 | `SkillWindow` | 후보 기술 장착, 슬롯 레벨, 분기 선택 | `SkillLoadout`, `SkillPointPool` |
 | `TrialWindow` | 시련 목록·진행 | `TrialTracker` |
-| `NoticeView` | 돌파·해금·과업 알림 | `AscensionRaisedEvent`, `SkillUnlockedEvent`, `HeroLaborCompletedEvent` |
+| `NoticeView` | 돌파·해금·무력화 알림 | `AscensionRaisedEvent`, `SkillUnlockedEvent`, `EnemyStaggeredEvent` |
 | `JobSelectView` | 1차 직업 선택 화면 (4개 카드, 프로토타입은 성기사만 활성) | `PlayerProgression`, `JobDefinition` |
 | `HeroPathSelectView` | 영웅의 길 선택 연출 | `HeroPathController` |
 | `BossHealthView` | 보스 체력 | `BossController` |
@@ -1251,10 +1261,10 @@ classDiagram
 
 | 이벤트 | 발행 | 주요 구독 | 데이터 |
 |---|---|---|---|
-| `DamageDealtEvent` | `Health` (적) | `FaithController`, `HeraclesLaborRule`, `HarvestPattern` | 공격자, 대상, 피해량, 기술 ID, 기본 공격 여부, 충만 여부 |
+| `DamageDealtEvent` | `Health` (적) | `FaithController`, `CrushRule`, `HarvestPattern` | 공격자, 대상, 피해량, 기술 ID, 기본 공격 여부, 충만 여부 |
 | `PlayerDamagedEvent` | `Health` (플레이어) | `FaithController`, `HealthBarView` | 피해량, 공격자 |
-| `PlayerDiedEvent` | `Health` (플레이어) | `GameStateManager`, `HeraclesLaborRule`, `CheckpointManager` | - |
-| `EnemyKilledEvent` | `Health` (적) | `PlayerProgression`, `TrialCondition`, `HeraclesLaborRule`, `TwinBossRule`, `EncounterRoom` | 적 ID, 등급, 경험치, 처치 기술 ID |
+| `PlayerDiedEvent` | `Health` (플레이어) | `GameStateManager`, `CheckpointManager` | - |
+| `EnemyKilledEvent` | `Health` (적) | `PlayerProgression`, `TrialCondition`, `TwinBossRule`, `EncounterRoom` | 적 ID, 등급, 경험치, 처치 기술 ID |
 | `SkillCastEvent` | `SkillCaster` | `SkillSlotView`, `CombatStateTracker` | 기술 ID, 슬롯, 충만 여부, 소모 신앙 |
 | `FaithChangedEvent` | `FaithController` | `FaithBarView` | 현재값, 최대치, 충만 여부 |
 | `PlayerLeveledUpEvent` | `PlayerProgression` | `SkillPointPool`, `NoticeView` | 새 레벨 |
@@ -1266,7 +1276,7 @@ classDiagram
 | `RelicAcquiredEvent` | `RelicInventory` | `RelicWindow`, `CharacterWindow` | 신물 ID |
 | `WeaponChangedEvent` | `EquipmentLoadout` | 플레이어 애니메이터 | 무기 계열 |
 | `HeroPathSelectedEvent` | `HeroPathController` | `RelicInventory`, `SkillLoadout`, `NoticeView` | 영웅 ID |
-| `HeroLaborCompletedEvent` | `HeraclesLaborRule` | `NoticeView` | 과업 이름, 현재 스택 |
+| `EnemyStaggeredEvent` | `StaggerGauge` 보유 적 | `NoticeView` | 적 ID, 무력화 시간 |
 | `HarvestCrystalAbsorbedEvent` | `HarvestCrystal` | `HarvestPattern` | 보스 ID |
 
 - 구독·해제: `OnEnable`·`OnDisable` (NamingRules). 순수 클래스 규칙 객체는 `Activate`·`Deactivate`
@@ -1274,28 +1284,28 @@ classDiagram
 
 ## 14. 주요 흐름
 
-### 14.1 기본 공격 적중 → 신앙 충전 → 과업 누적
+### 14.1 기본 공격 적중 → 신앙 충전 → 버팀 게이지 감소
 
 ```mermaid
 sequenceDiagram
     participant In as PlayerInputHandler
     participant Ca as SkillCaster
-    participant Ru as SunWukongRuyiRule
+    participant Ru as ReachShiftRule
     participant Be as ComboMeleeBehaviour
     participant He as Health(적)
     participant Bus as EventBus
     participant Fa as FaithController
-    participant La as HeraclesLaborRule
+    participant La as CrushRule
 
     In->>Ca: TryCast(LeftClick, 커서)
-    Ca->>Ru: Modify(기술, ctx) (손오공 선택 시)
+    Ca->>Ru: Modify(기술, ctx) (석천 선택 시)
     Ca->>Be: Begin(ctx)
     Be->>He: ApplyDamage(DamageInfo)
     He->>Bus: Publish(DamageDealtEvent)
     Bus->>Fa: OnDamageDealt → 신앙 +5
-    Bus->>La: OnDamageDealt (헤라클레스 선택 시)
-    He->>Bus: Publish(EnemyKilledEvent) (사망 시)
-    Bus->>La: OnEnemyKilled → 과업 판정·스택 +1
+    Bus->>La: OnDamageDealt (야로미르 선택 시)
+    La->>He: ReduceStagger(계수 × 10)
+    He->>Bus: Publish(EnemyStaggeredEvent) (게이지 0 시)
 ```
 
 - 설계안 기준 흐름. 현재 구현은 `PlayerController` → `BasicAttack` 직접 실행이며 `EventBus` 미도입 (14.4). 신앙 자원 구현 시 이 흐름으로 갱신
@@ -1438,5 +1448,5 @@ sequenceDiagram
 | `RelicInventory` | 미개방 칸 장착 거부, 무기 칸 성물 전용, 보유 수와 장착 수 구분, 신화 세트 판정 |
 | `CombatStateTracker` | 마지막 행동 후 경과 시간 기준 비전투 전환 |
 | `HarvestBuffTable` | 흡수 수 0~3 누적 강화 |
-| `HeraclesLaborRule` | 군세의 과업 10초 창, 최대 스택 6 제한, 사망 시 초기화 |
+| `StaggerGauge` | 감소·0 도달 시 무력화, 3초 후 회복 시작, 무력화 후 저항 시간 동안 감소 무시 |
 | `CooldownTracker` | 재사용 대기 경과 판정 |
