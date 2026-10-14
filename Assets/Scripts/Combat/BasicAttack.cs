@@ -17,7 +17,8 @@ namespace BrokenSovereign.Combat
     {
         [SerializeField] private float _range = 2f;
 
-        [Tooltip("공격 속도 0%일 때의 공격 간격(초). 실제 간격 = 이 값 ÷ (1 + 공격 속도)")]
+        [Tooltip("공격 속도 0%일 때의 공격 간격(초). 실제 간격 = 이 값 ÷ (1 + 공격 속도). " +
+            "공격자에게 IAttackIntervalSource(무기)가 있으면 그 값을 우선 사용")]
         [SerializeField] private float _interval = 1f;
 
         [Tooltip("공격 동작 시간(초, 공격 속도 0% 기준). 이 시간 동안만 이동 불가. 공격 간격과 별개 (0 = 발동 즉시 이동 가능)")]
@@ -54,18 +55,36 @@ namespace BrokenSovereign.Combat
         public bool IsReady => Time.time >= _nextReadyTime;
         public float CooldownRemaining => Mathf.Max(0f, _nextReadyTime - Time.time);
 
+        /// <summary>기본 공격 간격 (공격 속도 0% 기준). 무기 등 공격 간격 출처가 있으면 우선 사용</summary>
+        public float GetBaseInterval(Transform attacker)
+        {
+            return attacker.TryGetComponent(out IAttackIntervalSource source) && source.BaseAttackInterval > 0f
+                ? source.BaseAttackInterval
+                : _interval;
+        }
+
         public bool TryExecute(Transform attacker, Transform target, Vector3 point)
         {
-            if (!IsReady || attacker == null)
+            if (attacker == null)
+            {
+                return false;
+            }
+
+            // 공유 타이머(SkillCaster)가 있으면 즉시 발동 기술과 간격을 함께 씀
+            attacker.TryGetComponent(out ISharedAttackTimer shared);
+
+            if (shared != null ? !shared.IsAttackReady : !IsReady)
             {
                 return false;
             }
 
             StatSheet stats = attacker.TryGetComponent(out CharacterStats characterStats) ? characterStats.Sheet : null;
             float attackSpeed = stats != null ? Mathf.Max(0f, stats.Get(StatType.AttackSpeed)) : 0f;
-            _lastInterval = _interval / (1f + attackSpeed);
+            float baseInterval = GetBaseInterval(attacker);
+            _lastInterval = baseInterval / (1f + attackSpeed);
             _nextReadyTime = Time.time + _lastInterval;
-            _lastActionTime = Mathf.Min(_actionTime, _interval) / (1f + attackSpeed);
+            shared?.ConsumeAttack(_lastInterval);
+            _lastActionTime = Mathf.Min(_actionTime, baseInterval) / (1f + attackSpeed);
 
             Vector3 origin = attacker.position;
             Vector3 forward = point - origin;

@@ -44,6 +44,9 @@ namespace BrokenSovereign.Skill
         [Tooltip("재사용 대기(초). 재사용 대기 감소 능력치 적용 전 값")]
         [SerializeField, Min(0f)] private float _cooldown;
 
+        [Tooltip("재사용 대기가 0인 즉시 발동 기술의 반복 간격 (초, 공격 속도 0% 기준). 0이면 SkillCaster 기본값 (기본 공격 간격)")]
+        [SerializeField, Min(0f)] private float _attackInterval;
+
         [Tooltip("직업 자원 소모량 (신앙 등). 무직 공용 기술은 0. 자원 연결은 다음 단계")]
         [SerializeField, Min(0f)] private float _resourceCost;
 
@@ -69,6 +72,7 @@ namespace BrokenSovereign.Skill
         public string SkillId => _skillId;
         public string DisplayName => _displayName;
         public float Cooldown => _cooldown;
+        public float AttackInterval => _attackInterval;
         public float ResourceCost => _resourceCost;
         public SkillBehaviour Behaviour => _behaviour;
         public bool LocksMovement => _locksMovement;

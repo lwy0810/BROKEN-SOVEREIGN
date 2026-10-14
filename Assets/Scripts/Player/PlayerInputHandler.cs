@@ -57,7 +57,9 @@ namespace BrokenSovereign.Player
                 _map.FindAction("Skill1", true),
                 _map.FindAction("Skill2", true),
                 _map.FindAction("Skill3", true),
-                _map.FindAction("Skill4", true)
+                _map.FindAction("Skill4", true),
+                _map.FindAction("Skill5", true),
+                _map.FindAction("Skill6", true)
             };
         }
 
@@ -121,6 +123,36 @@ namespace BrokenSovereign.Player
             {
                 HandlePrimaryHeld();
             }
+
+            UpdateHeldSkillKeys();
+        }
+
+        // 숫자 키 유지: 누르고 있는 동안 반복 시전 (간격은 재사용 대기·즉시 발동 간격·시전 동작·자원이 정함)
+        private void UpdateHeldSkillKeys()
+        {
+            if (Keyboard.current != null && Keyboard.current.altKey.isPressed)
+            {
+                return;
+            }
+
+            bool hasPoint = false;
+            Vector3 point = default;
+
+            for (int i = 0; i < _skillKeys.Length; i++)
+            {
+                if (!_skillKeys[i].IsPressed())
+                {
+                    continue;
+                }
+
+                if (!hasPoint)
+                {
+                    point = GetCursorGroundPoint();
+                    hasPoint = true;
+                }
+
+                _controller.UseSkill(SkillSlot.Key1 + i, point);
+            }
         }
 
         private void OnPrimaryStarted(InputAction.CallbackContext context)
@@ -158,10 +190,22 @@ namespace BrokenSovereign.Player
 
         private void HandlePrimaryHeld()
         {
-            // 적을 눌러 시작한 입력은 PlayerController가 처리.
-            // 대상이 죽거나 사라져도 이동으로 바꾸지 않고 제자리에 멈춤 (다시 눌러야 이동)
+            // 적을 눌러 시작한 입력: 교전 중이면 PlayerController가 처리.
+            // 대상이 죽거나 사라져도 누르고 있는 동안 계속 공격 (커서 위 적으로 교전, 없으면 커서 방향 제자리 공격)
             if (_isAttackPress)
             {
+                if (!_controller.IsEngaging)
+                {
+                    if (TryGetEnemyUnderCursor(out Transform next))
+                    {
+                        _controller.AttackTarget(next);
+                    }
+                    else
+                    {
+                        _controller.AttackInPlace(GetCursorGroundPoint());
+                    }
+                }
+
                 return;
             }
 
@@ -185,6 +229,9 @@ namespace BrokenSovereign.Player
             }
 
             _isSecondaryHeld = true;
+
+            // 재사용 대기가 있는 기술이 아직 대기 중이면 경고 (누르는 순간 1회)
+            _controller.NotifyIfNotReady(SkillSlot.RightClick);
             HandleSecondaryHeld();
         }
 
@@ -211,7 +258,7 @@ namespace BrokenSovereign.Player
         {
             bool standStill = _standStill.IsPressed();
 
-            // 제자리 즉시 시전 기술(잔향 강타 등)은 적을 가리켜도 접근하지 않고 커서 방향으로 바로 시전
+            // 제자리 즉시 시전 기술(격광 강타 등)은 적을 가리켜도 접근하지 않고 커서 방향으로 바로 시전
             if (_controller.CastsInPlace(SkillSlot.RightClick))
             {
                 _controller.CastWhileHeld(SkillSlot.RightClick, GetCursorGroundPoint(), false);
@@ -225,9 +272,14 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            // 적에게 건 시전은 대상이 죽거나 사라져도 지면 시전으로 바꾸지 않음 (다시 눌러야 함)
+            // 적에게 건 시전: 대상이 죽거나 사라져도 누르고 있는 동안 커서 방향 제자리 시전으로 계속 (이동하지 않음)
             if (_isSkillPress)
             {
+                if (!_controller.IsEngaging)
+                {
+                    _controller.CastWhileHeld(SkillSlot.RightClick, GetCursorGroundPoint(), false);
+                }
+
                 return;
             }
 
@@ -258,6 +310,8 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            // 재사용 대기가 있는 기술이 아직 대기 중이면 경고 (누르는 순간 1회). 유지 반복은 UpdateHeldSkillKeys
+            _controller.NotifyIfNotReady(slot);
             _controller.UseSkill(slot, GetCursorGroundPoint());
         }
 

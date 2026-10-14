@@ -30,7 +30,10 @@ MonoBehaviour:
       Value: 0.15
   _skillSlots:
   - Slot: 4
-    Default: {fileID: 11400000, guid: bf25f8b3bae44024a56b22a164b6d520, type: 2}
+    Default: {fileID: 11400000, guid: 57013d9399064fbc8de038862311ede3, type: 2}
+    Alternatives: []
+  - Slot: 5
+    Default: {fileID: 11400000, guid: 6e5b7499f0324d09ae731f63aa87b3da, type: 2}
     Alternatives: []
   _parentJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
   _requiredTier: 1

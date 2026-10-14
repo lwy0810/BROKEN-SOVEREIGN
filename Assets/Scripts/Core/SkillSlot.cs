@@ -1,7 +1,7 @@
 namespace BrokenSovereign.Core
 {
     /// <summary>
-    /// 기술 슬롯. 프로토타입은 4번 키까지 사용 (5·6번은 신격·태초 단계에서 추가).
+    /// 기술 슬롯. 기술은 격마다 누적: 우클릭(무직) → 1·2(성기사) → 3·4(성투사) → 5·6(반신 영웅 기술).
     /// </summary>
     public enum SkillSlot
     {
@@ -10,6 +10,8 @@ namespace BrokenSovereign.Core
         Key1,
         Key2,
         Key3,
-        Key4
+        Key4,
+        Key5,
+        Key6
     }
 }

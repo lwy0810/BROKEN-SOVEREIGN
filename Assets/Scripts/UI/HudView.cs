@@ -22,10 +22,11 @@ namespace BrokenSovereign.UI
 
         private static readonly SkillSlot[] SKILL_SLOTS =
         {
-            SkillSlot.LeftClick, SkillSlot.RightClick, SkillSlot.Key1, SkillSlot.Key2, SkillSlot.Key3, SkillSlot.Key4
+            SkillSlot.LeftClick, SkillSlot.RightClick, SkillSlot.Key1, SkillSlot.Key2, SkillSlot.Key3, SkillSlot.Key4,
+            SkillSlot.Key5, SkillSlot.Key6
         };
 
-        private static readonly string[] SKILL_KEYS = { "LMB", "RMB", "1", "2", "3", "4" };
+        private static readonly string[] SKILL_KEYS = { "LMB", "RMB", "1", "2", "3", "4", "5", "6" };
 
         [SerializeField] private PlayerController _player;
         [SerializeField] private Shader _orbShader;
@@ -58,6 +59,11 @@ namespace BrokenSovereign.UI
         private JobGaugeView _jobGaugeView;
         private readonly List<IJobGauge> _jobGaugeBuffer = new List<IJobGauge>();
         private Text _noticeText;
+        private Text _warningText;
+        private const string SKILL_NOT_READY_MESSAGE = "아직 사용할 수 없습니다";
+        private const string NOT_ENOUGH_MANA_MESSAGE = "마나가 부족합니다.";
+        private float _warningEndTime = float.NegativeInfinity;
+        private float _warningStartTime = float.NegativeInfinity;
         private Text _buffText;
         private readonly System.Text.StringBuilder _buffBuilder = new System.Text.StringBuilder();
         private float _noticeEndTime = float.NegativeInfinity;
@@ -95,6 +101,13 @@ namespace BrokenSovereign.UI
 
             Build();
             ApplyLayout();
+
+            _player.SkillNotReady += OnSkillNotReady;
+
+            if (_caster != null)
+            {
+                _caster.CastFailed += OnSkillCastFailed;
+            }
 
             // PlayerJob.Start의 첫 직업 적용보다 먼저 구독
             if (_job != null)
@@ -158,6 +171,7 @@ namespace BrokenSovereign.UI
             UpdateTarget();
             UpdateSkillNames();
             UpdateNotice();
+            UpdateWarning();
             _jobGaugeView.SetGauge(FindActiveJobGauge());
             UpdateBuffs();
             UpdateProgression();
@@ -165,6 +179,16 @@ namespace BrokenSovereign.UI
 
         private void OnDestroy()
         {
+            if (_player != null)
+            {
+                _player.SkillNotReady -= OnSkillNotReady;
+            }
+
+            if (_caster != null)
+            {
+                _caster.CastFailed -= OnSkillCastFailed;
+            }
+
             if (_job != null)
             {
                 _job.JobChanged -= OnJobChanged;
@@ -253,6 +277,56 @@ namespace BrokenSovereign.UI
             _shownLevel = _progression.Level;
             _shownTier = _progression.Tier;
             _jobLabel.text = $"{_jobName} · {AscensionModel.DisplayName(_shownTier)} · Lv {_shownLevel}";
+        }
+
+        /// <summary>화면 상단 중앙 경고 메시지 (기술 재사용 대기 등)</summary>
+        public void ShowWarning(string message)
+        {
+            // 같은 메시지가 이미 보이는 중이면 다시 띄우지 않음 (연타해도 1회만 표시)
+            if (Time.time < _warningEndTime && _warningText.text == message)
+            {
+                return;
+            }
+
+            _warningStartTime = Time.time;
+            _warningText.text = message;
+            _warningEndTime = Time.time + _jobDisplay.WarningDuration;
+        }
+
+        private void OnSkillNotReady(SkillSlot slot, SkillDefinition skill)
+        {
+            ShowWarning(SKILL_NOT_READY_MESSAGE);
+        }
+
+        // 마나 부족: 누르고 있는 동안 반복 시도해도 메시지가 보이는 동안에는 다시 띄우지 않음 (ShowWarning)
+        private void OnSkillCastFailed(SkillSlot slot, SkillDefinition skill, SkillCastFailReason reason)
+        {
+            if (reason == SkillCastFailReason.NotEnoughResource)
+            {
+                ShowWarning(NOT_ENOUGH_MANA_MESSAGE);
+            }
+        }
+
+        private void UpdateWarning()
+        {
+            float remaining = _warningEndTime - Time.time;
+            bool visible = remaining > 0f;
+            _warningText.enabled = visible;
+
+            if (!visible)
+            {
+                return;
+            }
+
+            // 페이드 인 → 유지 → 페이드 아웃
+            float fadeIn = _jobDisplay.WarningFadeInTime;
+            float fadeOut = _jobDisplay.WarningFadeTime;
+            float alphaIn = fadeIn > 0f ? Mathf.Clamp01((Time.time - _warningStartTime) / fadeIn) : 1f;
+            float alphaOut = fadeOut > 0f ? Mathf.Clamp01(remaining / fadeOut) : 1f;
+
+            Color color = _jobDisplay.WarningColor;
+            color.a *= Mathf.Min(alphaIn, alphaOut);
+            _warningText.color = color;
         }
 
         private void UpdateNotice()
@@ -396,6 +470,9 @@ namespace BrokenSovereign.UI
             _noticeText = CreateLabel("JobNotice", TextAnchor.MiddleCenter);
             _noticeText.fontStyle = FontStyle.Bold;
             _noticeText.enabled = false;
+            _warningText = CreateLabel("Warning", TextAnchor.MiddleCenter);
+            _warningText.fontStyle = FontStyle.Bold;
+            _warningText.enabled = false;
 
             // 경험치 막대: 기술 바 바로 아래
             _expRoot = HudGraphics.CreateRect("ExpBar", transform);
@@ -486,6 +563,14 @@ namespace BrokenSovereign.UI
             noticeRect.pivot = new Vector2(0.5f, 0.5f);
             noticeRect.sizeDelta = new Vector2(800f, _jobDisplay.NoticeFontSize + 20f);
             noticeRect.anchoredPosition = new Vector2(0f, _jobDisplay.NoticeOffsetY);
+
+            // 경고 메시지: 화면 상단 중앙
+            _warningText.fontSize = _jobDisplay.WarningFontSize;
+            RectTransform warningRect = _warningText.rectTransform;
+            warningRect.anchorMin = warningRect.anchorMax = new Vector2(0.5f, 1f);
+            warningRect.pivot = new Vector2(0.5f, 0.5f);
+            warningRect.sizeDelta = new Vector2(800f, _jobDisplay.WarningFontSize + 16f);
+            warningRect.anchoredPosition = new Vector2(0f, -_jobDisplay.WarningOffsetY);
 
             foreach (SkillSlotView skillSlot in _skillSlots)
             {

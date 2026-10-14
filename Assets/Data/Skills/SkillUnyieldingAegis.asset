@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
   _skillId: unyielding_aegis
   _displayName: "\uBD88\uAD74\uC758 \uAC11\uC8FC"
-  _cooldown: 15
+  _cooldown: 20
   _resourceCost: 30
   _parameters:
   - Key: duration
     Value: 8
   - Key: damageReduction
-    Value: 0.3
+    Value: 0.15
   - Key: gaugeGainOnDamaged
     Value: 1
   _locksMovement: 0

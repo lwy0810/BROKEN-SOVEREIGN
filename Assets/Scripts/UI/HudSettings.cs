@@ -111,6 +111,22 @@ namespace BrokenSovereign.UI
 
         public Color NoticeColor = new Color(1f, 0.85f, 0.4f);
 
+        [Header("경고 메시지 (화면 상단 중앙, 기술 재사용 대기 등)")]
+        public int WarningFontSize = 26;
+
+        [Tooltip("화면 위쪽 끝에서 아래로 띄우는 거리")]
+        public float WarningOffsetY = 90f;
+
+        [Tooltip("표시 시간 (페이드 인·아웃 포함)")]
+        public float WarningDuration = 1.4f;
+
+        [Tooltip("나타나는 시간")]
+        public float WarningFadeInTime = 0.15f;
+
+        [Tooltip("사라지는 시간")]
+        public float WarningFadeTime = 0.4f;
+        public Color WarningColor = new Color(1f, 0.45f, 0.4f);
+
         [Header("슬롯 기술 이름 (슬롯 아래)")]
         public int SkillNameFontSize = 13;
         public float SkillNameGap = 2f;

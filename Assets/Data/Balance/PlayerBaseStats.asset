@@ -17,7 +17,7 @@ MonoBehaviour:
   _strength: 10
   _agility: 10
   _intelligence: 10
-  _attackPower: 10
+  _attackPower: 50
   _damageBonus: 0
   _physicalDamageBonus: 0
   _elementalDamageBonus: 0
@@ -35,3 +35,4 @@ MonoBehaviour:
   _cooldownReduction: 0
   _resourceCostReduction: 0
   _potionHealing: 0
+  _gaugeGainOnDamaged: 0

@@ -26,3 +26,6 @@ MonoBehaviour:
   - Slot: 1
     Default: {fileID: 11400000, guid: 7075b7f3d0994b9e854bd1cd10c3f9c0, type: 2}
     Alternatives: []
+  _parentJob: {fileID: 0}
+  _requiredTier: 0
+  _advancements: []

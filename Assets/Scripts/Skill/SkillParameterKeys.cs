@@ -44,6 +44,12 @@ namespace BrokenSovereign.Skill
         /// <summary>파동마다 늘어나는 반경 (m)</summary>
         public const string RADIUS_STEP = "radiusStep";
 
+        /// <summary>대상 공격력 감소율 (0.2 = 20% 감소, 디버프)</summary>
+        public const string ATTACK_POWER_REDUCTION = "attackPowerReduction";
+
+        /// <summary>대상 방어력 감소율 (0.2 = 20% 감소, 디버프)</summary>
+        public const string ARMOR_REDUCTION = "armorReduction";
+
         /// <summary>띄우기 시간 (초). 공중에 있는 동안 행동 불능</summary>
         public const string AIRBORNE_DURATION = "airborneDuration";
     }

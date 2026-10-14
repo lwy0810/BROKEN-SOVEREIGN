@@ -12,7 +12,7 @@ namespace BrokenSovereign.Skill
         /// <summary>사거리와 상관없이 커서 쪽으로 계속 이동하며 반복 시전 (휠윈드 등 유지형)</summary>
         MoveWhileCasting,
 
-        /// <summary>이동·접근 없이 그 자리에서 커서 방향으로 즉시 시전. 적을 클릭해도 다가가지 않음 (잔향 강타 등)</summary>
+        /// <summary>이동·접근 없이 그 자리에서 커서 방향으로 즉시 시전. 적을 클릭해도 다가가지 않음 (격광 강타 등)</summary>
         InPlace
     }
 }
