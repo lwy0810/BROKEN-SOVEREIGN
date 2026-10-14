@@ -39,3 +39,7 @@ MonoBehaviour:
   - Slot: 3
     Default: {fileID: 11400000, guid: 57013d9399064fbc8de038862311ede3, type: 2}
     Alternatives: []
+  _parentJob: {fileID: 0}
+  _requiredTier: 0
+  _advancements:
+  - {fileID: 11400000, guid: 11ae28bb891e4fbcaf85709d9febb9c1, type: 2}

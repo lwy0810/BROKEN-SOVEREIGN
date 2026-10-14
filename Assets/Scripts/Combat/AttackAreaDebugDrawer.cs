@@ -44,6 +44,12 @@ namespace BrokenSovereign.Combat
             Object.Destroy(area, duration);
         }
 
+        /// <summary>원형 범위 표시 (360도 부채꼴)</summary>
+        public static void ShowCircle(Vector3 origin, float radius, float groundY, Color color, float duration)
+        {
+            ShowCone(origin, Vector3.forward, radius, 360f, groundY, color, duration);
+        }
+
         // 같은 크기의 부채꼴은 메시를 재사용 (매 공격마다 메시 생성 방지)
         private static Mesh GetConeMesh(float radius, float angle)
         {

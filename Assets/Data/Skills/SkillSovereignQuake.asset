@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 829de8fe4427461e880102b35fec0811, type: 3}
+  m_Name: SkillSovereignQuake
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
+  _skillId: sovereign_quake
+  _displayName: "\uACA9\uC9C4"
+  _cooldown: 10
+  _resourceCost: 35
+  _parameters:
+  - Key: coefficient
+    Value: 1.5
+  - Key: radius
+    Value: 3
+  - Key: radiusStep
+    Value: 1.5
+  - Key: waveCount
+    Value: 3
+  - Key: waveInterval
+    Value: 0.3
+  - Key: airborneDuration
+    Value: 0.8
+  _locksMovement: 0
+  _castMovement: 2
+  _castTime: 0.5
+  _empoweredModifiers:
+  - Key: waveCount
+    Type: 0
+    Value: 2
+  - Key: radiusStep
+    Type: 0
+    Value: 0.5
+  _behaviour: {fileID: 11400000, guid: 1627a0f9082746d59de321cf420fd3a8, type: 2}

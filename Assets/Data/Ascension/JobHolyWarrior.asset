@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 387e6b36afbe4a2dad788ab3914d8827, type: 3}
+  m_Name: JobHolyWarrior
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Ascension.JobDefinition
+  _jobId: holy_warrior
+  _displayName: "\uC131\uD22C\uC0AC"
+  _hasMainStat: 1
+  _mainStat: 0
+  _resource: 1
+  _gaugeBuff:
+    DisplayName: "\uCDA9\uB9CC"
+    Duration: 10
+    EmpowerSkills: 1
+    Modifiers:
+    - Stat: 4
+      Type: 0
+      Value: 0.25
+    - Stat: 16
+      Type: 0
+      Value: 0.15
+  _skillSlots:
+  - Slot: 4
+    Default: {fileID: 11400000, guid: bf25f8b3bae44024a56b22a164b6d520, type: 2}
+    Alternatives: []
+  _parentJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
+  _requiredTier: 1
+  _advancements: []

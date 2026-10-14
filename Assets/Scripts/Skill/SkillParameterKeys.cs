@@ -34,5 +34,17 @@ namespace BrokenSovereign.Skill
 
         /// <summary>피격 시 직업 게이지 충전량 증가 (1 = +100%, 2배)</summary>
         public const string GAUGE_GAIN_ON_DAMAGED = "gaugeGainOnDamaged";
+
+        /// <summary>연속 파동 수 (격진)</summary>
+        public const string WAVE_COUNT = "waveCount";
+
+        /// <summary>파동 간격 (초)</summary>
+        public const string WAVE_INTERVAL = "waveInterval";
+
+        /// <summary>파동마다 늘어나는 반경 (m)</summary>
+        public const string RADIUS_STEP = "radiusStep";
+
+        /// <summary>띄우기 시간 (초). 공중에 있는 동안 행동 불능</summary>
+        public const string AIRBORNE_DURATION = "airborneDuration";
     }
 }

@@ -10,15 +10,23 @@ namespace BrokenSovereign.Enemy
     /// 일반 적 AI: 대기 → 감지·추적 → 예비 동작 후 근접 공격 → 이탈 시 시작 위치로 복귀.
     /// 상태 전이는 EnemyBrain, 이동·공격 실행은 이 컴포넌트가 담당합니다.
     /// 이동 속도·공격력은 CharacterStats에서 읽습니다.
+    /// 띄우기: 기절과 같이 행동 불능 + 모델(Visual)만 포물선으로 들어 올림 (NavMesh 위치는 그대로).
     /// </summary>
     [RequireComponent(typeof(Health))]
     [RequireComponent(typeof(NavMeshAgent))]
-    public class EnemyController : MonoBehaviour, IStunnable
+    public class EnemyController : MonoBehaviour, IStunnable, IAirborne
     {
         [SerializeField] private EnemyDefinition _definition;
 
         [Tooltip("공격 대상. 비우면 Player 태그 오브젝트")]
         [SerializeField] private Transform _target;
+
+        [Header("띄우기")]
+        [Tooltip("띄우기 때 들어 올릴 모델. 비우면 자식 'Visual'")]
+        [SerializeField] private Transform _visual;
+
+        [Tooltip("띄우기 최고 높이 (m)")]
+        [SerializeField, Min(0f)] private float _airborneHeight = 1.5f;
 
         private Health _health;
         private NavMeshAgent _agent;
@@ -38,8 +46,14 @@ namespace BrokenSovereign.Enemy
 
         private readonly StunTimer _stun = new StunTimer();
 
+        private float _airborneStart;
+        private float _airborneDuration;
+        private Vector3 _visualBasePosition;
+        private bool _isLifted;
+
         public EnemyState State { get; private set; } = EnemyState.Idle;
         public bool IsStunned => _stun.IsStunned(Time.time);
+        public bool IsAirborne => Time.time < _airborneStart + _airborneDuration;
 
         public event Action<float> Stunned;
         public Transform Target => _target;
@@ -64,6 +78,16 @@ namespace BrokenSovereign.Enemy
 
             // 회전은 직접 처리 (NavMeshAgent 기본 회전 120도/초는 추적 시작 시 너무 느림)
             _agent.updateRotation = false;
+
+            if (_visual == null)
+            {
+                _visual = transform.Find("Visual");
+            }
+
+            if (_visual != null)
+            {
+                _visualBasePosition = _visual.localPosition;
+            }
         }
 
         private void OnEnable()
@@ -304,8 +328,35 @@ namespace BrokenSovereign.Enemy
         }
 
         // 재등장: 시작 위치로 되돌리고 대기
+        /// <summary>띄우기: 그 시간 동안 기절 + 모델 들어 올림. 공중에서 다시 띄우면 처음부터 다시</summary>
+        public void Launch(float duration)
+        {
+            if (_health.IsDead || duration <= 0f)
+            {
+                return;
+            }
+
+            Stun(duration);
+            _airborneStart = Time.time;
+            _airborneDuration = duration;
+        }
+
+        // 모델 높이만 바꿈. 공중에서 처치되어도 포물선대로 내려옴
+        private void LateUpdate()
+        {
+            if (_visual == null || (!_isLifted && !IsAirborne))
+            {
+                return;
+            }
+
+            float height = AirborneArc.HeightAt(Time.time - _airborneStart, _airborneDuration, _airborneHeight);
+            _visual.localPosition = _visualBasePosition + Vector3.up * height;
+            _isLifted = height > 0f;
+        }
+
         private void OnRestored()
         {
+            _airborneDuration = 0f;
             _agent.enabled = true;
             _agent.Warp(_homePosition);
             transform.rotation = _homeRotation;
