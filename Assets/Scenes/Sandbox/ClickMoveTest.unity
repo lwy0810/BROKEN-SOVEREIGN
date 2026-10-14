@@ -845,6 +845,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Enemy.EnemyController
   _definition: {fileID: 11400000, guid: 2170c26102fc40beba29eeb31e30d24b, type: 2}
   _target: {fileID: 0}
+  _visual: {fileID: 0}
+  _airborneHeight: 1.5
 --- !u!114 &389090316
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2238,6 +2240,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Enemy.EnemyController
   _definition: {fileID: 11400000, guid: 2170c26102fc40beba29eeb31e30d24b, type: 2}
   _target: {fileID: 0}
+  _visual: {fileID: 0}
+  _airborneHeight: 1.5
 --- !u!114 &1311298488
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3858,7 +3862,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Player.PlayerController
   _basicAttack:
     _range: 2
-    _interval: 0.6
+    _interval: 1
+    _actionTime: 0
     _attackPower: 100
     _coefficient: 1
     _inPlaceAngle: 90
@@ -3992,7 +3997,7 @@ MonoBehaviour:
   _bodyRenderer: {fileID: 2101943716}
   _weaponPivot: {fileID: 1645224228}
   _headAnchor: {fileID: 1440982569}
-  _swingDuration: 0.15
+  _swingRatio: 0.6
   _swingAngle: 110
   _flashDuration: 0.2
   _markerDuration: 0.5
@@ -4158,6 +4163,7 @@ MonoBehaviour:
     MaxHealthPerTier: 50
     AttackPowerPerTier: 5
   _enableDebugKey: 1
+  _logStatsOnLevelUp: 1
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0

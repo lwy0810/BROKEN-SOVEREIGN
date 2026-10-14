@@ -32,10 +32,6 @@ namespace BrokenSovereign.Player
         private float _nextHeldSkillTime;
         private float _actionEndTime;
 
-        // 공격·시전 동작 중에 누른 이동 (동작이 끝나면 바로 이동)
-        private bool _hasBufferedMove;
-        private Vector3 _bufferedMove;
-
         // 교전 상태
         private ITargetedAction _engageAction;
         private Transform _engageTarget;
@@ -62,6 +58,9 @@ namespace BrokenSovereign.Player
         /// <summary>기술을 시전했을 때 (슬롯, 커서 지점)</summary>
         public event Action<SkillSlot, Vector3> SkillUsed;
 
+        /// <summary>재사용 대기 중인 기술 키를 눌렀을 때 (슬롯, 기술). 재사용 대기가 있는 기술만</summary>
+        public event Action<SkillSlot, SkillDefinition> SkillNotReady;
+
         /// <summary>회피를 시작했을 때 (회피 방향)</summary>
         public event Action<Vector3> Dodged;
 
@@ -75,6 +74,12 @@ namespace BrokenSovereign.Player
             _potion = GetComponent<PotionUser>();
             _health = GetComponent<Health>();
             _skillCaster = GetComponent<SkillCaster>();
+
+            // 즉시 발동 기술도 기본 공격과 같은 간격 사용 (값은 Basic Attack의 Interval 한 곳에서만 정함)
+            if (_skillCaster != null)
+            {
+                _skillCaster.SetBaseIntervalProvider(() => _basicAttack.GetBaseInterval(transform));
+            }
         }
 
         private void OnEnable()
@@ -125,12 +130,6 @@ namespace BrokenSovereign.Player
             else if (State == PlayerState.Attacking && Time.time >= _actionEndTime)
             {
                 State = PlayerState.Idle;
-
-                if (_hasBufferedMove)
-                {
-                    _hasBufferedMove = false;
-                    MoveTo(_bufferedMove);
-                }
             }
         }
 
@@ -144,15 +143,12 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            // 공격·시전 동작 중: 마지막 이동 지점을 저장해 두고 동작이 끝나면 바로 이동
+            // 공격·시전 동작 중이어도 이동 입력이 들어오면 동작을 끊고 바로 이동 (피해는 시전 순간 이미 적용됨)
+            // 이동 잠금 기술(진격 돌진 등)은 IsActionLocked로 막힘
             if (IsActing)
             {
-                _bufferedMove = point;
-                _hasBufferedMove = true;
-                return;
+                _actionEndTime = Time.time;
             }
-
-            _hasBufferedMove = false;
 
             ClearEngage();
             _mover.MoveTo(point);
@@ -218,7 +214,7 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
-        /// 1~4 (우클릭은 CastWhileHeld 경유): 커서 방향으로 시전.
+        /// 1~6 (우클릭은 CastWhileHeld 경유): 커서 방향으로 시전.
         /// 시전하면 멈춰서 기술의 시전 시간 동안 이동·다른 공격 불가. MoveWhileCasting 기술(휠윈드 등)은 이동을 유지합니다.
         /// </summary>
         public void UseSkill(SkillSlot slot, Vector3 point)
@@ -319,7 +315,7 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            _nextHeldSkillTime = Time.time + _heldSkillRepeatInterval;
+            _nextHeldSkillTime = Time.time + HeldSkillRepeatInterval;
             UseSkill(slot, point);
         }
 
@@ -389,7 +385,6 @@ namespace BrokenSovereign.Player
             if (_dodge.TryDodge(point - transform.position))
             {
                 ClearEngage();
-                _hasBufferedMove = false;
                 State = PlayerState.Dodging;
                 Dodged?.Invoke(_dodge.Direction);
             }
@@ -397,7 +392,7 @@ namespace BrokenSovereign.Player
 
         /// <summary>
         /// HUD 기술 슬롯 표시용 상태. SkillCaster에 기술이 연결된 슬롯은 기술 재사용 대기를 표시합니다.
-        /// 그 외: 좌클릭은 기본 공격 간격, 우클릭은 유지 시전 간격, 1~4번은 미개방(무직)
+        /// 그 외: 좌클릭은 기본 공격 간격, 우클릭은 유지 시전 간격, 1~6번은 미개방(무직)
         /// </summary>
         public SkillSlotState GetSlotState(SkillSlot slot)
         {
@@ -409,9 +404,12 @@ namespace BrokenSovereign.Player
             switch (slot)
             {
                 case SkillSlot.LeftClick:
-                    return new SkillSlotState(true, _basicAttack.CooldownRemaining, _basicAttack.Interval);
+                    // 기술과 공유하는 공격 간격 (SkillCaster)
+                    return _skillCaster != null
+                        ? new SkillSlotState(true, _skillCaster.AttackRemaining, _skillCaster.AttackDuration)
+                        : new SkillSlotState(true, _basicAttack.CooldownRemaining, _basicAttack.Interval);
                 case SkillSlot.RightClick:
-                    return new SkillSlotState(true, Mathf.Max(0f, _nextHeldSkillTime - Time.time), _heldSkillRepeatInterval);
+                    return new SkillSlotState(true, Mathf.Max(0f, _nextHeldSkillTime - Time.time), HeldSkillRepeatInterval);
                 default:
                     return SkillSlotState.Locked;
             }
@@ -507,17 +505,41 @@ namespace BrokenSovereign.Player
             return true;
         }
 
-        // 공격·시전 동작 시작: 멈추고 동작 시간 동안 Attacking 유지 (이동·다른 공격 불가, 회피는 가능)
+        // 공격·시전 동작 시작: 멈추고 동작 시간 동안 Attacking 유지 (다른 공격 불가, 이동·회피 입력 시 즉시 해제)
         private void BeginAction(float duration)
         {
             _mover.Stop();
-            _hasBufferedMove = false;
             State = PlayerState.Attacking;
             _actionEndTime = Time.time + Mathf.Max(0f, duration);
         }
 
-        /// <summary>공격·시전 동작 중 (이동·다른 공격 불가)</summary>
+        // 기술 키 유지 시 반복 시전 간격 (공격 속도 반영)
+        private float HeldSkillRepeatInterval => _skillCaster != null
+            ? _heldSkillRepeatInterval / _skillCaster.AttackSpeedFactor
+            : _heldSkillRepeatInterval;
+
+        /// <summary>공격·시전 동작 중 (다른 공격 불가. 이동 입력이 들어오면 즉시 끊김)</summary>
         public bool IsActing => State == PlayerState.Attacking && Time.time < _actionEndTime;
+
+        /// <summary>
+        /// 기술 키를 새로 눌렀을 때 호출: 재사용 대기가 있는 기술이 아직 대기 중이면 SkillNotReady 알림 후 true.
+        /// 누르고 있는 동안의 반복 시전에서는 호출하지 않음 (메시지 반복 방지)
+        /// </summary>
+        public bool NotifyIfNotReady(SkillSlot slot)
+        {
+            SkillDefinition skill = _skillCaster != null ? _skillCaster.GetSkill(slot) : null;
+
+            if (skill == null || skill.Cooldown <= 0f || _skillCaster.GetSlotState(slot).CooldownRemaining <= 0f)
+            {
+                return false;
+            }
+
+            SkillNotReady?.Invoke(slot, skill);
+            return true;
+        }
+
+        /// <summary>교전 대상이 있음 (대상이 죽거나 사라지면 false)</summary>
+        public bool IsEngaging => _engageTarget != null;
 
         /// <summary>선택 대상 해제</summary>
         public void ClearTarget()

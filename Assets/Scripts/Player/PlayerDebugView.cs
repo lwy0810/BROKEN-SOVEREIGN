@@ -19,8 +19,7 @@ namespace BrokenSovereign.Player
         [SerializeField] private Transform _headAnchor;
 
         [Header("기본 공격")]
-        [Tooltip("휘두르기 시간 = 공격 간격(공격 속도 반영) × 이 비율. 0.6 간격이면 0.36초")]
-        [SerializeField, Range(0.1f, 1f)] private float _swingRatio = 0.6f;
+        [SerializeField] private float _swingDuration = 0.15f;
         [SerializeField] private float _swingAngle = 110f;
 
         [Header("기술·회피·물약")]
@@ -118,12 +117,11 @@ namespace BrokenSovereign.Player
         private IEnumerator SwingRoutine()
         {
             float elapsed = 0f;
-            float duration = Mathf.Max(0.05f, _controller.BasicAttackInterval * _swingRatio);
 
-            while (elapsed < duration)
+            while (elapsed < _swingDuration)
             {
                 elapsed += Time.deltaTime;
-                float angle = Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI) * _swingAngle;
+                float angle = Mathf.Sin(Mathf.Clamp01(elapsed / _swingDuration) * Mathf.PI) * _swingAngle;
                 _weaponPivot.localRotation = _weaponRestRotation * Quaternion.Euler(angle, 0f, 0f);
                 yield return null;
             }
@@ -202,6 +200,8 @@ namespace BrokenSovereign.Player
                 SkillSlot.Key2 => new Color(0.3f, 0.9f, 0.3f),
                 SkillSlot.Key3 => new Color(0.7f, 0.35f, 1f),
                 SkillSlot.Key4 => Color.white,
+                SkillSlot.Key5 => new Color(1f, 0.85f, 0.2f),
+                SkillSlot.Key6 => new Color(0.3f, 0.85f, 1f),
                 _ => Color.gray
             };
         }
