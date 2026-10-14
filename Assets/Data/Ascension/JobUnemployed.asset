@@ -22,6 +22,7 @@ MonoBehaviour:
     Duration: 10
     EmpowerSkills: 0
     Modifiers: []
-  _skills:
+  _skillSlots:
   - Slot: 1
-    Skill: {fileID: 11400000, guid: 7075b7f3d0994b9e854bd1cd10c3f9c0, type: 2}
+    Default: {fileID: 11400000, guid: 7075b7f3d0994b9e854bd1cd10c3f9c0, type: 2}
+    Alternatives: []

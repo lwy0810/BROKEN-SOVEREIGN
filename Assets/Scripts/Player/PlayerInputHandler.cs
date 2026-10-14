@@ -1,4 +1,5 @@
 using BrokenSovereign.Core;
+using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -19,6 +20,7 @@ namespace BrokenSovereign.Player
         [SerializeField] private LayerMask _enemyMask;
 
         private PlayerController _controller;
+        private SkillCaster _skillCaster;
         private InputActionMap _map;
         private InputAction _point;
         private InputAction _primary;
@@ -35,6 +37,7 @@ namespace BrokenSovereign.Player
         private void Awake()
         {
             _controller = GetComponent<PlayerController>();
+            _skillCaster = GetComponent<SkillCaster>();
 
             if (_camera == null)
             {
@@ -199,7 +202,32 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            _controller.UseSkill(SkillSlot.Key1 + index, GetCursorGroundPoint());
+            SkillSlot slot = SkillSlot.Key1 + index;
+
+            // Alt + 슬롯 키: 해금된 다음 후보로 교체 (디버그, 기술 선택 화면 구현 전까지)
+            // Ctrl + 숫자는 Unity 에디터 창 전환 단축키(Ctrl+1 = Scene 창)와 겹쳐 Alt를 사용
+            if (Keyboard.current != null && Keyboard.current.altKey.isPressed)
+            {
+                CycleSkill(slot);
+                return;
+            }
+
+            _controller.UseSkill(slot, GetCursorGroundPoint());
+        }
+
+        private void CycleSkill(SkillSlot slot)
+        {
+            if (_skillCaster == null)
+            {
+                return;
+            }
+
+            EquipResult result = _skillCaster.EquipNext(slot);
+            SkillDefinition skill = _skillCaster.GetSkill(slot);
+            string skillName = skill != null ? skill.DisplayName : "없음";
+            Debug.Log(result == EquipResult.Success
+                ? $"기술 교체: {slot} → {skillName}"
+                : $"기술 교체 실패 ({result}): {slot} 현재 {skillName}");
         }
 
         private void OnDodgePerformed(InputAction.CallbackContext context)

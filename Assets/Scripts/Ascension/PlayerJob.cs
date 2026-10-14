@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace BrokenSovereign.Ascension
 {
     /// <summary>
-    /// 플레이어 현재 직업. 직업이 바뀌면 SkillCaster 슬롯 기술과 직업 게이지(신앙 등)를 교체합니다.
+    /// 플레이어 현재 직업. 직업이 바뀌면 SkillCaster의 기술 구성(SkillLoadout)과 직업 게이지(신앙 등)를 교체합니다.
     /// 마나는 모든 직업 공용이라 전환해도 유지됩니다.
     /// 직업 선택 화면(JobSelectView) 구현 전까지 F1로 무직 ↔ 전직 직업을 전환합니다 (디버그).
     /// </summary>
@@ -25,6 +25,9 @@ namespace BrokenSovereign.Ascension
         [SerializeField] private bool _startWithDebugJob;
 
         [SerializeField] private bool _enableDebugKey = true;
+
+        [Tooltip("해금 조건 구현 전까지 직업의 모든 후보 기술을 해금 (디버그)")]
+        [SerializeField] private bool _unlockAllCandidates = true;
 
         private SkillCaster _caster;
         private FaithController _faith;
@@ -57,7 +60,7 @@ namespace BrokenSovereign.Ascension
             ChangeJob(Current == _debugJob ? _unemployed : _debugJob);
         }
 
-        /// <summary>직업 교체: 슬롯 기술을 직업 기본 기술로 바꾸고, 자원을 켜고 끔</summary>
+        /// <summary>직업 교체: 슬롯 후보를 직업 구성으로 바꾸고 기본 기술 장착, 자원을 켜고 끔</summary>
         public void ChangeJob(JobDefinition job)
         {
             if (job == null)
@@ -67,12 +70,7 @@ namespace BrokenSovereign.Ascension
             }
 
             Current = job;
-            _caster.ClearSkills();
-
-            foreach (SkillSlotAssignment assignment in job.Skills)
-            {
-                _caster.SetSkill(assignment.Slot, assignment.Skill);
-            }
+            BuildLoadout(job);
 
             ApplyResource(job);
 
@@ -84,6 +82,32 @@ namespace BrokenSovereign.Ascension
 
             Debug.Log($"직업 전환: {job.DisplayName}");
             JobChanged?.Invoke(job);
+        }
+
+        // 후보 지정 → 해금 → 기본 기술 장착. 전직은 전투 중에도 기본 기술로 바로 교체
+        private void BuildLoadout(JobDefinition job)
+        {
+            SkillLoadout loadout = _caster.Loadout;
+            loadout.ClearSlots();
+
+            foreach (SkillSlotCandidates slot in job.SkillSlots)
+            {
+                loadout.SetCandidates(slot.Slot, slot.AllCandidates());
+                loadout.Unlock(slot.Default);
+
+                if (_unlockAllCandidates)
+                {
+                    foreach (SkillDefinition skill in slot.AllCandidates())
+                    {
+                        loadout.Unlock(skill);
+                    }
+                }
+
+                if (slot.Default != null)
+                {
+                    loadout.Equip(slot.Slot, slot.Default, false);
+                }
+            }
         }
 
         private void ApplyResource(JobDefinition job)
