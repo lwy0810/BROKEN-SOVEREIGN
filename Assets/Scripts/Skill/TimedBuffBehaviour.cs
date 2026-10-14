@@ -26,10 +26,13 @@ namespace BrokenSovereign.Skill
 
         [SerializeField] private List<BuffStat> _stats = new List<BuffStat>();
 
-        private class BuffSource : IStatModifierSource
+        private class BuffSource : IStatModifierSource, INamedStatSource
         {
             public readonly List<StatModifier> Modifiers = new List<StatModifier>();
             public CharacterStats Owner;
+            public string Name;
+
+            public string SourceName => Name;
 
             public IEnumerable<StatModifier> GetModifiers() => Modifiers;
         }
@@ -38,7 +41,11 @@ namespace BrokenSovereign.Skill
         {
             context.Duration = context.Parameters.Get(SkillParameterKeys.DURATION, 8f);
 
-            var source = new BuffSource { Owner = context.Caster.GetComponent<CharacterStats>() };
+            var source = new BuffSource
+            {
+                Owner = context.Caster.GetComponent<CharacterStats>(),
+                Name = context.Definition != null ? context.Definition.DisplayName : name
+            };
 
             foreach (BuffStat buffStat in _stats)
             {

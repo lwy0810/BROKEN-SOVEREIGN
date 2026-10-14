@@ -20,6 +20,9 @@ namespace BrokenSovereign.Combat
         /// <summary>기본값·출처·주 스탯이 바뀌었을 때</summary>
         public event Action Changed;
 
+        /// <summary>등록된 수정치 출처 (디버그 출력용)</summary>
+        public IReadOnlyList<IStatModifierSource> Sources => _sources;
+
         /// <summary>주 스탯 (직업별). null이면 무직: 주 스탯 피해 보너스 없음</summary>
         public StatType? MainStat => _mainStat;
 

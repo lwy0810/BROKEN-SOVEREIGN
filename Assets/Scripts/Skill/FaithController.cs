@@ -12,7 +12,8 @@ namespace BrokenSovereign.Skill
     /// - 가득 차면 충만 버프 발동: 지속 동안 능력치 버프 + 모든 기술 강화. 끝나면 0
     /// 버프 내용은 직업(JobDefinition)이 SetBuff로 지정합니다. 직업 전환(PlayerJob)이 켜고 끕니다.
     /// </summary>
-    public class FaithController : MonoBehaviour, IJobGauge, ISkillEmpowerSource, IStatModifierSource
+    public class FaithController : MonoBehaviour, IJobGauge, ISkillEmpowerSource, IStatModifierSource,
+        INamedStatSource
     {
         [SerializeField, Min(1f)] private float _max = 100f;
         [SerializeField, Min(0f)] private float _gainPerBasicHit = 5f;
@@ -91,6 +92,8 @@ namespace BrokenSovereign.Skill
             EndBuff();
             Model.Reset();
         }
+
+        public string SourceName => _buff.DisplayName;
 
         public IEnumerable<StatModifier> GetModifiers()
         {
