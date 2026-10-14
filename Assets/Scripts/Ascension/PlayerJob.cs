@@ -4,6 +4,7 @@ using BrokenSovereign.Core;
 using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace BrokenSovereign.Ascension
 {
@@ -18,8 +19,9 @@ namespace BrokenSovereign.Ascension
         [Tooltip("직업 없음 상태 (공용 기술)")]
         [SerializeField] private JobDefinition _unemployed;
 
-        [Tooltip("F1로 전환할 직업 (성기사)")]
-        [SerializeField] private JobDefinition _debugJob;
+        [Tooltip("직업 선택 화면에서 고를 수 있는 1차 직업 (프로토타입: 성기사). F1 디버그 전환 대상")]
+        [FormerlySerializedAs("_debugJob")]
+        [SerializeField] private JobDefinition _firstJob;
 
         [Tooltip("켜면 Play 시작부터 디버그 직업으로 시작")]
         [SerializeField] private bool _startWithDebugJob;
@@ -35,6 +37,12 @@ namespace BrokenSovereign.Ascension
 
         public JobDefinition Current { get; private set; }
 
+        /// <summary>직업 선택 화면에서 고를 수 있는 1차 직업</summary>
+        public JobDefinition SelectableJob => _firstJob;
+
+        /// <summary>무직이 아님 (1차 직업 선택 완료)</summary>
+        public bool HasJob => Current != null && Current != _unemployed;
+
         /// <summary>직업이 바뀌었을 때 (새 직업). 시작 시 첫 적용도 포함</summary>
         public event Action<JobDefinition> JobChanged;
 
@@ -47,7 +55,7 @@ namespace BrokenSovereign.Ascension
 
         private void Start()
         {
-            ChangeJob(_startWithDebugJob && _debugJob != null ? _debugJob : _unemployed);
+            ChangeJob(_startWithDebugJob && _firstJob != null ? _firstJob : _unemployed);
         }
 
         private void Update()
@@ -57,7 +65,18 @@ namespace BrokenSovereign.Ascension
                 return;
             }
 
-            ChangeJob(Current == _debugJob ? _unemployed : _debugJob);
+            ChangeJob(Current == _firstJob ? _unemployed : _firstJob);
+        }
+
+        /// <summary>직업 선택 화면에서 1차 직업 선택 (무직일 때만)</summary>
+        public void ChooseJob(JobDefinition job)
+        {
+            if (HasJob)
+            {
+                return;
+            }
+
+            ChangeJob(job);
         }
 
         /// <summary>직업 교체: 슬롯 후보를 직업 구성으로 바꾸고 기본 기술 장착, 자원을 켜고 끔</summary>
