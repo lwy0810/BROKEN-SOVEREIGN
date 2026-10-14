@@ -25,8 +25,8 @@ namespace BrokenSovereign.Enemy
         [Tooltip("추적 경로 갱신 간격(초)")]
         [SerializeField, Min(0.05f)] private float _repathInterval = 0.2f;
 
-        [Tooltip("공격 대기·예비 동작 중 회전 속도(도/초)")]
-        [SerializeField, Min(0f)] private float _turnSpeed = 540f;
+        [Tooltip("회전 속도(도/초). 추적·복귀 이동, 공격 대기 중 대상 바라보기에 모두 적용")]
+        [SerializeField, Min(0f)] private float _turnSpeed = 720f;
 
         [Header("공격")]
         [SerializeField, Min(0.1f)] private float _attackRange = 1.8f;
