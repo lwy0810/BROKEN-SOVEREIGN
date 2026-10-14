@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
   _skillId: resonant_strike
   _displayName: "\uC794\uD5A5 \uAC15\uD0C0"
-  _cooldown: 4
-  _resourceCost: 0
+  _cooldown: 0
+  _resourceCost: 30
   _parameters:
   - Key: coefficient
     Value: 1.5
@@ -23,5 +23,8 @@ MonoBehaviour:
     Value: 3
   - Key: angle
     Value: 120
+  _locksMovement: 0
   _castMovement: 2
+  _castTime: 0.6
+  _empoweredModifiers: []
   _behaviour: {fileID: 11400000, guid: a5397770804b4ece95025b33b67f55b0, type: 2}
