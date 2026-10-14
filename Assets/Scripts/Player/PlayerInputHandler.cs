@@ -33,6 +33,7 @@ namespace BrokenSovereign.Player
         private bool _isPrimaryHeld;
         private bool _isSecondaryHeld;
         private bool _isAttackPress;
+        private bool _isSkillPress;
 
         private void Awake()
         {
@@ -95,10 +96,11 @@ namespace BrokenSovereign.Player
             _isPrimaryHeld = false;
             _isSecondaryHeld = false;
 
-            if (_isAttackPress)
+            if (_isAttackPress || _isSkillPress)
             {
                 _controller.ReleaseEngage();
                 _isAttackPress = false;
+                _isSkillPress = false;
             }
         }
 
@@ -173,20 +175,43 @@ namespace BrokenSovereign.Player
         private void OnSecondaryCanceled(InputAction.CallbackContext context)
         {
             _isSecondaryHeld = false;
+
+            // 적에게 건 시전: 아직 시전 전이면 접근해서 1회 시전 후 해제, 이미 시전했으면 즉시 해제
+            if (_isSkillPress)
+            {
+                _controller.ReleaseEngage();
+                _isSkillPress = false;
+                return;
+            }
+
             _controller.StopMoving();
         }
 
         /// <summary>
         /// 우클릭 유지: 커서 방향으로 이동하며 주력 기술 반복 시전. Shift를 누르고 있으면 제자리 시전.
-        /// 커서가 적 위에 있으면 그 적을 향해 접근·시전.
+        /// 커서가 적 위에 있으면 그 적을 대상으로 교전 시전 (접근 → 사거리 안 정지 → 시전).
         /// </summary>
         private void HandleSecondaryHeld()
         {
             bool standStill = _standStill.IsPressed();
 
+            // 제자리 즉시 시전 기술(잔향 강타 등)은 적을 가리켜도 접근하지 않고 커서 방향으로 바로 시전
+            if (_controller.CastsInPlace(SkillSlot.RightClick))
+            {
+                _controller.CastWhileHeld(SkillSlot.RightClick, GetCursorGroundPoint(), false);
+                return;
+            }
+
             if (!standStill && TryGetEnemyUnderCursor(out Transform enemy))
             {
+                _isSkillPress = true;
                 _controller.CastAtTarget(SkillSlot.RightClick, enemy);
+                return;
+            }
+
+            // 적에게 건 시전은 대상이 죽거나 사라져도 지면 시전으로 바꾸지 않음 (다시 눌러야 함)
+            if (_isSkillPress)
+            {
                 return;
             }
 

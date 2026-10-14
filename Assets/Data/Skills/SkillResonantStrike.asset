@@ -23,4 +23,5 @@ MonoBehaviour:
     Value: 3
   - Key: angle
     Value: 120
+  _castMovement: 2
   _behaviour: {fileID: 11400000, guid: a5397770804b4ece95025b33b67f55b0, type: 2}

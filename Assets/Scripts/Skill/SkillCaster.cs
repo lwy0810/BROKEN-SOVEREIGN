@@ -104,6 +104,20 @@ namespace BrokenSovereign.Skill
             return Loadout.EquipNext(slot, InCombat);
         }
 
+        /// <summary>기술 키 유지 시 이동 방식. 기술이 없으면 StopInRange</summary>
+        /// <summary>시전 동작 시간 (이동 불가 시간). 기술이 없으면 0</summary>
+        public float GetCastTime(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null ? skill.CastTime : 0f;
+        }
+
+        public SkillCastMovement GetCastMovement(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null ? skill.CastMovement : SkillCastMovement.StopInRange;
+        }
+
         /// <summary>대상 지정 시 접근할 사거리 (기술 반경). 기술이 없거나 반경이 없으면 0</summary>
         public float GetRange(SkillSlot slot)
         {
