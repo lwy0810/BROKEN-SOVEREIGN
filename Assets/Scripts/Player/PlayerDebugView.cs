@@ -206,6 +206,12 @@ namespace BrokenSovereign.Player
 
         private void OnGUI()
         {
+            // OnGUI는 모든 Canvas 위에 그려지므로 직업 선택 화면 등 전체 화면 UI가 열려 있으면 숨김
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             if (!_showHud)
             {
                 return;

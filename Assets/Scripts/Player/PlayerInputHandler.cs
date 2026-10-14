@@ -106,6 +106,12 @@ namespace BrokenSovereign.Player
 
         private void Update()
         {
+            // 직업 선택 화면 등 전체 화면 UI가 열려 있으면 전투 입력 무시
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             // 우클릭 유지가 좌클릭 유지보다 우선
             if (_isSecondaryHeld)
             {
@@ -119,6 +125,11 @@ namespace BrokenSovereign.Player
 
         private void OnPrimaryStarted(InputAction.CallbackContext context)
         {
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             _isPrimaryHeld = true;
             _isAttackPress = false;
 
@@ -168,6 +179,11 @@ namespace BrokenSovereign.Player
 
         private void OnSecondaryStarted(InputAction.CallbackContext context)
         {
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             _isSecondaryHeld = true;
             HandleSecondaryHeld();
         }
@@ -220,6 +236,11 @@ namespace BrokenSovereign.Player
 
         private void OnSkillKeyPerformed(InputAction.CallbackContext context)
         {
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             int index = System.Array.IndexOf(_skillKeys, context.action);
 
             if (index < 0)
@@ -257,11 +278,21 @@ namespace BrokenSovereign.Player
 
         private void OnDodgePerformed(InputAction.CallbackContext context)
         {
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             _controller.Dodge(GetCursorGroundPoint());
         }
 
         private void OnPotionPerformed(InputAction.CallbackContext context)
         {
+            if (GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
             _controller.UsePotion();
         }
 
