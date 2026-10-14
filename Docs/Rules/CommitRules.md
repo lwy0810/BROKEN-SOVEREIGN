@@ -29,12 +29,19 @@
 - `main` 브랜치에 직접 커밋하지 않습니다.
 - 작업마다 브랜치를 만들고, 끝나면 `main`으로 PR을 올립니다.
 
-| 작업 | 브랜치 이름 | 예시 |
-|---|---|---|
-| 기능 | `feature/<짧은-설명>` | `feature/click-move` |
-| 버그 수정 | `fix/<짧은-설명>` | `fix/double-faith-gain` |
-| 테스트 | `test/<짧은-설명>` | `test/breakthrough-condition` |
-| 문서 | `docs/<짧은-설명>` | `docs/class-diagram` |
+| 작업 | 브랜치 이름 | 주로 쓰는 커밋 Type | 예시 |
+|---|---|---|---|
+| 기능 | `feature/<짧은-설명>` | `[Feat]` | `feature/click-move` |
+| 버그 수정 | `fix/<짧은-설명>` | `[Fix]` | `fix/double-faith-gain` |
+| 코드 정리 | `refactor/<짧은-설명>` | `[Refactor]` | `refactor/stat-sheet` |
+| 테스트 | `test/<짧은-설명>` | `[Test]` | `test/breakthrough-condition` |
+| 에셋 | `asset/<짧은-설명>` | `[Asset]` | `asset/paladin-effects` |
+| 문서 | `docs/<짧은-설명>` | `[Docs]` | `docs/class-diagram` |
+| 설정·패키지 | `chore/<짧은-설명>` | `[Chore]` | `chore/project-structure` |
+
+- 브랜치 접두어는 그 브랜치의 **주된 작업**으로 정합니다. 기능 브랜치 안에 `[Fix]`·`[Docs]` 커밋이 함께 들어가도 됩니다.
+- 동작 변경 없이 구조만 바꾸는 작업만 `refactor/`를 씁니다. 새 기능이 함께 들어가면 `feature/`를 씁니다.
+- `<짧은-설명>`은 영어 소문자와 하이픈(`-`)으로 씁니다.
 
 - PR 제목도 커밋 메시지와 같은 `[Type] 요약` 형식으로 씁니다.
 
