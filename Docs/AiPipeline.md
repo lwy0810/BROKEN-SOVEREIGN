@@ -8,15 +8,16 @@
 | 도구 | 용도 | 비고 |
 |---|---|---|
 | Claude (Cowork·Claude Code) | 기획 문서, 설계 문서, 코드 작성·검토, 저장소 관리 | Unity MCP로 에디터 연결 |
-| VARCO 3D | 3D 모델 생성 | 사용 예정. Claude 커넥터·플러그인으로 연결 예정 |
+| VARCO 3D | 3D 모델 생성 | 10-15부터 사용. Text to 3D 플로우(텍스트 → GPT Image 1.5 이미지 → 3D). Claude가 앱 내장 브라우저로 프롬프트 입력·실행, 다운로드는 개발자 |
 | VARCO Sound | 효과음 생성 | 사용 예정. Claude 커넥터·플러그인으로 연결 예정 |
-| Blender | 생성 모델 수정 | 사용 예정. Claude 커넥터·플러그인으로 연결 예정 |
+| Blender | 생성 모델 수정 | 10-14 MCP 연결 (Blender 5.2). 정리 스크립트 `Tools/Blender/` 실행 |
+| Mixamo | 자동 리깅·애니메이션 | 10-15부터 사용. Blender FBX·텍스처 포함 zip 업로드 실패, OBJ(메시만) 업로드로 확정 |
 
 ## 2. 에셋 생성 기록
 
 | 날짜 | 도구 | 에셋 (파일) | 프롬프트 원문 | 생성 설정 | 사람 수정 (Blender 등) | Unity 임포트 설정 | 상업 이용 |
 |---|---|---|---|---|---|---|---|
-| - | - | - | - | - | - | - | - |
+| 2026-10-15 | VARCO 3D → Mixamo → Blender | 성기사 `Paladin.fbx` (테스트, Unity 미반영) | Claude 프로젝트 문서 `BrokenSovereign_VARCO_프롬프트_1015.md` 1번(성기사) + 캐릭터 공통 조건 | 이미지 GPT Image 1.5 1:1 ×1, 3D Target Polycount 20000, Triangle, 텍스처 2K, PBR 켬, T-Pose 켬, Private | 정점 병합(448조각 → 1), 높이 1.8m·발바닥 피벗, 텍스처 3장 분리 저장, Mixamo 리깅(65본) 후 0.01배 스케일 보정, 웨이트 4본 제한·미세 웨이트 삭제·관절/허리 천 스무딩 | 미정 (Humanoid 예정) | VARCO 이용 약관 확인 필요 |
 
 - 에셋 파일 이름·폴더: `Docs/Rules/FolderRules.md` '에셋 이름' 기준
 - 상업 이용 조건 확인 후 프로젝트 반영
@@ -46,3 +47,4 @@
 |---|---|---|---|---|
 | 2026-10-02 | Claude | `Docs/ClassDiagram.md` | 프로토타입 범위 클래스 다이어그램 15개 초안, 이벤트 목록, 테스트 대상 | 직업 정의 위치, 시전 전 수치 변경 연결 지점(`ISkillParameterModifier`) 도입, 이벤트 폴더 신설, 클릭 이동 방식 결정 |
 | 2026-10-02 | Claude | 프로젝트 구조 | 폴더·asmdef 생성, 템플릿 정리, 줄바꿈 규칙 추가 | 네임스페이스 규칙, 입력 설정 위치, 샘플 씬 유지 결정 |
+| 2026-10-14~15 | Claude | `Tools/Blender/bs_model_cleanup.py`, `bs_rig_quality.py` | VARCO 모델 정리(파편·폴리곤·크기·피벗·머티리얼·FBX), Mixamo 업로드 파일·리깅 결과 마무리, 시험 포즈 기반 스키닝 측정·보정 | 정리 범위·프리셋 크기 승인, Mixamo 업로드 형식 시행착오 공유, 리깅 품질 개선 요청 |

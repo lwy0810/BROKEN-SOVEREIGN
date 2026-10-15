@@ -72,6 +72,13 @@
 	- `QAChecklist.md` - QA 체크리스트
 	- `Mentoring.md` - 멘토링 질문
 
+## Tools 폴더
+
+- `Tools/` - 유니티 밖에서 쓰는 작업 도구 (`Assets/` 밖이라 빌드에 들어가지 않음)
+	- `Blender/` - Blender 파이썬 스크립트. 예: `bs_model_cleanup.py` (VARCO 모델 정리·FBX 내보내기)
+
+- 도구가 만든 중간 결과물(원본 모델, 작업용 `.blend`, Mixamo 업로드용 FBX)은 저장소 밖 `C:\github\K_ND\VarcoWork\`에 둡니다. 게임에 쓰는 최종 FBX만 `Assets/Models/`에 넣습니다.
+
 ## 에셋 이름
 
 - 스크립트와 같은 규칙으로 PascalCase를 쓰고 공백·한글을 쓰지 않습니다.
@@ -84,6 +91,8 @@
 | 사운드 | `SfxSmiteHit01.wav` |
 | 씬 | `HeavenZone01.unity` |
 | 3D 모델 | `ErlangShen.fbx` |
+| 머티리얼 | `M_Paladin.mat` (여러 개면 `M_Paladin_01`) |
+| 텍스처 | `T_Paladin_BaseColor.png`, `T_Paladin_Normal.png`, `T_Paladin_Roughness.png` |
 | 애니메이션 | `PaladinDodge.anim` |
 | 이펙트 | `VfxRadiantSmite.prefab` |
 | ScriptableObject | `SkillOathStrike.asset`, `HeroSunWukong.asset` |
