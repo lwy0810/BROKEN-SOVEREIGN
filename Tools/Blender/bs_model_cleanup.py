@@ -305,6 +305,44 @@ def export_mixamo_obj(obj, name, out_dir):
     return obj_path
 
 
+def make_metallic_smoothness(src_png, dst_png):
+    """URP Lit용 MetallicSmoothness 텍스처(R = 금속성, A = 매끄러움)를 만든다.
+
+    VARCO 텍스처는 glTF 방식으로 채널이 묶여 있다 (R = AO, G = 거칠기, B = 금속성).
+    이름이 Roughness여도 R 채널만 읽으면 거칠기가 아니라 AO(거의 1)를 읽게 되어
+    매끄러움 0·금속성 0의 무광 재질이 된다 (10-15 성기사에서 발생).
+    채널 값이 서로 다르면 묶인 텍스처로, 같으면 흑백 거칠기 텍스처로 판단한다.
+    """
+    import numpy as np
+
+    img = bpy.data.images.load(src_png, check_existing=False)
+    img.colorspace_settings.name = "Non-Color"
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+
+    packed = float(np.abs(px[:, 0] - px[:, 1]).mean()) > 0.05
+    rough = px[:, 1] if packed else px[:, 0]
+    metal = px[:, 2] if packed else np.zeros_like(rough)
+
+    out = np.zeros_like(px)
+    out[:, 0] = metal
+    out[:, 1] = metal
+    out[:, 2] = metal
+    out[:, 3] = 1.0 - rough
+
+    res = bpy.data.images.new("BsMetallicSmoothness", w, h, alpha=True)
+    res.colorspace_settings.name = "Non-Color"
+    res.pixels.foreach_set(out.ravel())
+    res.filepath_raw = dst_png
+    res.file_format = "PNG"
+    res.save()
+    bpy.data.images.remove(img)
+    bpy.data.images.remove(res)
+    return dict(packed=packed, metallic_mean=round(float(metal.mean()), 3), smoothness_mean=round(float(out[:, 3].mean()), 3))
+
+
 def triangle_count(me):
     return sum(len(p.vertices) - 2 for p in me.polygons)
 
