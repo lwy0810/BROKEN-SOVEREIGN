@@ -217,8 +217,13 @@ def improve(arm, mesh, flagged=None, rings=2, iterations=4, factor=0.5, limit=4)
 # 리깅 결과 일괄 마무리
 # ---------------------------------------------------------------------------
 
-def finalize_and_improve(name, rigged_fbx, out_path=None):
+LEGS_TORSO = ("Hips", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg", "Spine", "Spine1")
+
+
+def finalize_and_improve(name, rigged_fbx, out_path=None, regions=None, poses=None):
     """Mixamo 리깅 FBX → finalize_rigged(스케일·텍스처) → 측정·웨이트 보정 → Unity용 FBX 재저장.
+    regions: 보정할 부위(주 본 이름, 접두어 제외). None이면 전체. 예: LEGS_TORSO
+    poses  : 문제 정점을 찾을 시험 포즈. None이면 전체. 예: ("run", "swing")
     보고서(dict)를 반환한다."""
     import bs_model_cleanup as bs
 
@@ -226,7 +231,10 @@ def finalize_and_improve(name, rigged_fbx, out_path=None):
     arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
     mesh = next(o for o in bpy.data.objects if o.type == "MESH")
 
-    before, flagged = measure(arm, mesh)
+    before, _ = measure(arm, mesh)
+    _, flagged = measure(arm, mesh, poses=poses)
+    if regions:
+        flagged = {i for i in flagged if _dominant_bone(mesh, mesh.data.vertices[i]) in regions}
     improve(arm, mesh, flagged)
     after, _ = measure(arm, mesh)
     reset_pose(arm)
