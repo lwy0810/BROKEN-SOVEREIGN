@@ -3,7 +3,10 @@
     "rootNamespace": "BrokenSovereign.Editor",
     "references": [
         "BrokenSovereign",
-        "Unity.AI.Navigation"
+        "Unity.AI.Navigation",
+        "Unity.ProBuilder",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [
         "Editor"
