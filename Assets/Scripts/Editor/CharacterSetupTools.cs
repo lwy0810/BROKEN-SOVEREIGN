@@ -78,6 +78,15 @@ namespace BrokenSovereign.Editor
             BuildAssets(PALADIN, out _);
         }
 
+        /// <summary>
+        /// 캐릭터 1종의 임포트 설정·머티리얼·Animator·모델 프리팹을 만들고 모델 프리팹을 돌려줍니다 (적 모델 도구에서 사용).
+        /// 규칙: Models/{이름}/{이름}.fbx, Animations/{이름}/{이름}Idle·Run·Attack.fbx
+        /// </summary>
+        public static GameObject BuildModelAssets(string name, out float attackClipLength)
+        {
+            return BuildAssets(new CharacterSpec(name), out attackClipLength);
+        }
+
         // ------------------------------------------------------------------
         // 에셋 생성
         // ------------------------------------------------------------------

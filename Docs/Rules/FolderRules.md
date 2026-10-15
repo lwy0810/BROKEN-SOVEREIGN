@@ -36,6 +36,7 @@
 		- `Characters/` - 캐릭터 모델 프리팹 (Animator·머티리얼 연결). 예: `PaladinModel.prefab`
 		- `Props/` - 환경 소품 프리팹 (MeshCollider, Static). 예: `PropStonePillar.prefab`
 		- `Weapons/` - 무기 외형 프리팹 (콜라이더 없음, 원점 = 손잡이). 예: `WeaponHolyMace.prefab`
+		- `Enemies/` - 적 프리팹 (AI·체력·모델·EnemyAnimator). 예: `EnemyHeavenSoldier.prefab`, 정예는 `~Elite`
 		- `Field/` - 필드 석판·다리 프리팹 (ProBuilder). 예: `FieldSlabRound8.prefab`
 	- `Models/` - 3D 모델 (FBX)
 		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`, 무기는 `Weapon`으로 시작 (리그 없이 임포트)

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62fc366054784d91af65406481d5053f, type: 3}
+  m_Name: TempleGuardian
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Enemy.EnemyDefinition
+  _detectRange: 8
+  _loseRangeMultiplier: 2
+  _leashDistance: 20
+  _homeArriveDistance: 0.5
+  _repathInterval: 0.2
+  _turnSpeed: 720
+  _attackRange: 2.4
+  _attackAngle: 140
+  _attackWindup: 0.9
+  _attackRecovery: 0.4
+  _attackInterval: 2.6
+  _attackCoefficient: 1.6
+  _fallbackAttackPower: 40
+  _experienceReward: 35
+  _showAttackArea: 1
+  _attackAreaColor: {r: 1, g: 0.1, b: 0.1, a: 0.35}
