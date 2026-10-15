@@ -35,8 +35,10 @@
 	- `Prefabs/` - 프리팹
 		- `Characters/` - 캐릭터 모델 프리팹 (Animator·머티리얼 연결). 예: `PaladinModel.prefab`
 		- `Props/` - 환경 소품 프리팹 (MeshCollider, Static). 예: `PropStonePillar.prefab`
+		- `Field/` - 필드 석판·다리 프리팹 (ProBuilder). 예: `FieldSlabRound8.prefab`
 	- `Models/` - 3D 모델 (FBX)
 		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`으로 시작 (리그 없이 임포트)
+		- `Field/` - 필드용 생성 메시 (`CloudSeaGrid.asset` 등, 에디터 도구가 생성)
 	- `Animations/` - 애니메이션 클립·애니메이터 컨트롤러
 		- `<이름>/` - 캐릭터별 Mixamo 애니메이션 FBX와 Animator. 예: `Paladin/PaladinRun.fbx`, `Paladin/PaladinAnimator.controller`
 	- `Effects/` - 파티클·이펙트
@@ -45,8 +47,9 @@
 	- `Materials/` - 머티리얼
 		- `Characters/` - 캐릭터 머티리얼 (URP Lit). 예: `M_Paladin.mat`
 		- `Props/` - 환경 소품 머티리얼 (URP Lit). 예: `M_PropStonePillar.mat`
+		- `Field/` - 필드 머티리얼 (하늘·구름 바다·석판). 예: `M_FieldSkybox.mat`
 	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
-	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`)
+	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`)
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
 
 - 새 스크립트는 `Scripts/` 아래 기능 폴더에 둡니다. 맞는 폴더가 없으면 폴더를 새로 만들기 전에 묻습니다.
