@@ -19,7 +19,9 @@
 |---|---|---|---|---|---|---|---|
 | 2026-10-15 | VARCO 3D → Mixamo → Blender | 성기사 `Paladin.fbx` (테스트, Unity 미반영) | Claude 프로젝트 문서 `BrokenSovereign_VARCO_프롬프트_1015.md` 1번(성기사) + 캐릭터 공통 조건 | 이미지 GPT Image 1.5 1:1 ×1, 3D Target Polycount 20000, Triangle, 텍스처 2K, PBR 켬, T-Pose 켬, Private | 정점 병합(448조각 → 1), 높이 1.8m·발바닥 피벗, 텍스처 3장 분리 저장, Mixamo 리깅(65본) 후 0.01배 스케일 보정, 웨이트 4본 제한·미세 웨이트 삭제·관절/허리 천 스무딩 | 미정 (Humanoid 예정) | VARCO 이용 약관 확인 필요 |
 | 2026-10-15 | VARCO 3D → Blender | 환경 소품 4종 `PropStonePillar`·`PropPaifang`·`PropStoneLantern`·`PropCloudRailing` | Claude 프로젝트 문서 `BrokenSovereign_VARCO_프롬프트_1015.md` P1~P4 + 소품 공통 조건 | 이미지 GPT Image 1.5 1:1 ×1, 3D Target Polycount 5000 (난간 2000), Triangle, 텍스처 2K, PBR 켬, T-Pose 끔, Private. 4종 병렬 생성 | 높이·길이 맞춤(4m·6m·1.5m·길이 2m), 밑면 중앙 피벗, 패루·난간 90° 회전, 패루·난간 Decimate(5,698→4,850, 2,142→1,940), MetallicSmoothness 변환 | 리그 없음, 머티리얼 M_Prop*, 프리팹 MeshCollider·Static | VARCO 이용 약관 확인 필요 |
-| 2026-10-15 | VARCO 3D → Blender | 천병 `HeavenSoldier` (리깅 전) | 같은 문서 2번(천병) + 캐릭터 공통 조건 | 성기사와 동일 (20000, T-Pose 켬) | 높이 1.8m·발바닥 피벗, Mixamo 업로드용 OBJ | 미정 | VARCO 이용 약관 확인 필요 |
+| 2026-10-15 | VARCO 3D → Mixamo → Blender | 천병 `HeavenSoldier` (Unity 미반영) | 같은 문서 2번(천병) + 캐릭터 공통 조건 | 성기사와 동일 (20000, T-Pose 켬) | 높이 1.8m·발바닥 피벗, Mixamo 리깅(65본) 후 스케일 보정, 웨이트 4본 제한·스무딩 | 10/23 적용 예정 | VARCO 이용 약관 확인 필요 |
+| 2026-10-15 | VARCO 3D → Mixamo → Blender | 역사 `TempleGuardian` (Unity 미반영) | 같은 문서 3번 → **재작성**: 금강역사(Geumgang-yeoksa, Nio) 원형 명시, human face, no tusks, 팔 수평 강조 | 성기사와 동일 | 1차 이미지가 송곳니 있는 오크형·A포즈로 나와 개발자 요청으로 사람형 재생성. 높이 2.2m, Mixamo 리깅(65본), 웨이트 보정 | 10/23 적용 예정 | VARCO 이용 약관 확인 필요 |
+| 2026-10-15 | VARCO 3D → Mixamo → Blender | 이랑진군 `ErlangShen` (Unity 미반영) | 같은 문서 4번(이랑진군) + 캐릭터 공통 조건 | 성기사와 동일 | 높이 2.4m. Mixamo가 손가락을 구분하지 못해 Standard 선택에도 33본(검지만) → `bs_finger_graft.py`로 메시 형태 분석해 다섯 손가락 본 이식(65본)·손 웨이트 재분배, 주먹 포즈 확인. 웨이트 보정 | 10/23 적용 예정 | VARCO 이용 약관 확인 필요 |
 
 - 에셋 파일 이름·폴더: `Docs/Rules/FolderRules.md` '에셋 이름' 기준
 - 상업 이용 조건 확인 후 프로젝트 반영
@@ -50,3 +52,4 @@
 | 2026-10-02 | Claude | `Docs/ClassDiagram.md` | 프로토타입 범위 클래스 다이어그램 15개 초안, 이벤트 목록, 테스트 대상 | 직업 정의 위치, 시전 전 수치 변경 연결 지점(`ISkillParameterModifier`) 도입, 이벤트 폴더 신설, 클릭 이동 방식 결정 |
 | 2026-10-02 | Claude | 프로젝트 구조 | 폴더·asmdef 생성, 템플릿 정리, 줄바꿈 규칙 추가 | 네임스페이스 규칙, 입력 설정 위치, 샘플 씬 유지 결정 |
 | 2026-10-14~15 | Claude | `Tools/Blender/bs_model_cleanup.py`, `bs_rig_quality.py` | VARCO 모델 정리(파편·폴리곤·크기·피벗·머티리얼·FBX), Mixamo 업로드 파일·리깅 결과 마무리, 시험 포즈 기반 스키닝 측정·보정 | 정리 범위·프리셋 크기 승인, Mixamo 업로드 형식 시행착오 공유, 리깅 품질 개선 요청 |
+| 2026-10-15 | Claude | `Tools/Blender/bs_finger_graft.py`, `bs_rig_quality.finalize_and_improve` | 메시 연결 덩어리·k-means로 손가락 위치 추정 후 본 체인 생성, 손 웨이트 거리 기반 재분배 / 리깅 마무리 일괄 처리 | 보스 품질 요구로 손가락 본 복원 결정 |

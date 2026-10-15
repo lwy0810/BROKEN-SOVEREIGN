@@ -211,3 +211,46 @@ def improve(arm, mesh, flagged=None, rings=2, iterations=4, factor=0.5, limit=4)
     weights = [_normalize_limit(wd, limit) if wd else wd for wd in weights]
     _write_weights(mesh, weights, touched)
     return len(region)
+
+
+# ---------------------------------------------------------------------------
+# 리깅 결과 일괄 마무리
+# ---------------------------------------------------------------------------
+
+def finalize_and_improve(name, rigged_fbx, out_path=None):
+    """Mixamo 리깅 FBX → finalize_rigged(스케일·텍스처) → 측정·웨이트 보정 → Unity용 FBX 재저장.
+    보고서(dict)를 반환한다."""
+    import bs_model_cleanup as bs
+
+    info = bs.finalize_rigged(name, rigged_fbx, out_path=out_path)
+    arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    mesh = next(o for o in bpy.data.objects if o.type == "MESH")
+
+    before, flagged = measure(arm, mesh)
+    improve(arm, mesh, flagged)
+    after, _ = measure(arm, mesh)
+    reset_pose(arm)
+
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o in (arm, mesh))
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.export_scene.fbx(
+        filepath=info["fbx"],
+        use_selection=True,
+        object_types={"ARMATURE", "MESH"},
+        apply_unit_scale=True,
+        apply_scale_options="FBX_SCALE_ALL",
+        axis_forward="-Z",
+        axis_up="Y",
+        bake_space_transform=False,
+        add_leaf_bones=False,
+        use_armature_deform_only=True,
+        bake_anim=False,
+        mesh_smooth_type="FACE",
+        path_mode="COPY",
+        embed_textures=True,
+    )
+    info["worst_before"] = {k: v["worst"] for k, v in before.items()}
+    info["worst_after"] = {k: v["worst"] for k, v in after.items()}
+    info["weights"] = weight_stats(mesh)
+    return info
