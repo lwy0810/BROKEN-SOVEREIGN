@@ -886,7 +886,7 @@ classDiagram
 - 규칙 객체 수명: `SelectPath`에서 `CreateRule` → `Activate`(이벤트 구독·등록), 사망·씬 종료 시 `Deactivate`(해제)
 - 야로미르(분쇄): `CrushRule`이 `DamageDealtEvent`를 구독해 대상 `IStaggerable`의 버팀 게이지를 계수 × 10만큼 감소. 0이 되면 적이 무력화(기존 `IStunnable.Stun` + 받는 피해 증가 수정치)하고 `EnemyStaggeredEvent` 발행. 분쇄 일격은 `ExecuteStrikeBehaviour`가 `IsBroken`이면 처형 수치 적용
 - `StaggerGauge`는 순수 클래스 (게이지 감소·회복 대기·무력화 후 저항 시간). 영웅 미선택 시에도 적 컴포넌트에 존재하며 감소 주체만 영웅 규칙
-- 석천(사거리 전환): 좌클릭 시전 직전 대상 거리로 봉 길이 결정 → `ISkillParameterModifier`로 좌클릭 수치 교체
+- 석천(사거리 전환): 5번 기술 모드변환으로 장봉·단봉 전환 → `ISkillParameterModifier`로 좌클릭 수치 교체 (장봉: 사거리·다중 타격, 단봉: 피해·방어 관통). 2026-10-15 자동 전환에서 변경
 - 성물 기술 변형: `_visualOverrides`로 이펙트 프리팹만 교체 (영웅 2명 × 기술 3개 = 6개). `SkillBehaviour`는 `HeroPathController.GetVfx` 결과 사용
 - 무력화 알림(금이 간 방패 표시): `EnemyStaggeredEvent` 발행 → UI 구독
 - 클래스 이름은 영웅 이름이 아닌 메커니즘 이름 사용 (영웅 이름·칭호 변경에 영향받지 않도록)
