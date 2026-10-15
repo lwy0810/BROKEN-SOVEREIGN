@@ -69,6 +69,7 @@
 	- `ClassDiagram.md` - 클래스 다이어그램
 	- `AiPipeline.md` - AI 에셋·코드 생성 기록
 	- `DevLog.md` - 개발 일지
+	- `QAChecklist.md` - QA 체크리스트
 	- `Mentoring.md` - 멘토링 질문
 
 ## 에셋 이름
