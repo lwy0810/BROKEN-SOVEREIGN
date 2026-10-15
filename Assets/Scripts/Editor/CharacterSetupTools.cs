@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using BrokenSovereign.Player;
 using UnityEditor;
@@ -26,7 +25,6 @@ namespace BrokenSovereign.Editor
         private const string MODEL_CHILD_NAME = "Model";
         private const string PREFAB_ROOT = "Assets/Prefabs/Characters";
         private const string MATERIAL_ROOT = "Assets/Materials/Characters";
-        private const string URP_LIT = "Universal Render Pipeline/Lit";
 
         /// <summary>캐릭터 1종의 에셋 경로 묶음. 새 캐릭터는 이 값만 추가합니다.</summary>
         private readonly struct CharacterSpec
@@ -47,7 +45,6 @@ namespace BrokenSovereign.Editor
             public string ControllerPath => $"{AnimationRoot}/{Name}Animator.controller";
             public string MaterialPath => $"{MATERIAL_ROOT}/M_{Name}.mat";
             public string PrefabPath => $"{PREFAB_ROOT}/{Name}Model.prefab";
-            public string Texture(string role) => $"{TextureRoot}/T_{Name}_{role}.png";
         }
 
         private static readonly CharacterSpec PALADIN = new CharacterSpec("Paladin");
@@ -139,55 +136,13 @@ namespace BrokenSovereign.Editor
                 anim.SaveAndReimport();
             }
 
-            ConfigureTexture(spec.Texture("BaseColor"), TextureImporterType.Default, true);
-            ConfigureTexture(spec.Texture("Normal"), TextureImporterType.NormalMap, false);
-            ConfigureTexture(spec.Texture("MetallicSmoothness"), TextureImporterType.Default, false);
+            ModelAssetUtility.ConfigureTextures(spec.TextureRoot, spec.Name);
             return true;
-        }
-
-        private static void ConfigureTexture(string path, TextureImporterType type, bool sRgb)
-        {
-            if (AssetImporter.GetAtPath(path) is not TextureImporter importer)
-            {
-                Debug.LogWarning($"CharacterSetupTools: 텍스처 없음 ({path})");
-                return;
-            }
-
-            importer.textureType = type;
-            importer.sRGBTexture = sRgb;
-            importer.maxTextureSize = 2048;
-            importer.SaveAndReimport();
         }
 
         private static Material BuildMaterial(CharacterSpec spec)
         {
-            EnsureFolder(MATERIAL_ROOT);
-            Material material = AssetDatabase.LoadAssetAtPath<Material>(spec.MaterialPath);
-
-            if (material == null)
-            {
-                material = new Material(Shader.Find(URP_LIT));
-                AssetDatabase.CreateAsset(material, spec.MaterialPath);
-            }
-
-            material.shader = Shader.Find(URP_LIT);
-            material.SetColor("_BaseColor", Color.white);
-            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(spec.Texture("BaseColor")));
-
-            Texture2D normal = AssetDatabase.LoadAssetAtPath<Texture2D>(spec.Texture("Normal"));
-            material.SetTexture("_BumpMap", normal);
-            SetKeyword(material, "_NORMALMAP", normal != null);
-
-            // URP Lit: 금속성 텍스처 R = 금속성, A = 매끄러움 (_Smoothness는 배율)
-            Texture2D metallic = AssetDatabase.LoadAssetAtPath<Texture2D>(spec.Texture("MetallicSmoothness"));
-            material.SetTexture("_MetallicGlossMap", metallic);
-            material.SetFloat("_SmoothnessTextureChannel", 0f);
-            material.SetFloat("_Smoothness", 1f);
-            material.SetFloat("_Metallic", 0f);
-            SetKeyword(material, "_METALLICSPECGLOSSMAP", metallic != null);
-
-            EditorUtility.SetDirty(material);
-            return material;
+            return ModelAssetUtility.BuildLitMaterial(spec.MaterialPath, spec.TextureRoot, spec.Name);
         }
 
         private static AnimatorController BuildController(CharacterSpec spec, AnimationClip idle, AnimationClip run, AnimationClip attack)
@@ -346,28 +301,9 @@ namespace BrokenSovereign.Editor
                 .FirstOrDefault(clip => !clip.name.StartsWith("__preview__"));
         }
 
-        private static void SetKeyword(Material material, string keyword, bool enabled)
-        {
-            if (enabled)
-            {
-                material.EnableKeyword(keyword);
-            }
-            else
-            {
-                material.DisableKeyword(keyword);
-            }
-        }
-
         private static void EnsureFolder(string path)
         {
-            if (AssetDatabase.IsValidFolder(path))
-            {
-                return;
-            }
-
-            string parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
-            EnsureFolder(parent);
-            AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
+            ModelAssetUtility.EnsureFolder(path);
         }
     }
 }

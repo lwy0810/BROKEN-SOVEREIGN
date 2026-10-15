@@ -6,6 +6,7 @@ namespace BrokenSovereign.Editor
     /// <summary>
     /// 캐릭터 FBX 임포트 규칙 (Mixamo 리깅 기준).
     /// - Assets/Models/ 아래 FBX: Humanoid, 애니메이션·머티리얼 가져오지 않음 (머티리얼은 M_ 에셋을 직접 연결)
+    ///   · 파일 이름이 Prop으로 시작하면 정적 소품: 리그 없음
     /// - Assets/Animations/ 아래 FBX: Humanoid, 머티리얼 없음, 클립 설정 적용
     ///   · 루트 이동·회전·높이를 모두 포즈에 굽기 (이동은 NavMeshAgent 담당)
     ///   · 이름에 Idle·Run·Walk가 들어가면 반복 재생
@@ -15,6 +16,8 @@ namespace BrokenSovereign.Editor
     {
         public const string MODELS_ROOT = "Assets/Models/";
         public const string ANIMATIONS_ROOT = "Assets/Animations/";
+
+        public const string PROP_PREFIX = "Prop";
 
         private static readonly string[] LOOP_KEYWORDS = { "Idle", "Run", "Walk" };
 
@@ -27,7 +30,11 @@ namespace BrokenSovereign.Editor
 
             ModelImporter importer = (ModelImporter)assetImporter;
 
-            if (assetPath.StartsWith(MODELS_ROOT))
+            if (assetPath.StartsWith(MODELS_ROOT) && IsPropName(Path.GetFileNameWithoutExtension(assetPath)))
+            {
+                ApplyPropSettings(importer);
+            }
+            else if (assetPath.StartsWith(MODELS_ROOT))
             {
                 ApplyModelSettings(importer);
             }
@@ -57,6 +64,23 @@ namespace BrokenSovereign.Editor
             importer.importBlendShapes = false;
             importer.importCameras = false;
             importer.importLights = false;
+        }
+
+        /// <summary>정적 소품 FBX 설정. 충돌은 프리팹의 콜라이더가 담당합니다.</summary>
+        public static void ApplyPropSettings(ModelImporter importer)
+        {
+            importer.animationType = ModelImporterAnimationType.None;
+            importer.importAnimation = false;
+            importer.materialImportMode = ModelImporterMaterialImportMode.None;
+            importer.importBlendShapes = false;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.addCollider = false;
+        }
+
+        public static bool IsPropName(string fileName)
+        {
+            return fileName.StartsWith(PROP_PREFIX);
         }
 
         /// <summary>애니메이션 FBX 설정 (클립 설정 제외).</summary>

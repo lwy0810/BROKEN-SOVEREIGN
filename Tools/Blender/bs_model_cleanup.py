@@ -128,12 +128,19 @@ def process(path, preset, out_dir=None, **overrides):
 
     materials, textures = _clean_materials(obj, name, opts["max_texture"])
 
-    out_dir = out_dir or DEST_DIRS[opts["dest"]]
-    fbx_path = export_fbx(obj, os.path.join(out_dir, name + ".fbx"))
-    file_mb = os.path.getsize(fbx_path) / (1024 * 1024)
-
-    # 텍스처 PNG 별도 저장 (Unity 머티리얼용)
+    # 텍스처 PNG 별도 저장 + URP용 MetallicSmoothness 생성
     tex_dir = save_textures(obj, os.path.join(WORK_ROOT, "Textures", name))
+    metallic = _make_unity_metallic(tex_dir, name)
+
+    if opts["dest"] == "unity":
+        # Unity 직행(소품): Assets/Models/<이름>/ 에 FBX(텍스처 미포함) + 텍스처 3종
+        out_dir = out_dir or os.path.join(DEST_DIRS["unity"], name)
+        fbx_path = export_fbx(obj, os.path.join(out_dir, name + ".fbx"), embed_textures=False)
+        _copy_unity_textures(tex_dir, name, out_dir)
+    else:
+        out_dir = out_dir or DEST_DIRS[opts["dest"]]
+        fbx_path = export_fbx(obj, os.path.join(out_dir, name + ".fbx"))
+    file_mb = os.path.getsize(fbx_path) / (1024 * 1024)
 
     # Mixamo 업로드용 OBJ (메시만)
     mixamo_obj = None
@@ -158,6 +165,7 @@ def process(path, preset, out_dir=None, **overrides):
         fbx=fbx_path,
         mixamo_obj=mixamo_obj,
         textures_dir=tex_dir,
+        metallic=metallic,
         blend=blend_path,
         tris_before=before_tris,
         tris_after=after_tris,
@@ -233,7 +241,7 @@ def import_model(path):
     return new
 
 
-def export_fbx(obj, fbx_path):
+def export_fbx(obj, fbx_path, embed_textures=True):
     os.makedirs(os.path.dirname(fbx_path), exist_ok=True)
     for o in bpy.context.view_layer.objects:
         o.select_set(False)
@@ -251,10 +259,34 @@ def export_fbx(obj, fbx_path):
         use_mesh_modifiers=True,
         mesh_smooth_type="FACE",
         add_leaf_bones=False,
-        path_mode="COPY",
-        embed_textures=True,
+        path_mode="COPY" if embed_textures else "STRIP",
+        embed_textures=embed_textures,
     )
     return fbx_path
+
+
+UNITY_TEXTURE_ROLES = ("BaseColor", "Normal", "MetallicSmoothness")
+
+
+def _make_unity_metallic(tex_dir, name):
+    """tex_dir의 MetallicRoughness(또는 Roughness) 텍스처로 T_{name}_MetallicSmoothness.png를 만든다."""
+    for role in ("MetallicRoughness", "Roughness"):
+        src = os.path.join(tex_dir, "T_%s_%s.png" % (name, role))
+        if os.path.exists(src):
+            dst = os.path.join(tex_dir, "T_%s_MetallicSmoothness.png" % name)
+            info = make_metallic_smoothness(src, dst)
+            info["source"] = role
+            return info
+    return None
+
+
+def _copy_unity_textures(tex_dir, name, out_dir):
+    import shutil
+
+    for role in UNITY_TEXTURE_ROLES:
+        src = os.path.join(tex_dir, "T_%s_%s.png" % (name, role))
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(out_dir, os.path.basename(src)))
 
 
 def save_textures(obj, tex_dir):
