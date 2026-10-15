@@ -255,8 +255,9 @@ def finalize_and_improve(name, rigged_fbx, out_path=None, regions=None, poses=No
         use_armature_deform_only=True,
         bake_anim=False,
         mesh_smooth_type="FACE",
-        path_mode="COPY",
-        embed_textures=True,
+        # 텍스처는 finalize_rigged가 Unity용 PNG로 따로 저장하므로 FBX에 넣지 않음 (용량 10MB 기준)
+        path_mode="STRIP",
+        embed_textures=False,
     )
     info["worst_before"] = {k: v["worst"] for k, v in before.items()}
     info["worst_after"] = {k: v["worst"] for k, v in after.items()}
