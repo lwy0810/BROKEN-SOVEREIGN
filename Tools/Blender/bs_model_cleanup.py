@@ -62,6 +62,7 @@ DEST_DIRS = {
 # 프리셋 (VARCO 프롬프트 문서 체크리스트 기준)
 #   size : 맞출 크기(m)
 #   fit  : "height" = 높이(Z), "length" = 가로 최장(X/Y)
+#   pivot_height : 원점 높이 비율 (0 = 바닥, 무기는 손잡이 위치)
 # ---------------------------------------------------------------------------
 
 DEFAULTS = dict(
@@ -74,6 +75,7 @@ DEFAULTS = dict(
     recalc_normals=True,
     min_island_ratio=0.0,   # 전체 정점 대비 이 비율보다 작은 덩어리 삭제 (0 = 끔)
     rotate_z=0.0,           # 정면 보정 각도(도). Blender 정면은 -Y
+    pivot_height=0.0,       # 원점 높이 = 높이 × 비율 (무기 손잡이)
     max_file_mb=10.0,
     clear_scene=True,
     save_blend=True,
@@ -90,6 +92,9 @@ PRESETS = {
     "PropPaifang":      dict(size=6.0, max_tris=5000, dest="unity"),
     "PropStoneLantern": dict(size=1.5, max_tris=5000, dest="unity"),
     "PropCloudRailing": dict(size=2.0, fit="length", max_tris=2000, dest="unity"),
+    # 무기 (세워진 상태 기준, 원점 = 손잡이, 위쪽 = 무기 머리)
+    "WeaponHolyMace":       dict(size=0.8, max_tris=3000, pivot_height=0.18, dest="unity"),
+    "WeaponCelestialStaff": dict(size=1.8, max_tris=3000, pivot_height=0.35, dest="unity"),
 }
 
 IMPORT_EXTS = (".glb", ".gltf", ".fbx", ".obj")
@@ -123,7 +128,7 @@ def process(path, preset, out_dir=None, **overrides):
     if opts["rotate_z"]:
         me.transform(Matrix.Rotation(math.radians(opts["rotate_z"]), 4, "Z"))
     scale = _fit_size(me, opts["size"], opts["fit"])
-    _pivot_to_bottom_center(me)
+    _pivot_to_bottom_center(me, opts["pivot_height"])
     me.update()
 
     materials, textures = _clean_materials(obj, name, opts["max_texture"])
@@ -521,11 +526,12 @@ def _fit_size(me, size, fit):
     return s
 
 
-def _pivot_to_bottom_center(me):
+def _pivot_to_bottom_center(me, height_ratio=0.0):
     lo, hi = _bbox(me)
     cx = (lo[0] + hi[0]) * 0.5
     cy = (lo[1] + hi[1]) * 0.5
-    me.transform(Matrix.Translation((-cx, -cy, -lo[2])))
+    cz = lo[2] + (hi[2] - lo[2]) * height_ratio
+    me.transform(Matrix.Translation((-cx, -cy, -cz)))
 
 
 def _clean_materials(obj, name, max_texture):

@@ -14,7 +14,7 @@
 		- `Ascension/` - 격 단계, 돌파 조건, 스탯 분배, 직업 정의
 		- `Hero/` - 영웅의 길, 영웅 고유 메커니즘 규칙 객체
 		- `Relic/` - 신물창, 신화 세트 효과
-		- `Equipment/` - 일반 장비창, 무기 계열 보너스
+		- `Equipment/` - 무기 정의·장착(`PlayerWeapon`), 일반 장비창, 무기 계열 보너스
 		- `Achievement/` - 업적, 시련
 		- `Enemy/` - 적 AI, 보스, 격 수확 패턴
 		- `UI/` - HUD, 캐릭터·신물·장비·스킬·업적 창
@@ -23,7 +23,7 @@
 		- `Skills/` - 기술 정의, 강화 분기
 		- `Heroes/` - 영웅의 길 정의
 		- `Relics/` - 신물 정의, 신화 세트
-		- `Equipment/` - 일반 장비 정의
+		- `Equipment/` - 무기·일반 장비 정의. 예: `WeaponHolyMace.asset`
 		- `Enemies/` - 적·보스 정의
 		- `Ascension/` - 격 단계별 돌파 조건, 시련, 직업 정의
 		- `Balance/` - 신앙·스탯·피해 등 밸런스 수치
@@ -35,9 +35,10 @@
 	- `Prefabs/` - 프리팹
 		- `Characters/` - 캐릭터 모델 프리팹 (Animator·머티리얼 연결). 예: `PaladinModel.prefab`
 		- `Props/` - 환경 소품 프리팹 (MeshCollider, Static). 예: `PropStonePillar.prefab`
+		- `Weapons/` - 무기 외형 프리팹 (콜라이더 없음, 원점 = 손잡이). 예: `WeaponHolyMace.prefab`
 		- `Field/` - 필드 석판·다리 프리팹 (ProBuilder). 예: `FieldSlabRound8.prefab`
 	- `Models/` - 3D 모델 (FBX)
-		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`으로 시작 (리그 없이 임포트)
+		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`, 무기는 `Weapon`으로 시작 (리그 없이 임포트)
 		- `Field/` - 필드용 생성 메시 (`CloudSeaGrid.asset` 등, 에디터 도구가 생성)
 	- `Animations/` - 애니메이션 클립·애니메이터 컨트롤러
 		- `<이름>/` - 캐릭터별 Mixamo 애니메이션 FBX와 Animator. 예: `Paladin/PaladinRun.fbx`, `Paladin/PaladinAnimator.controller`
@@ -47,6 +48,7 @@
 	- `Materials/` - 머티리얼
 		- `Characters/` - 캐릭터 머티리얼 (URP Lit). 예: `M_Paladin.mat`
 		- `Props/` - 환경 소품 머티리얼 (URP Lit). 예: `M_PropStonePillar.mat`
+		- `Weapons/` - 무기 머티리얼 (URP Lit). 예: `M_WeaponHolyMace.mat`
 		- `Field/` - 필드 머티리얼 (하늘·구름 바다·석판). 예: `M_FieldSkybox.mat`
 	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
 	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`)

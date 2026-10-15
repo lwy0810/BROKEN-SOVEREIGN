@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using BrokenSovereign.Core;
+using BrokenSovereign.Equipment;
 using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -40,6 +41,10 @@ namespace BrokenSovereign.Ascension
         [Tooltip("다음 직업 후보 (성기사 → 성투사·심판관). 프로토타입은 조건을 만족하는 첫 번째 직업으로 자동 전직")]
         [SerializeField] private List<JobDefinition> _advancements = new List<JobDefinition>();
 
+        [Header("무기")]
+        [Tooltip("이 직업의 기본 무기 (프로토타입은 장비창 없이 직업이 무기를 정함). 비우면 상위 직업 무기 사용")]
+        [SerializeField] private WeaponDefinition _defaultWeapon;
+
         // 상위 직업 순환 참조 방지
         private const int MAX_PARENT_DEPTH = 8;
 
@@ -51,6 +56,31 @@ namespace BrokenSovereign.Ascension
         public JobDefinition ParentJob => _parentJob;
         public AscensionTier RequiredTier => _requiredTier;
         public IReadOnlyList<JobDefinition> Advancements => _advancements;
+
+        /// <summary>이 직업 또는 가장 가까운 상위 직업의 기본 무기. 없으면 null</summary>
+        public WeaponDefinition ResolveDefaultWeapon()
+        {
+            JobDefinition job = this;
+
+            for (int depth = 0; job != null && depth < MAX_PARENT_DEPTH; depth++)
+            {
+                if (job._defaultWeapon != null)
+                {
+                    return job._defaultWeapon;
+                }
+
+                job = job._parentJob;
+            }
+
+            return null;
+        }
+
+#if UNITY_EDITOR
+        public void EditorSetDefaultWeapon(WeaponDefinition weapon)
+        {
+            _defaultWeapon = weapon;
+        }
+#endif
 
         /// <summary>상위 직업 슬롯 + 이 직업 슬롯 (같은 슬롯은 이 직업 우선, 슬롯 순서 정렬)</summary>
         public List<SkillSlotCandidates> ResolveSkillSlots()

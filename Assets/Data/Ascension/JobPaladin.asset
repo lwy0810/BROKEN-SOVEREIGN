@@ -39,3 +39,4 @@ MonoBehaviour:
   _requiredTier: 0
   _advancements:
   - {fileID: 11400000, guid: 11ae28bb891e4fbcaf85709d9febb9c1, type: 2}
+  _defaultWeapon: {fileID: 11400000, guid: c6bb433f2c0a6334085e02b6141847e5, type: 2}
