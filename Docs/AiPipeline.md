@@ -18,6 +18,8 @@
 | 날짜 | 도구 | 에셋 (파일) | 프롬프트 원문 | 생성 설정 | 사람 수정 (Blender 등) | Unity 임포트 설정 | 상업 이용 |
 |---|---|---|---|---|---|---|---|
 | 2026-10-15 | VARCO 3D → Mixamo → Blender | 성기사 `Paladin.fbx` (테스트, Unity 미반영) | Claude 프로젝트 문서 `BrokenSovereign_VARCO_프롬프트_1015.md` 1번(성기사) + 캐릭터 공통 조건 | 이미지 GPT Image 1.5 1:1 ×1, 3D Target Polycount 20000, Triangle, 텍스처 2K, PBR 켬, T-Pose 켬, Private | 정점 병합(448조각 → 1), 높이 1.8m·발바닥 피벗, 텍스처 3장 분리 저장, Mixamo 리깅(65본) 후 0.01배 스케일 보정, 웨이트 4본 제한·미세 웨이트 삭제·관절/허리 천 스무딩 | 미정 (Humanoid 예정) | VARCO 이용 약관 확인 필요 |
+| 2026-10-15 | VARCO 3D → Blender | 환경 소품 4종 `PropStonePillar`·`PropPaifang`·`PropStoneLantern`·`PropCloudRailing` | Claude 프로젝트 문서 `BrokenSovereign_VARCO_프롬프트_1015.md` P1~P4 + 소품 공통 조건 | 이미지 GPT Image 1.5 1:1 ×1, 3D Target Polycount 5000 (난간 2000), Triangle, 텍스처 2K, PBR 켬, T-Pose 끔, Private. 4종 병렬 생성 | 높이·길이 맞춤(4m·6m·1.5m·길이 2m), 밑면 중앙 피벗, 패루·난간 90° 회전, 패루·난간 Decimate(5,698→4,850, 2,142→1,940), MetallicSmoothness 변환 | 리그 없음, 머티리얼 M_Prop*, 프리팹 MeshCollider·Static | VARCO 이용 약관 확인 필요 |
+| 2026-10-15 | VARCO 3D → Blender | 천병 `HeavenSoldier` (리깅 전) | 같은 문서 2번(천병) + 캐릭터 공통 조건 | 성기사와 동일 (20000, T-Pose 켬) | 높이 1.8m·발바닥 피벗, Mixamo 업로드용 OBJ | 미정 | VARCO 이용 약관 확인 필요 |
 
 - 에셋 파일 이름·폴더: `Docs/Rules/FolderRules.md` '에셋 이름' 기준
 - 상업 이용 조건 확인 후 프로젝트 반영

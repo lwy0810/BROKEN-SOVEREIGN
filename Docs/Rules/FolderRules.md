@@ -34,8 +34,9 @@
 		- `Sandbox/` - 기능별 테스트 씬
 	- `Prefabs/` - 프리팹
 		- `Characters/` - 캐릭터 모델 프리팹 (Animator·머티리얼 연결). 예: `PaladinModel.prefab`
+		- `Props/` - 환경 소품 프리팹 (MeshCollider, Static). 예: `PropStonePillar.prefab`
 	- `Models/` - 3D 모델 (FBX)
-		- `<이름>/` - 캐릭터별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `Paladin/T_Paladin_BaseColor.png`
+		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`으로 시작 (리그 없이 임포트)
 	- `Animations/` - 애니메이션 클립·애니메이터 컨트롤러
 		- `<이름>/` - 캐릭터별 Mixamo 애니메이션 FBX와 Animator. 예: `Paladin/PaladinRun.fbx`, `Paladin/PaladinAnimator.controller`
 	- `Effects/` - 파티클·이펙트
@@ -43,6 +44,7 @@
 	- `Audio/` - 효과음·배경음
 	- `Materials/` - 머티리얼
 		- `Characters/` - 캐릭터 머티리얼 (URP Lit). 예: `M_Paladin.mat`
+		- `Props/` - 환경 소품 머티리얼 (URP Lit). 예: `M_PropStonePillar.mat`
 	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
 	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`)
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
