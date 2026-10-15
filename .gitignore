@@ -115,3 +115,7 @@ InitTestScene*.unity*
 
 # Local GDD working files: One-page GDD images, HTML sources (not tracked)
 /GDD/
+
+# Python cache (Tools/ scripts)
+__pycache__/
+*.pyc
