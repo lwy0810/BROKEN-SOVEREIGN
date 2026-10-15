@@ -1,5 +1,4 @@
 using System;
-using BrokenSovereign.Ascension;
 using BrokenSovereign.Combat;
 using UnityEngine;
 
@@ -7,7 +6,8 @@ namespace BrokenSovereign.Equipment
 {
     /// <summary>
     /// 플레이어가 든 무기. 기본 공격 간격(IAttackIntervalSource)과 손의 무기 외형을 담당합니다.
-    /// 프로토타입은 장비창 없이 직업이 무기를 정합니다 (GDD 11장: 성투사 전직 시 양손 둔기로 교체).
+    /// 프로토타입은 장비창 없이 직업이 무기를 정합니다 (GDD 11장: 성투사 전직 시 장봉으로 교체).
+    /// 직업 전환 시 PlayerJob이 Equip을 호출합니다 (Equipment는 Ascension을 참조하지 않음).
     /// 직업에 무기가 없으면(무직) 기본 무기를 씁니다.
     /// </summary>
     public class PlayerWeapon : MonoBehaviour, IAttackIntervalSource
@@ -18,7 +18,6 @@ namespace BrokenSovereign.Equipment
         [Tooltip("무기를 붙일 Animator. 비우면 자식에서 찾음 (Humanoid 오른손 본 사용)")]
         [SerializeField] private Animator _animator;
 
-        private PlayerJob _job;
         private GameObject _visual;
 
         public WeaponDefinition Current { get; private set; }
@@ -30,27 +29,9 @@ namespace BrokenSovereign.Equipment
 
         private void Awake()
         {
-            _job = GetComponent<PlayerJob>();
-
             if (_animator == null)
             {
                 _animator = GetComponentInChildren<Animator>();
-            }
-        }
-
-        private void OnEnable()
-        {
-            if (_job != null)
-            {
-                _job.JobChanged += OnJobChanged;
-            }
-        }
-
-        private void OnDisable()
-        {
-            if (_job != null)
-            {
-                _job.JobChanged -= OnJobChanged;
             }
         }
 
@@ -82,11 +63,6 @@ namespace BrokenSovereign.Equipment
             Current = weapon;
             RefreshVisual();
             WeaponChanged?.Invoke(Current);
-        }
-
-        private void OnJobChanged(JobDefinition job)
-        {
-            Equip(job != null ? job.ResolveDefaultWeapon() : null);
         }
 
         private void RefreshVisual()

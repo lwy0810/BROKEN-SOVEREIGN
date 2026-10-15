@@ -37,6 +37,7 @@ flowchart TD
     UI --> Relic
     UI --> Equipment
     UI --> Achievement
+    UI --> Hero
     Manager --> Player
     Player --> Skill
     Hero --> Skill
@@ -44,6 +45,8 @@ flowchart TD
     Skill --> Combat
     Ascension --> Relic
     Ascension --> Achievement
+    Ascension --> Equipment
+    Ascension --> Hero
     Relic --> Combat
     Equipment --> Combat
     Achievement --> Combat
@@ -61,6 +64,7 @@ flowchart TD
 
 - 화살표 방향: 참조하는 쪽 → 참조되는 쪽
 - 역방향 참조 금지. 하위 폴더(Combat 등)가 상위 폴더(Skill·Hero 등)에 알려야 할 일은 이벤트 발행으로 처리
+- 직업 전환 시 무기 교체·영웅 기술 재장착은 `PlayerJob`(Ascension)이 `PlayerWeapon.Equip`·`HeroPathController.RefreshSkill`을 직접 호출. 반신 돌파 후 영웅 선택 요청은 `PlayerProgression.HeroPathSelectionRequested` (Equipment·Hero는 Ascension을 참조하지 않음)
 - UI는 읽기 전용 참조. 게임 상태 변경은 각 시스템의 공개 메서드 호출로만 처리
 
 ## 3. Core

@@ -1,6 +1,8 @@
 using System;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
+using BrokenSovereign.Equipment;
+using BrokenSovereign.Hero;
 using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -12,6 +14,7 @@ namespace BrokenSovereign.Ascension
     /// 플레이어 현재 직업. 직업이 바뀌면 SkillCaster의 기술 구성(SkillLoadout)과 직업 게이지(신앙 등)를 교체합니다.
     /// 마나는 모든 직업 공용이라 전환해도 유지됩니다.
     /// 격 돌파 시 PlayerProgression이 TryAdvance로 다음 직업 전직을 확인합니다 (성기사 → 초인 → 성투사).
+    /// 직업의 기본 무기(PlayerWeapon)와 선택한 영웅 기술(HeroPathController)도 직업 전환 때 다시 적용합니다.
     /// F1: 무직 ↔ 1차 직업 전환 (디버그).
     /// </summary>
     [RequireComponent(typeof(SkillCaster))]
@@ -35,6 +38,8 @@ namespace BrokenSovereign.Ascension
         private SkillCaster _caster;
         private FaithController _faith;
         private CharacterStats _stats;
+        private PlayerWeapon _weapon;
+        private HeroPathController _hero;
 
         public JobDefinition Current { get; private set; }
 
@@ -55,6 +60,8 @@ namespace BrokenSovereign.Ascension
             _caster = GetComponent<SkillCaster>();
             _faith = GetComponent<FaithController>();
             _stats = GetComponent<CharacterStats>();
+            _weapon = GetComponent<PlayerWeapon>();
+            _hero = GetComponent<HeroPathController>();
         }
 
         private void Start()
@@ -122,6 +129,17 @@ namespace BrokenSovereign.Ascension
 
             Current = job;
             BuildLoadout(job);
+
+            // 기술 구성을 새로 만들었으므로 영웅 기술 재장착, 직업 무기로 교체 (무직은 PlayerWeapon 기본 무기)
+            if (_hero != null)
+            {
+                _hero.RefreshSkill();
+            }
+
+            if (_weapon != null)
+            {
+                _weapon.Equip(job.ResolveDefaultWeapon());
+            }
 
             ApplyResource(job, resetGauge);
 
