@@ -38,3 +38,4 @@ MonoBehaviour:
   _parentJob: {fileID: 11400000, guid: ee7e248ba9f641d286f01d402d784363, type: 2}
   _requiredTier: 1
   _advancements: []
+  _defaultWeapon: {fileID: 11400000, guid: 47339921e2c8cd5478eed2eb902d80b1, type: 2}
