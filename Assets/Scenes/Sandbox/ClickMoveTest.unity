@@ -808,6 +808,73 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 373883780}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &385989516
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 2092739938}
+    m_Modifications:
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8036712849140731663, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+      propertyPath: m_Name
+      value: Model
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+--- !u!95 &385989517 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 3612977314311458767, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+  m_PrefabInstance: {fileID: 385989516}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &385989518 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7260914674205038005, guid: 86c0de4379440c7428f36328d5e181f9, type: 3}
+  m_PrefabInstance: {fileID: 385989516}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &389090314
 GameObject:
   m_ObjectHideFlags: 0
@@ -1974,7 +2041,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1150889052}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -2317,7 +2384,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1440982568}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -2587,7 +2654,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1477810948}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -2896,6 +2963,12 @@ MonoBehaviour:
     NoticeDuration: 1.5
     NoticeFadeTime: 0.5
     NoticeColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+    WarningFontSize: 26
+    WarningOffsetY: 90
+    WarningDuration: 1.4
+    WarningFadeInTime: 0.15
+    WarningFadeTime: 0.4
+    WarningColor: {r: 1, g: 0.45, b: 0.4, a: 1}
     SkillNameFontSize: 13
     SkillNameGap: 2
   _jobGauge:
@@ -3153,7 +3226,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1726593507}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3276,7 +3349,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1837375922}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3821,6 +3894,7 @@ GameObject:
   - component: {fileID: 2092739945}
   - component: {fileID: 2092739947}
   - component: {fileID: 2092739948}
+  - component: {fileID: 2092739949}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -3980,6 +4054,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2129538744}
+  - {fileID: 385989518}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2092739939
@@ -3997,7 +4072,7 @@ MonoBehaviour:
   _bodyRenderer: {fileID: 2101943716}
   _weaponPivot: {fileID: 1645224228}
   _headAnchor: {fileID: 1440982569}
-  _swingRatio: 0.6
+  _swingDuration: 0.15
   _swingAngle: 110
   _flashDuration: 0.2
   _markerDuration: 0.5
@@ -4076,6 +4151,7 @@ MonoBehaviour:
   _targetMask:
     serializedVersion: 2
     m_Bits: 512
+  _logAttackTiming: 0
 --- !u!114 &2092739945
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4164,6 +4240,24 @@ MonoBehaviour:
     AttackPowerPerTier: 5
   _enableDebugKey: 1
   _logStatsOnLevelUp: 1
+--- !u!114 &2092739949
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092739928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7e9b39dc8757c646b6b76f4a9e17bc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Player.PlayerAnimator
+  _animator: {fileID: 385989517}
+  _attackClipLength: 1.5000001
+  _attackFitRatio: 0.9
+  _maxAttackSpeed: 3
+  _speedDampTime: 0.08
+  _movingThreshold: 0.2
 --- !u!1 &2101943713
 GameObject:
   m_ObjectHideFlags: 0
@@ -4212,7 +4306,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2101943713}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
