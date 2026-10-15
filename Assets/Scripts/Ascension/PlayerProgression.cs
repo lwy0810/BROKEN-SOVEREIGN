@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Enemy;
+using BrokenSovereign.Hero;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,6 +13,7 @@ namespace BrokenSovereign.Ascension
     /// 플레이어 경험치·레벨과 격 단계.
     /// 적 처치 시 경험치 획득 → 레벨업 시 능력치 자동 분배(스탯 분배 UI 대신, GDD 11장) → 조건 충족 시 격 돌파.
     /// 무직 상태에서 직업 선택 레벨에 도달하면 직업 선택을 요청합니다 (JobSelectionRequested → 직업 선택 화면).
+    /// 반신 돌파 후 영웅의 길을 고르지 않았으면 영웅 선택을 요청합니다 (HeroPathSelectionRequested → 영웅의 길 선택 화면).
     /// 레벨 보너스는 레벨이 오른 시점의 직업 기준으로 누적되어 유지됩니다 (무직 때 얻은 힘·민첩·지능은 전직 후에도 유지).
     /// 레벨·격 보너스는 능력치 출처(IStatModifierSource)로 등록합니다.
     /// </summary>
@@ -85,6 +87,7 @@ namespace BrokenSovereign.Ascension
         private PlayerJob _job;
         private CharacterStats _stats;
         private Health _health;
+        private HeroPathController _hero;
         private bool _isRegistered;
 
         public int Level => Model.Level;
@@ -97,6 +100,10 @@ namespace BrokenSovereign.Ascension
         /// <summary>무직이고 직업 선택 레벨에 도달함 (직업 선택 화면을 열어야 함)</summary>
         public bool IsJobSelectionPending => _job != null && !_job.HasJob && Level >= _level.JobSelectLevel;
 
+        /// <summary>반신이고 직업에 영웅 후보가 있는데 아직 고르지 않음 (영웅의 길 선택 화면을 열어야 함)</summary>
+        public bool IsHeroPathSelectionPending => Tier >= AscensionTier.Demigod && _hero != null && !_hero.HasPath &&
+            _job != null && _job.HasJob && _job.Current.ResolveHeroPaths().Count > 0;
+
         /// <summary>레벨이 올랐을 때 (새 레벨)</summary>
         public event Action<int> LeveledUp;
 
@@ -106,6 +113,9 @@ namespace BrokenSovereign.Ascension
         /// <summary>직업 선택이 필요해졌을 때</summary>
         public event Action JobSelectionRequested;
 
+        /// <summary>영웅의 길 선택이 필요해졌을 때</summary>
+        public event Action HeroPathSelectionRequested;
+
         private ProgressionModel Model =>
             _model ??= new ProgressionModel(_level.BaseExperience, _level.Growth, _level.MaxLevel);
 
@@ -114,6 +124,7 @@ namespace BrokenSovereign.Ascension
             _job = GetComponent<PlayerJob>();
             _stats = GetComponent<CharacterStats>();
             _health = GetComponent<Health>();
+            _hero = GetComponent<HeroPathController>();
         }
 
         private void OnEnable()
@@ -268,6 +279,12 @@ namespace BrokenSovereign.Ascension
             if (_job != null)
             {
                 _job.TryAdvance(Tier);
+            }
+
+            // 반신 돌파 → 영웅의 길 선택 (선택 화면이 이미 열려 있으면 화면 쪽에서 무시)
+            if (IsHeroPathSelectionPending)
+            {
+                HeroPathSelectionRequested?.Invoke();
             }
         }
 

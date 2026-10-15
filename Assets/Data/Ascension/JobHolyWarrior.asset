@@ -39,3 +39,6 @@ MonoBehaviour:
   _requiredTier: 1
   _advancements: []
   _defaultWeapon: {fileID: 11400000, guid: 47339921e2c8cd5478eed2eb902d80b1, type: 2}
+  _heroPaths:
+  - {fileID: 11400000, guid: 1c5ecab0b70999c4297fb31b59d86762, type: 2}
+  - {fileID: 11400000, guid: 87ae88be28f75a7419c28427e5b2977b, type: 2}

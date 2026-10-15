@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BrokenSovereign.Core;
 using BrokenSovereign.Equipment;
+using BrokenSovereign.Hero;
 using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -45,6 +46,10 @@ namespace BrokenSovereign.Ascension
         [Tooltip("이 직업의 기본 무기 (프로토타입은 장비창 없이 직업이 무기를 정함). 비우면 상위 직업 무기 사용")]
         [SerializeField] private WeaponDefinition _defaultWeapon;
 
+        [Header("영웅의 길")]
+        [Tooltip("반신 돌파 시 고를 수 있는 영웅 (성투사: 야로미르·석천). 비우면 상위 직업 목록 사용")]
+        [SerializeField] private List<HeroPathDefinition> _heroPaths = new List<HeroPathDefinition>();
+
         // 상위 직업 순환 참조 방지
         private const int MAX_PARENT_DEPTH = 8;
 
@@ -75,10 +80,33 @@ namespace BrokenSovereign.Ascension
             return null;
         }
 
+        /// <summary>이 직업 또는 가장 가까운 상위 직업의 영웅의 길 후보. 없으면 빈 목록</summary>
+        public IReadOnlyList<HeroPathDefinition> ResolveHeroPaths()
+        {
+            JobDefinition job = this;
+
+            for (int depth = 0; job != null && depth < MAX_PARENT_DEPTH; depth++)
+            {
+                if (job._heroPaths.Count > 0)
+                {
+                    return job._heroPaths;
+                }
+
+                job = job._parentJob;
+            }
+
+            return System.Array.Empty<HeroPathDefinition>();
+        }
+
 #if UNITY_EDITOR
         public void EditorSetDefaultWeapon(WeaponDefinition weapon)
         {
             _defaultWeapon = weapon;
+        }
+
+        public void EditorSetHeroPaths(IEnumerable<HeroPathDefinition> paths)
+        {
+            _heroPaths = new List<HeroPathDefinition>(paths);
         }
 #endif
 

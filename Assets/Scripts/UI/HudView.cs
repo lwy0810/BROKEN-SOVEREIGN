@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using BrokenSovereign.Ascension;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
+using BrokenSovereign.Hero;
 using BrokenSovereign.Player;
 using BrokenSovereign.Skill;
 using UnityEngine;
@@ -71,6 +72,8 @@ namespace BrokenSovereign.UI
         private bool _isBuilt;
         private PlayerProgression _progression;
         private JobSelectView _jobSelect;
+        private HeroPathSelectView _heroSelect;
+        private HeroPathController _hero;
         private RectTransform _expRoot;
         private Image _expFill;
         private string _jobName = string.Empty;
@@ -98,6 +101,7 @@ namespace BrokenSovereign.UI
             _job = _player.GetComponent<PlayerJob>();
             _caster = _player.GetComponent<SkillCaster>();
             _progression = _player.GetComponent<PlayerProgression>();
+            _hero = _player.GetComponent<HeroPathController>();
 
             Build();
             ApplyLayout();
@@ -125,6 +129,7 @@ namespace BrokenSovereign.UI
                 _progression.LeveledUp += OnLeveledUp;
                 _progression.Ascended += OnAscended;
                 _progression.JobSelectionRequested += OnJobSelectionRequested;
+                _progression.HeroPathSelectionRequested += OnHeroPathSelectionRequested;
             }
             else
             {
@@ -200,6 +205,7 @@ namespace BrokenSovereign.UI
                 _progression.LeveledUp -= OnLeveledUp;
                 _progression.Ascended -= OnAscended;
                 _progression.JobSelectionRequested -= OnJobSelectionRequested;
+                _progression.HeroPathSelectionRequested -= OnHeroPathSelectionRequested;
             }
 
             if (_targetRing != null)
@@ -241,6 +247,19 @@ namespace BrokenSovereign.UI
         private void OnJobSelectionRequested()
         {
             _jobSelect.Open();
+        }
+
+        private void OnHeroPathSelectionRequested()
+        {
+            if (_heroSelect != null && _job != null && _job.Current != null)
+            {
+                _heroSelect.Open(_job.Current.ResolveHeroPaths());
+            }
+        }
+
+        private void OnHeroPathChosen(HeroPathDefinition path)
+        {
+            ShowNotice($"영웅의 길 — {path.DisplayName} ({path.Title})");
         }
 
         private void ShowNotice(string message)
@@ -493,6 +512,14 @@ namespace BrokenSovereign.UI
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
             _jobSelect.Initialize(_job);
+
+            // 영웅의 길 선택 화면 (반신 돌파). HeroPathController가 없으면 만들지 않음
+            if (_hero != null)
+            {
+                _heroSelect = HudGraphics.CreateRect("HeroPathSelect", transform).gameObject.AddComponent<HeroPathSelectView>();
+                _heroSelect.Initialize(_hero);
+                _heroSelect.PathChosen += OnHeroPathChosen;
+            }
             _isBuilt = true;
         }
 
