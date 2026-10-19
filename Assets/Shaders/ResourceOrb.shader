@@ -13,6 +13,7 @@ Shader "BrokenSovereign/UI/ResourceOrb"
         _SurfaceColor ("Surface Color", Color) = (1, 0.55, 0.45, 1)
         _EmptyColor ("Empty Color", Color) = (0.05, 0.04, 0.06, 0.92)
         _RimColor ("Rim Color", Color) = (0.78, 0.6, 0.28, 1)
+        _RimWidth ("Rim Width", Range(0.005, 0.15)) = 0.03
         _ViewTilt ("View Tilt", Range(0.05, 0.8)) = 0.3
         _Bounce ("Bounce", Range(0, 1)) = 0
         _Locked ("Locked", Range(0, 1)) = 0
@@ -82,6 +83,7 @@ Shader "BrokenSovereign/UI/ResourceOrb"
             fixed4 _SurfaceColor;
             fixed4 _EmptyColor;
             fixed4 _RimColor;
+            float _RimWidth;
             float _ViewTilt;
             float _Bounce;
             float _Locked;
@@ -157,7 +159,7 @@ Shader "BrokenSovereign/UI/ResourceOrb"
                 col += pow(1.0 - z, 3.0) * 0.12;
 
                 // 금속 테두리
-                float rim = smoothstep(0.9, 0.94, r);
+                float rim = smoothstep(1.0 - _RimWidth - 0.015, 1.0 - _RimWidth, r);
                 col = lerp(col, _RimColor.rgb * lerp(1.0, 0.5, _Locked) * (0.7 + 0.5 * diffuse), rim);
                 alpha = lerp(alpha, 1.0, rim);
 

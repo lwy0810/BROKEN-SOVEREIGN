@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f87fe881d623ef4b9155128ae30bdc1, type: 3}
+  m_Name: MapIconSet
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.UI.MapIconSet
+  Entries:
+  - Kind: 0
+    Sprite: {fileID: 21300000, guid: f9b8a6295371d3047993ae5534925f4a, type: 3}
+    MaxViewWidth: 420
+  - Kind: 1
+    Sprite: {fileID: 21300000, guid: d14cd4e7fb7b6314883cb5bc143f33eb, type: 3}
+    MaxViewWidth: 420
+  - Kind: 2
+    Sprite: {fileID: 21300000, guid: a1e79c92c5d880641b0ba097c23b38ce, type: 3}
+    MaxViewWidth: 420
+  - Kind: 3
+    Sprite: {fileID: 21300000, guid: 0250671e1037d0a4fa08ec136c99b65f, type: 3}
+    MaxViewWidth: 0
+  - Kind: 4
+    Sprite: {fileID: 21300000, guid: 7299873428c6a7f46939564d73e086a1, type: 3}
+    MaxViewWidth: 0
+  - Kind: 5
+    Sprite: {fileID: 21300000, guid: 28a48f6193299154dbfe27fa62dc3b28, type: 3}
+    MaxViewWidth: 0
+  - Kind: 6
+    Sprite: {fileID: 21300000, guid: edae1bd2dcafc8d41ac4b0211035861f, type: 3}
+    MaxViewWidth: 0

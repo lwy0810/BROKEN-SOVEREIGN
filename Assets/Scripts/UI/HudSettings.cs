@@ -25,6 +25,9 @@ namespace BrokenSovereign.UI
         [Range(0f, 1f)] public float SurfaceLighten = 0.55f;
         public Color RimColor = new Color(0.78f, 0.6f, 0.28f);
 
+        [Tooltip("금속 테두리 두께 (구슬 반지름 비율, 10/19 얇게 조정)")]
+        [Range(0.005f, 0.15f)] public float RimWidth = 0.03f;
+
         [Tooltip("수면을 내려다보는 정도 (클수록 수면 타원이 두꺼워짐)")]
         [Range(0.05f, 0.8f)] public float ViewTilt = 0.3f;
 

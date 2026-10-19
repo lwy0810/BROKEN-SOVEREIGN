@@ -38,6 +38,10 @@ namespace BrokenSovereign.UI
         [SerializeField] private JobDisplaySettings _jobDisplay = new JobDisplaySettings();
         [SerializeField] private JobGaugeSettings _jobGauge = new JobGaugeSettings();
 
+        [Header("아트 (BrokenSovereign > UI > HUD 아트 연결 메뉴가 연결)")]
+        [SerializeField] private CursorSettings _cursorSettings;
+        [SerializeField] private MapIconSet _mapIconSet;
+
         private Health _health;
         private IResourceGauge _resource;
         private readonly List<IResourceGauge> _gaugeBuffer = new List<IResourceGauge>();
@@ -73,6 +77,8 @@ namespace BrokenSovereign.UI
         private PlayerProgression _progression;
         private JobSelectView _jobSelect;
         private HeroPathSelectView _heroSelect;
+        private MinimapView _minimap;
+        private WorldMapView _worldMap;
         private HeroPathController _hero;
         private RectTransform _expRoot;
         private Image _expFill;
@@ -499,6 +505,13 @@ namespace BrokenSovereign.UI
             expBackground.sprite = HudGraphics.WhiteSprite;
             expBackground.color = new Color(0f, 0f, 0f, 0.7f);
             expBackground.raycastTarget = false;
+            // 금테 (10/19 추가)
+            Outline expOutline = _expRoot.gameObject.AddComponent<Outline>();
+            expOutline.effectColor = new Color(0.78f, 0.6f, 0.28f, 0.95f);
+            expOutline.effectDistance = new Vector2(1.5f, -1.5f);
+            Outline expOutlineInner = _expRoot.gameObject.AddComponent<Outline>();
+            expOutlineInner.effectColor = new Color(0.78f, 0.6f, 0.28f, 0.95f);
+            expOutlineInner.effectDistance = new Vector2(-1.5f, 1.5f);
             RectTransform fillRect = HudGraphics.CreateRect("Fill", _expRoot);
             HudGraphics.Stretch(fillRect);
             _expFill = fillRect.gameObject.AddComponent<Image>();
@@ -508,6 +521,19 @@ namespace BrokenSovereign.UI
             _expFill.fillMethod = Image.FillMethod.Horizontal;
             _expFill.fillAmount = 0f;
             _expFill.raycastTarget = false;
+
+            // 미니맵(오른쪽 위)·지도 화면(M). 지도가 없는 씬에서는 표시 안 함
+            MapIcons.IconSet = _mapIconSet;
+            _minimap = HudGraphics.CreateRect("Minimap", transform).gameObject.AddComponent<MinimapView>();
+            _minimap.Initialize(_player.transform);
+            _worldMap = HudGraphics.CreateRect("WorldMap", transform).gameObject.AddComponent<WorldMapView>();
+            _worldMap.Initialize(_player.transform);
+
+            // 마우스 커서 (레이어별 모양)
+            if (_cursorSettings != null)
+            {
+                gameObject.AddComponent<CursorController>().Initialize(_cursorSettings);
+            }
 
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
