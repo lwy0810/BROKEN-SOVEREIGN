@@ -119,3 +119,7 @@ InitTestScene*.unity*
 # Python cache (Tools/ scripts)
 __pycache__/
 *.pyc
+
+# Asset Store 패키지 원본 (라이선스상 재배포 금지·대용량). 각 PC에서 Package Manager > My Assets로 임포트
+/[Aa]ssets/Bad_Raccoon/
+/[Aa]ssets/Bad_Raccoon.meta
