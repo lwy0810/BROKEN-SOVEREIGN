@@ -276,7 +276,7 @@ namespace BrokenSovereign.Editor
                 }
             }
 
-            TerrainLayer[] layers = EnsureLayers(true);
+            TerrainLayer[] layers = EnsureLayers(true, spec.Size);
             var level = new GameObject("Level");
             ITerrainShape shape = spec.Valley ? new ValleyShape(spec) : new IslandShape(spec);
 
@@ -292,6 +292,12 @@ namespace BrokenSovereign.Editor
             if (shape is ValleyShape valley)
             {
                 BuildValleyExtras(spec, valley, terrain, ground, level);
+
+                // 실사 지형 패키지: 패키지 예제와 같은 하늘·안개·햇빛 + 주변 8칸 지형(맵 끝이 보이지 않게)
+                if (valley.UsesMacro)
+                {
+                    ApplyMacroLook(spec, terrain);
+                }
             }
 
             EditorUtility.DisplayProgressBar(spec.Title, "NavMesh 굽기", 0.95f);
@@ -838,21 +844,31 @@ namespace BrokenSovereign.Editor
         // 텍스처 레이어 (코드 생성, 이음새 없는 반복)
         // ------------------------------------------------------------------
 
-        private static TerrainLayer[] EnsureLayers(bool rebuild)
+        // 실사 지형 패키지가 있으면 7번째 레이어(MACRO, 패키지 색·노멀) 추가 + 풀·흙·바위·자갈에 미세 굴곡 노멀 (LevelTools.Macro)
+        private static TerrainLayer[] EnsureLayers(bool rebuild, float macroSize = 1000f)
         {
             ModelAssetUtility.EnsureFolder(LAYER_ROOT);
-            return new[]
+            Texture2D detail = MacroDetailNormal();
+            var layers = new System.Collections.Generic.List<TerrainLayer>
             {
-                EnsureLayer("Grass", 8f, 0.1f, rebuild, GrassTexture),
+                EnsureLayer("Grass", 8f, 0.1f, rebuild, GrassTexture, detail),
                 EnsureLayer("Stone", 6f, 0.3f, rebuild, StoneTexture),
-                EnsureLayer("Dirt", 5f, 0.05f, rebuild, DirtTexture),
-                EnsureLayer("Rock", 10f, 0.15f, rebuild, RockTexture),
-                EnsureLayer("Gravel", 6f, 0.2f, rebuild, GravelTexture),
-                EnsureLayer("DryGrass", 9f, 0.05f, rebuild, DryGrassTexture),
+                EnsureLayer("Dirt", 5f, 0.05f, rebuild, DirtTexture, detail),
+                EnsureLayer("Rock", 10f, 0.15f, rebuild, RockTexture, detail),
+                EnsureLayer("Gravel", 6f, 0.2f, rebuild, GravelTexture, detail),
+                EnsureLayer("DryGrass", 9f, 0.05f, rebuild, DryGrassTexture, detail),
             };
+            TerrainLayer macro = EnsureMacroLayer(macroSize);
+
+            if (macro != null)
+            {
+                layers.Add(macro);
+            }
+
+            return layers.ToArray();
         }
 
-        private static TerrainLayer EnsureLayer(string name, float tile, float smoothness, bool rebuild, Func<Color[]> generator)
+        private static TerrainLayer EnsureLayer(string name, float tile, float smoothness, bool rebuild, Func<Color[]> generator, Texture2D normal = null)
         {
             string texturePath = $"{LAYER_ROOT}/T_Terrain{name}.png";
             string layerPath = $"{LAYER_ROOT}/TL_{name}.terrainlayer";
@@ -883,6 +899,8 @@ namespace BrokenSovereign.Editor
             }
 
             layer.diffuseTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            layer.normalMapTexture = normal;
+            layer.normalScale = 0.5f;
             layer.tileSize = new Vector2(tile, tile);
             layer.smoothness = smoothness;
             layer.metallic = 0f;
@@ -899,6 +917,13 @@ namespace BrokenSovereign.Editor
                 material = new Material(Shader.Find(TERRAIN_SHADER));
                 ModelAssetUtility.EnsureFolder(Path.GetDirectoryName(TERRAIN_MATERIAL)?.Replace('\\', '/'));
                 AssetDatabase.CreateAsset(material, TERRAIN_MATERIAL);
+            }
+
+            // 레이어 노멀맵 사용 (셰이더 기능 키워드는 인스펙터를 열어야 켜지므로 코드에서 켬)
+            if (!material.IsKeywordEnabled("_NORMALMAP"))
+            {
+                material.EnableKeyword("_NORMALMAP");
+                EditorUtility.SetDirty(material);
             }
 
             return material;

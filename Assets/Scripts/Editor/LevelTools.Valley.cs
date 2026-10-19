@@ -65,12 +65,23 @@ namespace BrokenSovereign.Editor
         {
             private readonly LevelSpec _spec;
             private readonly float _offset;
+            private readonly MacroTerrain _macro;     // 실사 지형 패키지 (없으면 null → 코드 생성 산맥)
+            private readonly float[] _roomFloor;      // 방 중심의 계곡 바닥 높이 (패키지 사용 시)
 
             public ValleyShape(LevelSpec spec)
             {
                 _spec = spec;
                 _offset = spec.Seed * 13.37f;
+                _macro = MacroTerrain.Load(spec.Size);
+                _roomFloor = new float[spec.Rooms.Length];
+
+                for (int i = 0; _macro != null && i < spec.Rooms.Length; i++)
+                {
+                    _roomFloor[i] = _macro.FloorAt(spec.Rooms[i].Center.x, spec.Rooms[i].Center.y);
+                }
             }
+
+            public bool UsesMacro => _macro != null;
 
             /// <summary>한 지점의 길·강 정보</summary>
             public struct Sample
@@ -92,11 +103,24 @@ namespace BrokenSovereign.Editor
                 var p = new Vector2(x, z);
                 var s = new Sample { Nearest = float.MaxValue, RiverDist = float.MaxValue, Radius = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) };
 
-                foreach (Room room in _spec.Rooms)
+                // 패키지 지형: 방 안·근처는 방 중심 높이로 평평 (가까운 방일수록 강하게 가중 평균)
+                float roomSum = 0f;
+                float roomWeight = 0f;
+
+                for (int i = 0; i < _spec.Rooms.Length; i++)
                 {
+                    Room room = _spec.Rooms[i];
                     float d = Vector2.Distance(p, room.Center) - room.Radius;
                     s.Walk = Mathf.Max(s.Walk, 1f - SmoothStep(-1f, 1f, d));
                     s.Nearest = Mathf.Min(s.Nearest, d);
+
+                    if (_macro != null && d < MACRO_ROOM_BLEND)
+                    {
+                        float w = 1f - SmoothStep(0f, MACRO_ROOM_BLEND, d);
+                        w = w * w * 1000f;
+                        roomSum += w * _roomFloor[i];
+                        roomWeight += w;
+                    }
                 }
 
                 foreach (Link link in _spec.Links)
@@ -137,7 +161,17 @@ namespace BrokenSovereign.Editor
                 float riverValley = (1f - SmoothStep(s.RiverWidth + 18f, s.RiverWidth + 60f, s.RiverDist))
                     * (1f - SmoothStep(_spec.RingStart - 40f, _spec.RingStart + 30f, s.Radius));
                 s.Valley = Mathf.Max(s.PathValley, riverValley);
-                s.Floor = 3f + Fbm(x * 0.003f, z * 0.003f, 3) * _spec.FloorHeight;
+                if (_macro != null)
+                {
+                    float roomBlend = Mathf.Clamp01(roomWeight / 1000f);
+                    float floor = _macro.FloorAt(x, z);
+                    s.Floor = roomWeight > 0f ? Mathf.Lerp(floor, roomSum / roomWeight, roomBlend) : floor;
+                }
+                else
+                {
+                    s.Floor = 3f + Fbm(x * 0.003f, z * 0.003f, 3) * _spec.FloorHeight;
+                }
+
                 return s;
             }
 
@@ -147,6 +181,12 @@ namespace BrokenSovereign.Editor
                 float outside = 1f - s.Valley;
                 float rw = s.RiverWidth;
                 float riverCut = 1f - SmoothStep(rw + 6f, rw + 40f, s.RiverDist);
+
+                // 패키지 지형: 계곡 밖 = 침식 지형 그대로(+ 약간 올림), 계곡 = 흐린 바닥으로 깎음
+                if (_macro != null)
+                {
+                    return MacroHeight(x, z, s);
+                }
 
                 // 계곡 밖: 능선 산 (가장자리 급경사), 맵 가장자리: 높은 산맥 벽. 강은 산맥을 협곡으로 뚫고 나감
                 float mountain = Mathf.Pow(SmoothStep(0f, 1f, outside), 1.2f)
@@ -178,6 +218,31 @@ namespace BrokenSovereign.Editor
                 return h;
             }
 
+            private float MacroHeight(float x, float z, Sample s)
+            {
+                float rw = s.RiverWidth;
+
+                // 패키지 지형 그대로. 길·방만 평탄(가장자리 MACRO_SHOULDER m에 걸쳐 원래 지형으로), 강줄기는 바닥 높이로 파냄
+                float raw = _macro.HeightAt(x, z);
+                float flat = s.Floor + (Fbm(x * 0.15f, z * 0.15f, 2) - 0.5f) * 0.25f;
+                float h = Mathf.Lerp(raw, flat, 1f - SmoothStep(0f, MACRO_SHOULDER, s.Nearest));
+                float riverBed = 1f - SmoothStep(rw + 2f, rw + 16f, s.RiverDist);
+                h = Mathf.Lerp(h, Mathf.Min(h, s.Floor), riverBed);
+
+                // 강: 기존과 같은 파기 (여울 얕게, 다리 아래 협곡)
+                float channel = 1f - SmoothStep(rw * 0.55f, rw * 1.05f, s.RiverDist);
+                float bank = 1f - SmoothStep(rw, rw + 10f, s.RiverDist);
+                float depth = 1.8f * (1f - s.Ford) + 10f * s.Gorge;
+                h -= channel * depth * (1f - s.Walk * (1f - s.Ford)) + bank * 0.6f * (1f - 0.7f * s.Ford);
+
+                if (s.Gorge * (1f - s.Walk) > 0.3f)
+                {
+                    h = Mathf.Min(h, s.Floor - 8f * s.Gorge);
+                }
+
+                return h;
+            }
+
             public void Weights(float x, float z, float worldY, float steep, float[] w)
             {
                 Sample s = Query(x, z);
@@ -189,10 +254,23 @@ namespace BrokenSovereign.Editor
                 float path = Mathf.Max(stone, dirt);
 
                 Array.Clear(w, 0, w.Length);
+
+                // 패키지 지형: 바탕 전부 패키지 색, 그 위에 강 자갈·길만
+                if (_macro != null && w.Length > MACRO)
+                {
+                    w[MACRO] = 1f;
+                    Blend(w, GRAVEL, gravel * (1f - s.Gorge));
+                    Blend(w, DIRT, dirt * (1f - stone));
+                    Blend(w, STONE, stone);
+                    Normalize(w);
+                    return;
+                }
+
                 w[GRASS] = 1f - dry;
                 w[DRY] = dry;
-                Blend(w, GRAVEL, gravel * (1f - s.Gorge));
                 Blend(w, ROCK, rock);
+
+                Blend(w, GRAVEL, gravel * (1f - s.Gorge));
                 Blend(w, DIRT, dirt * (1f - stone));
                 Blend(w, STONE, stone);
 
@@ -209,6 +287,13 @@ namespace BrokenSovereign.Editor
             public bool IsWalkable(Sample s)
             {
                 bool outsideRiver = s.RiverDist > s.RiverWidth * 0.9f || s.Ford > 0.5f;
+
+                // 패키지 지형: 평탄하게 만든 길·방(+ 가장자리 일부)만 걷기 가능
+                if (_macro != null)
+                {
+                    return s.Nearest < MACRO_SHOULDER * 0.6f && outsideRiver && s.Gorge * (1f - s.Walk) < 0.2f;
+                }
+
                 return s.PathValley > 0.6f && outsideRiver && s.Gorge * (1f - s.Walk) < 0.2f && s.Radius < _spec.RingStart;
             }
 
@@ -365,7 +450,10 @@ namespace BrokenSovereign.Editor
             EditorUtility.DisplayProgressBar(spec.Title, "풀", 0.82f);
             PaintDetails(spec, shape, terrain);
             EditorUtility.DisplayProgressBar(spec.Title, "바위", 0.85f);
-            ScatterRocks(spec, shape, ground, parent);
+            if (!shape.UsesMacro)
+            {
+                ScatterRocks(spec, shape, ground, parent);   // 패키지 지형은 그대로 (바위 추가 안 함)
+            }
             EditorUtility.DisplayProgressBar(spec.Title, "걷기 메시", 0.88f);
             BuildWalkMesh(spec, shape, terrain, parent);
             EditorUtility.DisplayProgressBar(spec.Title, "지도", 0.92f);
@@ -571,7 +659,7 @@ namespace BrokenSovereign.Editor
         private static void PaintDetails(LevelSpec spec, ValleyShape shape, Terrain terrain)
         {
             TerrainData data = terrain.terrainData;
-            Texture2D grass = EnsureGrassTexture();
+            Texture2D grass = MacroGrassTexture() ?? EnsureGrassTexture();
 
             data.detailPrototypes = new[]
             {
@@ -610,9 +698,18 @@ namespace BrokenSovereign.Editor
                     int ax = Mathf.Min(alphaRes - 1, x * alphaRes / res);
                     int az = Mathf.Min(alphaRes - 1, z * alphaRes / res);
                     float g = alpha[az, ax, GRASS];
+
+                    // 패키지 지형: 패키지 색인 완만한 곳(경사 25° 미만)에 패키지 풀
+                    if (shape.UsesMacro && alpha.GetLength(2) > MACRO)
+                    {
+                        float steepness = data.GetSteepness((x + 0.5f) / res, (z + 0.5f) / res);
+                        g = alpha[az, ax, MACRO] * (1f - SmoothStep(18f, 25f, steepness)) * 0.6f;
+                    }
+
                     float d = alpha[az, ax, DRY];
                     double roll = rng.NextDouble();
-                    lush[z, x] = g > 0.55f ? Mathf.RoundToInt(g * (6f + (float)roll * 8f)) : 0;
+                    // 패키지 색과 섞인 계곡 바닥(풀 약 0.35)에도 풀이 나도록 기준 완화
+                    lush[z, x] = g > 0.2f ? Mathf.RoundToInt(Mathf.Min(1f, g / 0.4f) * (6f + (float)roll * 8f)) : 0;
                     dry[z, x] = d > 0.5f && roll < 0.35 ? Mathf.RoundToInt(d * 3f) : 0;
                 }
             }
@@ -949,8 +1046,8 @@ namespace BrokenSovereign.Editor
         private static readonly Color MAP_BUILDING = new Color(0.34f, 0.27f, 0.2f);
         private static readonly Color MAP_WALL = new Color(0.17f, 0.13f, 0.1f);
 
-        // 레이어별 밝기 (풀·돌바닥·흙길·바위·자갈·마른 풀)
-        private static readonly float[] MAP_TONE = { 0.5f, 0.95f, 0.85f, 0.32f, 0.72f, 0.58f };
+        // 레이어별 밝기 (풀·돌바닥·흙길·바위·자갈·마른 풀·패키지 지형)
+        private static readonly float[] MAP_TONE = { 0.5f, 0.95f, 0.85f, 0.32f, 0.72f, 0.58f, 0.55f };
 
         private sealed class MapSampler
         {
