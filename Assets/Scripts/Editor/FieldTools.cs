@@ -10,7 +10,7 @@ using UnityEngine.Rendering.Universal;
 namespace BrokenSovereign.Editor
 {
     /// <summary>
-    /// 천계 필드 도구 (GDD 13장: 부유 석판 + 구름 바다 + Procedural 하늘, Terrain 미사용).
+    /// 천계 필드 도구 (GDD 13장: 부유 석판 + 구름 바다 + Procedural 하늘). 구역 지형(Terrain)은 LevelTools가 담당.
     /// 메뉴: BrokenSovereign > Field
     /// - 필드 킷 생성: 머티리얼(하늘·구름·석판), 구름 바다 메시, 석판·다리 프리팹(ProBuilder)
     /// - 현재 씬에 분위기 적용: 하늘·태양·주변광·안개·구름 바다·후처리 볼륨
@@ -89,6 +89,25 @@ namespace BrokenSovereign.Editor
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             Debug.Log("FieldTools: 현재 씬에 분위기 적용. 씬을 저장하세요.");
+        }
+
+        /// <summary>
+        /// 머티리얼·구름 메시를 갱신하고 현재 씬에 분위기(하늘·조명·안개·구름 바다·후처리)를 적용 (LevelTools용).
+        /// 구름 바다가 맵보다 작으면 프로필의 CloudSize를 minCloudSize로 늘림
+        /// </summary>
+        internal static void PrepareAtmosphere(float minCloudSize)
+        {
+            FieldLookProfile profile = LoadOrCreateProfile();
+
+            if (profile.CloudSize < minCloudSize)
+            {
+                profile.CloudSize = minCloudSize;
+                EditorUtility.SetDirty(profile);
+            }
+
+            BuildMaterials(profile);
+            BuildCloudMesh(profile);
+            ApplyAtmosphere(profile);
         }
 
         [MenuItem("BrokenSovereign/Field/분위기 테스트 씬 생성")]
@@ -501,7 +520,7 @@ namespace BrokenSovereign.Editor
         }
 
         // 게임 카메라(QuarterViewCamera)와 같은 각도: 피치 50°, 요 45°, 거리 18
-        private static void CreateQuarterViewCamera(Vector3 target)
+        internal static void CreateQuarterViewCamera(Vector3 target)
         {
             var go = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
             go.tag = "MainCamera";

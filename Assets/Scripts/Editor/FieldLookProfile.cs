@@ -10,39 +10,39 @@ namespace BrokenSovereign.Editor
     public class FieldLookProfile : ScriptableObject
     {
         [Header("하늘 (Skybox/Procedural)")]
-        public Color SkyTint = new Color(1f, 0.74f, 0.80f);
-        public Color SkyGround = new Color(0.98f, 0.82f, 0.74f);
-        [Range(0f, 5f)] public float AtmosphereThickness = 1.35f;
+        public Color SkyTint = new Color(0.42f, 0.56f, 0.82f);
+        public Color SkyGround = new Color(0.78f, 0.86f, 0.95f);
+        [Range(0f, 5f)] public float AtmosphereThickness = 0.75f;
         [Range(0f, 1f)] public float SunSize = 0.045f;
         [Range(0f, 8f)] public float SkyExposure = 1.25f;
 
         [Header("태양 (방향광)")]
-        public Color SunColor = new Color(1f, 0.89f, 0.72f);
+        public Color SunColor = new Color(1f, 0.97f, 0.92f);
         public float SunIntensity = 1.45f;
         public Vector3 SunEuler = new Vector3(48f, -35f, 0f);
 
         [Header("주변광 (Trilight)")]
-        public Color AmbientSky = new Color(1f, 0.90f, 0.74f);
-        public Color AmbientEquator = new Color(0.96f, 0.78f, 0.80f);
-        public Color AmbientGround = new Color(0.66f, 0.58f, 0.74f);
+        public Color AmbientSky = new Color(0.72f, 0.82f, 0.98f);
+        public Color AmbientEquator = new Color(0.78f, 0.82f, 0.88f);
+        public Color AmbientGround = new Color(0.50f, 0.52f, 0.56f);
 
         [Header("안개 (선형)")]
-        public Color FogColor = new Color(0.99f, 0.86f, 0.83f);
+        public Color FogColor = new Color(0.80f, 0.88f, 0.97f);
         public float FogStart = 45f;
         public float FogEnd = 170f;
 
         [Header("후처리")]
         public float BloomThreshold = 0.95f;
         public float BloomIntensity = 0.55f;
-        public Color BloomTint = new Color(1f, 0.92f, 0.80f);
+        public Color BloomTint = new Color(1f, 1f, 1f);
         public float PostExposure = 0.1f;
         public float Saturation = 8f;
         public float Vignette = 0.18f;
 
         [Header("구름 바다")]
-        public Color CloudHigh = new Color(1f, 0.97f, 0.93f);
-        public Color CloudLow = new Color(0.86f, 0.68f, 0.76f);
-        public Color CloudGlow = new Color(1f, 0.84f, 0.55f);
+        public Color CloudHigh = new Color(1f, 1f, 1f);
+        public Color CloudLow = new Color(0.72f, 0.80f, 0.92f);
+        public Color CloudGlow = new Color(1f, 0.97f, 0.90f);
         public float CloudHeight = -7f;
         public float CloudSize = 320f;
 
