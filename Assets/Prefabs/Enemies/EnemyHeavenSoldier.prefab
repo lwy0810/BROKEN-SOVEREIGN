@@ -557,6 +557,7 @@ GameObject:
   - component: {fileID: 3887641019779574409}
   - component: {fileID: 8666529230066473385}
   - component: {fileID: 5267731181944004753}
+  - component: {fileID: 6374137113626402694}
   m_Layer: 9
   m_Name: EnemyHeavenSoldier
   m_TagString: Untagged
@@ -719,6 +720,19 @@ MonoBehaviour:
   _animator: {fileID: 5192994997355326738}
   _attackClipLength: 1
   _movingThreshold: 0.1
+--- !u!114 &6374137113626402694
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3811643621316529659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e58167c907aecc408529607328b5483, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Map.MapMarker
+  _kind: 7
 --- !u!1 &5027943650285102001
 GameObject:
   m_ObjectHideFlags: 0

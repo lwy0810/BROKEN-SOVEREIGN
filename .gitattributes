@@ -175,3 +175,6 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+# 바이너리로 저장되는 생성 에셋 (Terrain 높이·텍스처 데이터, NavMesh 굽기 결과)
+*TerrainData.asset     lfs
+NavMesh*.asset         lfs
