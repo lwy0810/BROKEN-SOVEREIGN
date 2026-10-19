@@ -6,7 +6,7 @@
 
 - `Assets/`
 	- `Scripts/` - C# 스크립트
-		- `Core/` - 이벤트 버스, 공용 enum·유틸리티
+		- `Core/` - 이벤트 버스, 공용 enum·유틸리티, 게임 설정(`GameSettings`: 지도 표시 방식 등, PlayerPrefs 저장)
 			- `Events/` - 이벤트 구조체 (`~Event`)
 		- `Player/` - 클릭 이동, 입력 처리, 쿼터뷰 카메라
 		- `Combat/` - 체력, 피해 계산(순수 클래스), 상태이상
@@ -17,6 +17,8 @@
 		- `Equipment/` - 무기 정의·장착(`PlayerWeapon`), 일반 장비창, 무기 계열 보너스
 		- `Achievement/` - 업적, 시련
 		- `Enemy/` - 적 AI, 보스, 격 수확 패턴
+		- `Map/` - 지도 데이터(`LevelMap`: 지도 그림·월드 범위), 지도 표시 대상(`MapMarker`)
+		- `Town/` - 마을 NPC(`TownNpc`), NPC 상호작용(`NpcInteractor`), NPC 기능(`INpcService` 구현. 예: `HealerService`)
 		- `UI/` - HUD, 캐릭터·신물·장비·스킬·업적 창
 		- `Manager/` - 게임 상태, 체크포인트
 	- `Data/` - ScriptableObject 에셋
@@ -32,27 +34,36 @@
 		- `PlayMode/` - 플레이 흐름 테스트
 	- `Scenes/` - 씬
 		- `Sandbox/` - 기능별 테스트 씬
+		- `Levels/` - 게임 맵 (`World` 오픈 필드·`BossArena`, LevelTools 생성). 씬 이름 폴더에 NavMesh 데이터·강 물 메시·걷기 영역 메시
 	- `Prefabs/` - 프리팹
 		- `Characters/` - 캐릭터 모델 프리팹 (Animator·머티리얼 연결). 예: `PaladinModel.prefab`
 		- `Props/` - 환경 소품 프리팹 (MeshCollider, Static). 예: `PropStonePillar.prefab`
 		- `Weapons/` - 무기 외형 프리팹 (콜라이더 없음, 원점 = 손잡이). 예: `WeaponHolyMace.prefab`
 		- `Enemies/` - 적 프리팹 (AI·체력·모델·EnemyAnimator). 예: `EnemyHeavenSoldier.prefab`, 정예는 `~Elite`
 		- `Field/` - 필드 석판·다리 프리팹 (ProBuilder). 예: `FieldSlabRound8.prefab`
+		- `Town/` - 마을 NPC 프리팹(`Npc{이름}`, TownSetupTools 생성), 명판(`ShopSign{종류}`), 상점 임시 건물. 상점 건물 모델은 `Props/PropShop{이름}`
 	- `Models/` - 3D 모델 (FBX)
 		- `<이름>/` - 캐릭터·소품별 FBX와 텍스처. 예: `Paladin/Paladin.fbx`, `PropPaifang/T_PropPaifang_BaseColor.png`. 소품은 `Prop`, 무기는 `Weapon`으로 시작 (리그 없이 임포트)
 		- `Field/` - 필드용 생성 메시 (`CloudSeaGrid.asset` 등, 에디터 도구가 생성)
 	- `Animations/` - 애니메이션 클립·애니메이터 컨트롤러
 		- `<이름>/` - 캐릭터별 Mixamo 애니메이션 FBX와 Animator. 예: `Paladin/PaladinRun.fbx`, `Paladin/PaladinAnimator.controller`
+		- `Npc/` - 마을 NPC 대기 Animator (`Npc{이름}Animator.controller`, TownSetupTools 생성)
 	- `Effects/` - 파티클·이펙트
 	- `Sprites/` - 이미지 (UI 아이콘 포함)
+		- `Map/` - 맵별 지도 그림 (`T_Map_{맵}.png` 전체 2048², `T_Map_{맵}_Town.png` 마을 세부 1024², LevelTools 생성)
+			- `Icons/` - 지도 아이콘 (`T_MapIcon{종류}.png`, 128px. Python 생성)
+		- `Cursors/` - 마우스 커서 (`T_Cursor{Default|Attack|Talk|Blocked}.png`, 48px. Python 생성)
+		- `Town/` - 상점 명판 이미지 (`T_ShopSign{Goods|Forge|Clinic}.png`, VARCO 이미지)
 	- `Audio/` - 효과음·배경음
 	- `Materials/` - 머티리얼
 		- `Characters/` - 캐릭터 머티리얼 (URP Lit). 예: `M_Paladin.mat`
 		- `Props/` - 환경 소품 머티리얼 (URP Lit). 예: `M_PropStonePillar.mat`
 		- `Weapons/` - 무기 머티리얼 (URP Lit). 예: `M_WeaponHolyMace.mat`
 		- `Field/` - 필드 머티리얼 (하늘·구름 바다·석판). 예: `M_FieldSkybox.mat`
+		- `Town/` - 상점 명판 머티리얼 (`M_ShopSign{종류}.mat`, TownSetupTools 생성)
 	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
-	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`)
+	- `Terrain/` - Terrain 데이터(`{맵}TerrainData.asset`), `Layers/` 지형 텍스처 레이어(`TL_`)·텍스처(`T_Terrain*`)
+	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`), 커서 규칙(`CursorSettings.asset`: 레이어별 커서), 지도 아이콘(`MapIconSet.asset`: 종류별 그림·표시 확대 단계). 두 SO는 UiArtTools가 생성·HudView에 연결
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
 
 - 새 스크립트는 `Scripts/` 아래 기능 폴더에 둡니다. 맞는 폴더가 없으면 폴더를 새로 만들기 전에 묻습니다.

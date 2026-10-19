@@ -38,6 +38,11 @@ flowchart TD
     UI --> Equipment
     UI --> Achievement
     UI --> Hero
+    UI --> Town
+    UI --> Map
+    Town --> Player
+    Town --> Combat
+    Town --> Core
     Manager --> Player
     Player --> Skill
     Hero --> Skill
@@ -65,6 +70,10 @@ flowchart TD
 - 화살표 방향: 참조하는 쪽 → 참조되는 쪽
 - 역방향 참조 금지. 하위 폴더(Combat 등)가 상위 폴더(Skill·Hero 등)에 알려야 할 일은 이벤트 발행으로 처리
 - 직업 전환 시 무기 교체·영웅 기술 재장착은 `PlayerJob`(Ascension)이 `PlayerWeapon.Equip`·`HeroPathController.RefreshSkill`을 직접 호출. 반신 돌파 후 영웅 선택 요청은 `PlayerProgression.HeroPathSelectionRequested` (Equipment·Hero는 Ascension을 참조하지 않음)
+- 지도(Map): `LevelMap`(지도 그림·월드 범위·마을 세부 그림·마을 범위, 씬당 1개)·`MapMarker`(아이콘 대상, 정적 목록). UI `MinimapView`·`WorldMapView`가 공용 그리기 `MapLayer`로 읽기만 함. 아이콘 그림·표시 확대 단계는 `MapIconSet`(SO)
+- 지도 표시 방식(전체 화면·오버레이)은 `GameSettings.MapMode`(Core, PlayerPrefs). 추후 시스템 설정 화면이 같은 값을 변경
+- 커서: `CursorController`(UI)가 `CursorSettings`(SO, 레이어 → 커서 규칙)로 마우스 아래 레이어를 검사해 `Cursor.SetCursor`. 게임 입력 차단 중에는 기본 커서
+- 마을 NPC(Town): 대화 시작·종료는 `NpcInteractor`, 기능은 `INpcService` 구현(`HealerService` → `Health.Heal`·`PotionUser.Refill`). UI(`NpcDialogView`)는 이벤트 구독 + 공개 메서드 호출만
 - UI는 읽기 전용 참조. 게임 상태 변경은 각 시스템의 공개 메서드 호출로만 처리
 
 ## 3. Core
