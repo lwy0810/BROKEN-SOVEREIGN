@@ -326,7 +326,14 @@ namespace BrokenSovereign.Editor
             }
 
             Undo.RecordObject(player.transform, "Move Player To Start");
-            player.transform.position = start.transform.position + Vector3.up * 0.05f;
+            float footOffset = PivotToFeet(player.gameObject);
+            player.transform.position = start.transform.position + Vector3.up * (footOffset + 0.02f);
+
+            if (player.GetComponent<UnityEngine.AI.NavMeshAgent>() is UnityEngine.AI.NavMeshAgent agent)
+            {
+                Undo.RecordObject(agent, "Move Player To Start");
+                agent.baseOffset = footOffset;
+            }
             EditorSceneManager.MarkSceneDirty(player.gameObject.scene);
             Debug.Log($"LevelTools: 플레이어를 PlayerStart로 이동 ({start.transform.position}). 씬을 저장하세요.");
         }
