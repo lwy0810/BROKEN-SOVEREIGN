@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5286550688d3a2c478b9b94ed4a297da, type: 3}
+  m_Name: CursorSettings
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.UI.CursorSettings
+  DefaultTexture: {fileID: 2800000, guid: 10cdbd6becb670648b69a7b6fd7a9238, type: 3}
+  DefaultHotspot: {x: 2, y: 2}
+  RayDistance: 500
+  Rules:
+  - Name: "\uC801 (\uACF5\uACA9)"
+    Layers:
+      serializedVersion: 2
+      m_Bits: 512
+    Texture: {fileID: 2800000, guid: 196d994cc0f4f3d439c04c82ee63b8f3, type: 3}
+    Hotspot: {x: 2, y: 2}
+  - Name: "NPC (\uB300\uD654)"
+    Layers:
+      serializedVersion: 2
+      m_Bits: 1024
+    Texture: {fileID: 2800000, guid: 142483945488b494aa1ab804f17a1183, type: 3}
+    Hotspot: {x: 2, y: 2}

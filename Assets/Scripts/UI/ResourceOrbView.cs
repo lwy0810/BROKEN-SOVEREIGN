@@ -13,6 +13,7 @@ namespace BrokenSovereign.UI
         private static readonly int LIQUID_COLOR_ID = Shader.PropertyToID("_LiquidColor");
         private static readonly int SURFACE_COLOR_ID = Shader.PropertyToID("_SurfaceColor");
         private static readonly int RIM_COLOR_ID = Shader.PropertyToID("_RimColor");
+        private static readonly int RIM_WIDTH_ID = Shader.PropertyToID("_RimWidth");
         private static readonly int VIEW_TILT_ID = Shader.PropertyToID("_ViewTilt");
         private static readonly int BOUNCE_ID = Shader.PropertyToID("_Bounce");
         private static readonly int LOCKED_ID = Shader.PropertyToID("_Locked");
@@ -60,6 +61,7 @@ namespace BrokenSovereign.UI
             _liquidColor = _targetLiquidColor = liquidColor;
             ApplyColors(liquidColor);
             _material.SetColor(RIM_COLOR_ID, settings.RimColor);
+            _material.SetFloat(RIM_WIDTH_ID, settings.RimWidth);
             _material.SetFloat(VIEW_TILT_ID, settings.ViewTilt);
             _valueText.fontSize = settings.FontSize;
         }
