@@ -154,7 +154,7 @@ namespace BrokenSovereign.Editor
                     }
                 }
 
-                s.RiverWidth = baseWidth * (0.75f + 0.6f * Fbm(x * 0.01f, z * 0.01f, 2));
+                s.RiverWidth = _spec.Rivers.Length == 0 ? 1f : baseWidth * (0.75f + 0.6f * Fbm(x * 0.01f, z * 0.01f, 2));
 
                 float edge = _spec.ValleyWidth + _spec.ValleyWidthVariation * Fbm(x * 0.006f + 40f, z * 0.006f, 2);
                 s.PathValley = 1f - SmoothStep(edge, edge + 30f, s.Nearest);

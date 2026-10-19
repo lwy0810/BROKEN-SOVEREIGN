@@ -145,16 +145,7 @@ namespace BrokenSovereign.Editor
             HeightRange = 420f,
             Valley = true,
             MountainHeight = 120f,
-            Rivers = new[]
-            {
-                // 본류: 동쪽 산맥 → 마을 남쪽 → 구역 1 남동쪽(여울 3곳) → 남서 산맥
-                new River(13f, new Vector2(520f, 40f), new Vector2(400f, 25f), new Vector2(300f, 10f), new Vector2(200f, -35f),
-                    new Vector2(110f, -85f), new Vector2(45f, -150f), new Vector2(-10f, -215f), new Vector2(-75f, -290f),
-                    new Vector2(-110f, -350f), new Vector2(-160f, -440f), new Vector2(-200f, -520f)),
-                // 지류: 동쪽 산맥 → 구역 2 협곡(석판 다리 아래) → 본류 합류
-                new River(7f, new Vector2(520f, 215f), new Vector2(400f, 205f), new Vector2(320f, 198f), new Vector2(255f, 195f),
-                    new Vector2(205f, 150f), new Vector2(195f, 60f), new Vector2(200f, -35f)),
-            },
+            Rivers = Array.Empty<River>(),   // 강 제거 (10/20 사용자 요청). 되살리려면 River(반폭, 꺾은선 점...) 추가
             Rooms = new[]
             {
                 new Room("Town", 0f, 0f, 90f, RoomKind.Town),               // 0 마을 (성벽 ±62, LevelTools.Town)
@@ -234,7 +225,7 @@ namespace BrokenSovereign.Editor
             string path = ScenePath(spec);
 
             if (File.Exists(path) && !EditorUtility.DisplayDialog($"{spec.Title} 생성",
-                    $"{path}가 이미 있습니다.\n다시 만들면 Terrain을 다듬은 내용과 씬에서 바꾼 배치가 사라집니다.", "다시 생성", "취소"))
+                    $"{path}가 이미 있습니다.\n다시 만들면 지형·배치(Level·Scenery·GateEnemies)가 새로 만들어집니다.\n플레이어·HUD·카메라는 유지(없으면 ClickMoveTest에서 옮겨 옴)하고 시작 위치로 옮깁니다.", "다시 생성", "취소"))
             {
                 return;
             }
@@ -254,6 +245,34 @@ namespace BrokenSovereign.Editor
             }
         }
 
+        // 생성 결과 루트 (다시 생성할 때 이것만 지우고 새로 만듦)
+        private static readonly string[] GENERATED_ROOTS = { "Level", "Scenery", "GateEnemies" };
+
+        /// <summary>
+        /// 기존 씬이 있으면 열어서 생성 결과(GENERATED_ROOTS)만 지움 → 플레이어·HUD·카메라 등 직접 넣은 오브젝트 유지 (10/20).
+        /// 없으면 빈 씬으로 시작.
+        /// </summary>
+        private static void OpenOrCreateLevelScene(LevelSpec spec)
+        {
+            string path = ScenePath(spec);
+
+            if (!File.Exists(path))
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                return;
+            }
+
+            UnityEngine.SceneManagement.Scene scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                if (Array.IndexOf(GENERATED_ROOTS, root.name) >= 0)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
+        }
+
         private static string ScenePath(LevelSpec spec) => $"{SCENE_ROOT}/{spec.Name}.unity";
 
         // ------------------------------------------------------------------
@@ -262,7 +281,7 @@ namespace BrokenSovereign.Editor
 
         private static void Build(LevelSpec spec)
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            OpenOrCreateLevelScene(spec);
             FieldTools.PrepareAtmosphere(spec.Size * 1.8f);
 
             if (spec.Valley)
@@ -287,6 +306,7 @@ namespace BrokenSovereign.Editor
             PlaceTown(spec, ground, level.transform);
             PlaceMarkers(spec, ground, level.transform);
             PlacePackMarkers(spec, ground, level.transform);
+            PlaceGateEnemies(spec, ground);   // 마을 성문 밖 적 무리 (LevelTools.Roads)
             EnsureEnemyMapMarkers();
 
             if (shape is ValleyShape valley)
@@ -304,7 +324,13 @@ namespace BrokenSovereign.Editor
             BakeNavMesh(spec, level);
 
             Room start = Array.Find(spec.Rooms, r => r.Kind == RoomKind.Town || r.Kind == RoomKind.Start);
-            FieldTools.CreateQuarterViewCamera(ground.At(start.Center));
+            // 플레이어·HUD·카메라: 없으면 기준 씬에서 옮겨 오고, 시작 위치로 (LevelTools.Player)
+            EnsurePlayerRig(ground.At(start.Center));
+
+            if (Camera.main == null)
+            {
+                FieldTools.CreateQuarterViewCamera(ground.At(start.Center));
+            }
 
             ModelAssetUtility.EnsureFolder(SCENE_ROOT);
             EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), ScenePath(spec));

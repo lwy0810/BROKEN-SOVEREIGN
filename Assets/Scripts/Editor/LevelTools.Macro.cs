@@ -291,6 +291,9 @@ namespace BrokenSovereign.Editor
             if (MACRO_CENTER_PACKAGE_MATERIAL && material != null)
             {
                 center.materialTemplate = material;
+
+                // 대신 길(흙길·마을 돌바닥)은 지형 위에 얹은 덮개 메시로 표시 (LevelTools.Roads)
+                BuildRoadOverlay(spec, center, center.transform.parent);
             }
 
             if (data == null)
