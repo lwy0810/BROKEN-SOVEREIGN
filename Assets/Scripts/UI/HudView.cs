@@ -5,6 +5,7 @@ using BrokenSovereign.Core;
 using BrokenSovereign.Hero;
 using BrokenSovereign.Player;
 using BrokenSovereign.Skill;
+using BrokenSovereign.Town;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -77,6 +78,7 @@ namespace BrokenSovereign.UI
         private PlayerProgression _progression;
         private JobSelectView _jobSelect;
         private HeroPathSelectView _heroSelect;
+        private NpcDialogView _npcDialog;
         private MinimapView _minimap;
         private WorldMapView _worldMap;
         private HeroPathController _hero;
@@ -533,6 +535,15 @@ namespace BrokenSovereign.UI
             if (_cursorSettings != null)
             {
                 gameObject.AddComponent<CursorController>().Initialize(_cursorSettings);
+            }
+
+            // 마을 NPC 안내·대화 창 (NpcInteractor가 있을 때만)
+            NpcInteractor interactor = _player.GetComponent<NpcInteractor>();
+
+            if (interactor != null)
+            {
+                _npcDialog = HudGraphics.CreateRect("NpcDialog", transform).gameObject.AddComponent<NpcDialogView>();
+                _npcDialog.Initialize(interactor);
             }
 
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
