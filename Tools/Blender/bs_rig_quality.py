@@ -220,6 +220,78 @@ def improve(arm, mesh, flagged=None, rings=2, iterations=4, factor=0.5, limit=4)
 LEGS_TORSO = ("Hips", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg", "Spine", "Spine1")
 
 
+FINGER_NAMES = ("Thumb", "Index", "Middle", "Ring", "Pinky")
+
+
+def fix_finger_weights(arm, mesh, sides=("Left", "Right"), blend=1.5):
+    """손가락이 붙어 휘는 문제 보정: 손 계열(손·손가락) 웨이트를 가장 가까운 본에 다시 나눈다.
+
+    정점마다 손 계열 웨이트 합을 가장 가까운 본(선분 거리)에 주고,
+    같은 손가락(또는 손바닥) 안의 두 번째로 가까운 본이 blend배 거리 안이면 거리 반비례로 나눈다.
+    다른 손가락끼리는 섞지 않는다 → 손가락을 굽혀도 옆 손가락이 끌려오지 않음.
+    """
+    reset_pose(arm)
+    bpy.context.view_layer.update()
+    mw_arm = arm.matrix_world
+    mw_mesh = mesh.matrix_world
+    report = {}
+    for side in sides:
+        hand = PREFIX + side + "Hand"
+        family = [b for b in arm.data.bones
+                  if b.name == hand or (b.name.startswith(PREFIX + side + "Hand") and b.use_deform)]
+        segs = []
+        for b in family:
+            chain = "Palm"
+            for f in FINGER_NAMES:
+                if f in b.name:
+                    chain = f
+            segs.append((b.name, chain, mw_arm @ b.head_local, mw_arm @ b.tail_local))
+        names = {s[0] for s in segs}
+        groups = {g.name: g for g in mesh.vertex_groups if g.name in names}
+        for n in names:
+            if n not in groups:
+                groups[n] = mesh.vertex_groups.new(name=n)
+        index_to_name = {g.index: g.name for g in mesh.vertex_groups}
+
+        changed = 0
+        for v in mesh.data.vertices:
+            total = sum(g.weight for g in v.groups if index_to_name.get(g.group) in names)
+            if total < 0.01:
+                continue
+            p = mw_mesh @ v.co
+            dists = sorted(((_seg_dist(p, a, b), n, c) for n, c, a, b in segs), key=lambda x: x[0])
+            d1, n1, c1 = dists[0]
+            assign = {n1: 1.0}
+            for d2, n2, c2 in dists[1:]:
+                if c2 == c1 or "Palm" in (c1, c2):
+                    if d2 < d1 * blend and d2 > 1e-6:
+                        w1, w2 = 1.0 / max(d1, 1e-5), 1.0 / d2
+                        assign = {n1: w1 / (w1 + w2), n2: w2 / (w1 + w2)}
+                    break
+            for n in names:
+                groups[n].remove([v.index])
+            for n, w in assign.items():
+                groups[n].add([v.index], total * w, "REPLACE")
+            changed += 1
+        report[side] = dict(bones=len(segs), vertices=changed)
+    return report
+
+
+def _seg_dist(p, a, b):
+    ab = b - a
+    t = 0.0 if ab.length_squared < 1e-12 else max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+    return (p - (a + ab * t)).length
+
+
+def curl_fingers(arm, angle=60.0):
+    """시험 포즈: 엄지 외 손가락 1~3마디를 angle도씩 굽힘 (손바닥 아래 방향, 로컬 X축)."""
+    for pb in arm.pose.bones:
+        if any(f in pb.name for f in FINGER_NAMES[1:]) and pb.name[-1] in "123":
+            pb.rotation_mode = "XYZ"
+            pb.rotation_euler = (math.radians(angle), 0.0, 0.0)
+    bpy.context.view_layer.update()
+
+
 def finalize_and_improve(name, rigged_fbx, out_path=None, regions=None, poses=None):
     """Mixamo 리깅 FBX → finalize_rigged(스케일·텍스처) → 측정·웨이트 보정 → Unity용 FBX 재저장.
     regions: 보정할 부위(주 본 이름, 접두어 제외). None이면 전체. 예: LEGS_TORSO
@@ -259,6 +331,52 @@ def finalize_and_improve(name, rigged_fbx, out_path=None, regions=None, poses=No
         path_mode="STRIP",
         embed_textures=False,
     )
+    info["worst_before"] = {k: v["worst"] for k, v in before.items()}
+    info["worst_after"] = {k: v["worst"] for k, v in after.items()}
+    info["weights"] = weight_stats(mesh)
+    return info
+
+
+def finalize_npc(name, rigged_fbx):
+    """마을 NPC용: finalize_rigged → (손가락 본이 모자라면) 다섯 손가락 이식 → 손가락 웨이트 분리 → 몸 웨이트 보정 → Unity FBX.
+    10/19: Mixamo가 가늘거나 장갑 낀 손가락을 구분하지 못해 33·41본으로 리깅되고 손가락이 휘는 문제 대응."""
+    import bs_model_cleanup as bs
+    import bs_finger_graft as fg
+
+    info = bs.finalize_rigged(name, rigged_fbx)
+    arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    mesh = next(o for o in bpy.data.objects if o.type == "MESH")
+    if info["finger_bones"] < 20:
+        fg.graft(arm, mesh)
+        info["grafted"] = True
+    info["finger_fix"] = fix_finger_weights(arm, mesh)
+
+    before, _ = measure(arm, mesh)
+    _, flagged = measure(arm, mesh)
+    improve(arm, mesh, flagged)
+    after, _ = measure(arm, mesh)
+    reset_pose(arm)
+
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o in (arm, mesh))
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.export_scene.fbx(
+        filepath=info["fbx"],
+        use_selection=True,
+        object_types={"ARMATURE", "MESH"},
+        apply_unit_scale=True,
+        apply_scale_options="FBX_SCALE_ALL",
+        axis_forward="-Z",
+        axis_up="Y",
+        bake_space_transform=False,
+        add_leaf_bones=False,
+        use_armature_deform_only=True,
+        bake_anim=False,
+        mesh_smooth_type="FACE",
+        path_mode="STRIP",
+        embed_textures=False,
+    )
+    info["bones_out"] = len(arm.data.bones)
     info["worst_before"] = {k: v["worst"] for k, v in before.items()}
     info["worst_after"] = {k: v["worst"] for k, v in after.items()}
     info["weights"] = weight_stats(mesh)

@@ -87,11 +87,19 @@ PRESETS = {
     "HeavenSoldier":  dict(size=1.8, max_tris=20000, dest="mixamo"),
     "TempleGuardian": dict(size=2.2, max_tris=20000, dest="mixamo"),
     "ErlangShen":     dict(size=2.4, max_tris=20000, dest="mixamo"),
+    # 마을 NPC (10/19, 3만 폴리곤으로 생성 → 정적 대기 캐릭터라 상한 3만 유지)
+    "NpcMerchant":    dict(size=1.7, max_tris=30000, dest="mixamo"),
+    "NpcBlacksmith":  dict(size=1.85, max_tris=30000, dest="mixamo"),
+    "NpcHealer":      dict(size=1.75, max_tris=30000, dest="mixamo"),
     # 환경 소품 (정적)
     "PropStonePillar":  dict(size=4.0, max_tris=5000, dest="unity"),
     "PropPaifang":      dict(size=6.0, max_tris=5000, dest="unity"),
     "PropStoneLantern": dict(size=1.5, max_tris=5000, dest="unity"),
     "PropCloudRailing": dict(size=2.0, fit="length", max_tris=2000, dest="unity"),
+    # 마을 상점 건물 (10/19, 가로 최장 기준)
+    "PropShopGoods":    dict(size=5.0, fit="length", max_tris=20000, dest="unity"),
+    "PropShopForge":    dict(size=6.0, fit="length", max_tris=20000, dest="unity"),
+    "PropShopClinic":   dict(size=5.0, fit="length", max_tris=20000, dest="unity"),
     # 무기 (세워진 상태 기준, 원점 = 손잡이, 위쪽 = 무기 머리)
     "WeaponHolyMace":       dict(size=0.8, max_tris=3000, pivot_height=0.18, dest="unity"),
     "WeaponCelestialStaff": dict(size=1.8, max_tris=3000, pivot_height=0.35, dest="unity"),
@@ -222,6 +230,84 @@ def inspect(obj_name=None):
 # ---------------------------------------------------------------------------
 # 단계별 함수
 # ---------------------------------------------------------------------------
+
+def finalize_rigged(name, rigged_fbx, out_path=None):
+    """Mixamo 리깅 FBX → Unity용 FBX (Assets/Models/<이름>/<이름>.fbx + 텍스처 3종).
+
+    1. 불러오기 (Mixamo OBJ 단위 해석 때문에 0.01배로 돌아온 크기를 프리셋 키로 보정)
+    2. 아마추어·메시 변환 적용 (회전 0, 스케일 1)
+    3. 메시 머티리얼을 M_<이름> 하나로 정리 (텍스처는 Unity 도구가 PNG로 연결)
+    4. FBX(텍스처 미포함) 내보내기, VarcoWork/Textures/<이름>의 텍스처 복사
+    """
+    clear_scene()
+    import_model(rigged_fbx)
+    arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    for o in list(bpy.data.objects):
+        if o.type not in ("ARMATURE", "MESH"):
+            bpy.data.objects.remove(o, do_unlink=True)
+    mesh = meshes[0]
+    arm.name = name + "Armature"
+    mesh.name = name
+
+    # 키 보정: 월드 높이 → 프리셋 키
+    target = PRESETS.get(name, DEFAULTS)["size"]
+    bpy.context.view_layer.update()
+    zs = [(mesh.matrix_world @ v.co).z for v in mesh.data.vertices]
+    height = max(zs) - min(zs)
+    factor = target / height if height > 1e-6 else 1.0
+    arm.scale = arm.scale * factor
+    bpy.context.view_layer.update()
+
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o in (arm, mesh))
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    # 발바닥 = 0
+    zs = [(mesh.matrix_world @ v.co).z for v in mesh.data.vertices]
+    min_z = min(zs)
+    if abs(min_z) > 1e-4:
+        arm.location.z -= min_z
+        bpy.context.view_layer.update()
+        bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
+
+    mat = bpy.data.materials.get("M_" + name) or bpy.data.materials.new("M_" + name)
+    mesh.data.materials.clear()
+    mesh.data.materials.append(mat)
+
+    out_dir = os.path.dirname(out_path) if out_path else os.path.join(DEST_DIRS["unity"], name)
+    fbx_path = out_path or os.path.join(out_dir, name + ".fbx")
+    os.makedirs(out_dir, exist_ok=True)
+    tex_dir = os.path.join(WORK_ROOT, "Textures", name)
+    _copy_unity_textures(tex_dir, name, out_dir)
+
+    bpy.ops.export_scene.fbx(
+        filepath=fbx_path,
+        use_selection=True,
+        object_types={"ARMATURE", "MESH"},
+        apply_unit_scale=True,
+        apply_scale_options="FBX_SCALE_ALL",
+        axis_forward="-Z",
+        axis_up="Y",
+        bake_space_transform=False,
+        add_leaf_bones=False,
+        use_armature_deform_only=True,
+        bake_anim=False,
+        mesh_smooth_type="FACE",
+        path_mode="STRIP",
+        embed_textures=False,
+    )
+    bones = [b.name for b in arm.data.bones]
+    return dict(
+        name=name,
+        fbx=fbx_path,
+        scale_factor=round(factor, 4),
+        height=round(max(zs) - min_z, 3),
+        bones=len(bones),
+        finger_bones=len([b for b in bones if any(f in b for f in ("Thumb", "Index", "Middle", "Ring", "Pinky"))]),
+    )
+
 
 def clear_scene():
     for o in list(bpy.data.objects):

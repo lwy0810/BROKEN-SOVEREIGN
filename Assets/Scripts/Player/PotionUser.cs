@@ -14,10 +14,17 @@ namespace BrokenSovereign.Player
         private float _nextAvailableTime;
 
         public int Charges => _charges;
+        public int MaxCharges => _maxCharges;
         public float Cooldown => _cooldown;
         public float CooldownRemaining => Mathf.Max(0f, _nextAvailableTime - Time.time);
 
         private void Awake()
+        {
+            _charges = _maxCharges;
+        }
+
+        /// <summary>물약을 최대치로 채웁니다 (마을 치유사).</summary>
+        public void Refill()
         {
             _charges = _maxCharges;
         }
