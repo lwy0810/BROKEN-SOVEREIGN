@@ -40,6 +40,9 @@ namespace BrokenSovereign.UI
         [SerializeField] private JobGaugeSettings _jobGauge = new JobGaugeSettings();
 
         [Header("아트 (BrokenSovereign > UI > HUD 아트 연결 메뉴가 연결)")]
+        private const string CURSOR_SETTINGS_RESOURCE = "UI/CursorSettings";
+        private const string MAP_ICON_SET_RESOURCE = "UI/MapIconSet";
+
         [SerializeField] private CursorSettings _cursorSettings;
         [SerializeField] private MapIconSet _mapIconSet;
 
@@ -524,8 +527,19 @@ namespace BrokenSovereign.UI
             _expFill.fillAmount = 0f;
             _expFill.raycastTarget = false;
 
-            // 미니맵(오른쪽 위)·지도 화면(M). 지도가 없는 씬에서는 표시 안 함
+            // 씬에 연결하지 않았으면 Resources/UI의 기본 설정 사용 (씬마다 메뉴 실행 불필요)
+            if (_cursorSettings == null)
+            {
+                _cursorSettings = Resources.Load<CursorSettings>(CURSOR_SETTINGS_RESOURCE);
+            }
+
+            if (_mapIconSet == null)
+            {
+                _mapIconSet = Resources.Load<MapIconSet>(MAP_ICON_SET_RESOURCE);
+            }
+
             MapIcons.IconSet = _mapIconSet;
+            // 미니맵(오른쪽 위)·지도 화면(M). 지도가 없는 씬에서는 표시 안 함
             _minimap = HudGraphics.CreateRect("Minimap", transform).gameObject.AddComponent<MinimapView>();
             _minimap.Initialize(_player.transform);
             _worldMap = HudGraphics.CreateRect("WorldMap", transform).gameObject.AddComponent<WorldMapView>();

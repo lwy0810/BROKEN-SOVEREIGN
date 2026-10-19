@@ -12,7 +12,7 @@ namespace BrokenSovereign.Editor
     ///
     /// 1. NPC 레이어 만들기 (커서 규칙·NPC 프리팹용)
     /// 2. 커서 그림(Sprites/Cursors) → Cursor 텍스처, 지도 아이콘(Sprites/Map/Icons) → Sprite 로 임포트 설정
-    /// 3. Settings/CursorSettings.asset (기본 + Enemy → 공격, NPC → 대화), Settings/MapIconSet.asset 생성·갱신
+    /// 3. Resources/UI/CursorSettings.asset (기본 + Enemy → 공격, NPC → 대화), Resources/UI/MapIconSet.asset 생성·갱신
     /// 4. 열린 씬의 모든 HudView에 연결
     /// 커서 그림·아이콘은 Python 스크립트로 그린 임시 아트입니다 (Docs/AiPipeline.md).
     /// </summary>
@@ -21,8 +21,8 @@ namespace BrokenSovereign.Editor
         public const string NPC_LAYER = "NPC";
         private const string CURSOR_ROOT = "Assets/Sprites/Cursors";
         private const string ICON_ROOT = "Assets/Sprites/Map/Icons";
-        private const string CURSOR_SETTINGS = "Assets/Settings/CursorSettings.asset";
-        private const string ICON_SET = "Assets/Settings/MapIconSet.asset";
+        private const string CURSOR_SETTINGS = "Assets/Resources/UI/CursorSettings.asset";
+        private const string ICON_SET = "Assets/Resources/UI/MapIconSet.asset";
         private const float SHOP_VIEW_WIDTH = 420f;   // 이 폭(m)보다 넓게 축소하면 상점 아이콘 숨김
 
         [MenuItem("BrokenSovereign/UI/HUD 아트 연결 (열린 씬)")]

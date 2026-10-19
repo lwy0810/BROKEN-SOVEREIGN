@@ -63,7 +63,9 @@
 		- `Town/` - 상점 명판 머티리얼 (`M_ShopSign{종류}.mat`, TownSetupTools 생성)
 	- `Shaders/` - 셰이더 (UI·이펙트·캐릭터)
 	- `Terrain/` - Terrain 데이터(`{맵}TerrainData.asset`), `Layers/` 지형 텍스처 레이어(`TL_`)·텍스처(`T_Terrain*`)
-	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`), 커서 규칙(`CursorSettings.asset`: 레이어별 커서), 지도 아이콘(`MapIconSet.asset`: 종류별 그림·표시 확대 단계). 두 SO는 UiArtTools가 생성·HudView에 연결
+	- `Resources/` - 실행 중 이름으로 불러오는 에셋
+		- `UI/` - 커서 규칙(`CursorSettings.asset`: 레이어별 커서), 지도 아이콘(`MapIconSet.asset`: 종류별 그림·표시 확대 단계). UiArtTools가 생성, HudView가 씬 연결이 없으면 자동으로 불러옴
+	- `Settings/` - 렌더 파이프라인(URP) 설정, 입력 설정(`InputSystem_Actions.inputactions`), 필드 분위기 설정(`FieldLookProfile.asset`, `FieldVolumeProfile.asset`)
 	- `ThirdParty/` - 외부에서 받은 에셋 원본
 	- `Bad_Raccoon/` - Asset Store "3D Realistic Terrain Free" (임포트 기본 경로 유지). 라이선스·용량 때문에 `.gitignore`로 제외, 각 PC에서 Package Manager > My Assets로 임포트. 없으면 LevelTools가 코드 생성 산맥으로 대체
 
