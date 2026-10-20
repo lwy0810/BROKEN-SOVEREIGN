@@ -1,4 +1,5 @@
 using BrokenSovereign.Core;
+using BrokenSovereign.Skill;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -13,6 +14,10 @@ namespace BrokenSovereign.Player
     /// - Moving (bool): 행동 중이 아니면서 실제로 움직이는 중 → 공격 모션을 끊고 이동으로 전환
     /// - Attack (trigger): 기본 공격·기술 사용
     /// - AttackSpeed (float): 공격 모션 재생 배율. 공격 간격이 모션보다 짧으면 빠르게 재생
+    /// - SkillSpeed (float): 기술 모션 재생 배율 (시전 시간에 맞춤)
+    ///
+    /// 기술 모션: 기술의 AnimationState(예: SkillRadiantSmite) 상태가 있으면 그 상태로, 없으면 공격 모션.
+    /// 지속 시전 기술(난천무)은 반복 상태를 시전이 끝날 때까지 유지한 뒤 Locomotion으로 돌아갑니다.
     /// </summary>
     [RequireComponent(typeof(PlayerController))]
     public class PlayerAnimator : MonoBehaviour
@@ -21,6 +26,8 @@ namespace BrokenSovereign.Player
         private static readonly int ATTACK_ID = Animator.StringToHash("Attack");
         private static readonly int ATTACK_SPEED_ID = Animator.StringToHash("AttackSpeed");
         private static readonly int MOVING_ID = Animator.StringToHash("Moving");
+        private static readonly int SKILL_SPEED_ID = Animator.StringToHash("SkillSpeed");
+        private static readonly int LOCOMOTION_ID = Animator.StringToHash("Locomotion");
 
         [Header("연결")]
         [Tooltip("비워 두면 자식에서 찾음")]
@@ -46,6 +53,10 @@ namespace BrokenSovereign.Player
 
         private PlayerController _controller;
         private NavMeshAgent _agent;
+        private SkillCaster _caster;
+        private SkillSlot? _channelSlot;
+        private readonly System.Collections.Generic.Dictionary<string, float> _clipLengths =
+            new System.Collections.Generic.Dictionary<string, float>();
 
         public Animator Animator => _animator;
 
@@ -53,6 +64,7 @@ namespace BrokenSovereign.Player
         {
             _controller = GetComponent<PlayerController>();
             _agent = GetComponent<NavMeshAgent>();
+            _caster = GetComponent<SkillCaster>();
 
             if (_animator == null)
             {
@@ -86,6 +98,76 @@ namespace BrokenSovereign.Player
 
             _animator.SetFloat(SPEED_ID, speed, _speedDampTime, Time.deltaTime);
             _animator.SetBool(MOVING_ID, !_controller.IsActing && speed > _movingThreshold);
+
+            // 지속 시전이 끝나면 반복 모션 종료
+            if (_channelSlot.HasValue && (_caster == null || !_caster.IsChannelActive(_channelSlot.Value)))
+            {
+                _channelSlot = null;
+                _animator.CrossFadeInFixedTime(LOCOMOTION_ID, 0.15f, 0);
+            }
+        }
+
+        /// <summary>기술 모션 재생. 상태가 없으면 false (공격 모션으로 대체)</summary>
+        private bool PlaySkill(SkillSlot slot, SkillDefinition skill)
+        {
+            string state = skill.AnimationState;
+            int hash = Animator.StringToHash(state);
+
+            if (_animator == null || !_animator.HasState(0, hash))
+            {
+                return false;
+            }
+
+            float speed = 1f;
+            float factor = _caster != null ? _caster.AttackSpeedFactor : 1f;
+
+            if (skill.IsChanneled)
+            {
+                _channelSlot = slot;
+                speed = factor;
+            }
+            else
+            {
+                // 시전 시간(없으면 공격 간격) 안에 모션이 끝나도록 빠르게만 재생
+                float time = skill.CastTime > 0f ? skill.CastTime / factor : _controller.BasicAttackInterval;
+                float length = GetClipLength(state);
+
+                if (time > 0f && length > 0f)
+                {
+                    speed = Mathf.Clamp(length / (time * _attackFitRatio), 1f, _maxAttackSpeed);
+                }
+            }
+
+            _animator.SetFloat(SKILL_SPEED_ID, speed);
+            _animator.CrossFadeInFixedTime(hash, 0.05f, 0, 0f);
+            return true;
+        }
+
+        // 상태 이름(SkillX)으로 끝나는 클립 길이 (클립 이름 = 파일 이름 PaladinSkillX)
+        private float GetClipLength(string state)
+        {
+            if (_clipLengths.TryGetValue(state, out float length))
+            {
+                return length;
+            }
+
+            length = 0f;
+            RuntimeAnimatorController controller = _animator.runtimeAnimatorController;
+
+            if (controller != null)
+            {
+                foreach (AnimationClip clip in controller.animationClips)
+                {
+                    if (clip != null && clip.name.EndsWith(state))
+                    {
+                        length = clip.length;
+                        break;
+                    }
+                }
+            }
+
+            _clipLengths[state] = length;
+            return length;
         }
 
         /// <summary>공격 간격(초)에 맞춰 공격 모션을 재생합니다.</summary>
@@ -122,6 +204,13 @@ namespace BrokenSovereign.Player
 
         private void OnSkillUsed(SkillSlot slot, Vector3 point)
         {
+            SkillDefinition skill = _caster != null ? _caster.GetSkill(slot) : null;
+
+            if (skill != null && PlaySkill(slot, skill))
+            {
+                return;
+            }
+
             PlayAttack(_controller.BasicAttackInterval);
         }
 

@@ -114,10 +114,23 @@ namespace BrokenSovereign.Editor
 
             bool loop = IsLoopName(fileName);
 
+            // FBX를 같은 이름으로 교체해도 이전 클립 길이가 남지 않도록 프레임 범위를 파일 기본값으로 맞춤 (10/20)
+            ModelImporterClipAnimation[] defaults = importer.defaultClipAnimations;
+
             for (int i = 0; i < clips.Length; i++)
             {
                 ModelImporterClipAnimation clip = clips[i];
                 clip.name = clips.Length == 1 ? fileName : $"{fileName}_{i}";
+
+                foreach (ModelImporterClipAnimation source in defaults)
+                {
+                    if (source.takeName == clip.takeName)
+                    {
+                        clip.firstFrame = source.firstFrame;
+                        clip.lastFrame = source.lastFrame;
+                        break;
+                    }
+                }
                 clip.loopTime = loop;
                 clip.loopPose = loop;
                 clip.lockRootRotation = true;
