@@ -10,7 +10,7 @@ namespace BrokenSovereign.Player
     /// CharacterStats가 있으면 이동 속도를 능력치(MoveSpeed)에서 읽습니다.
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
-    public class ClickMover : MonoBehaviour
+    public class ClickMover : MonoBehaviour, ISpeedMultiplierTarget
     {
         [Tooltip("CharacterStats가 없을 때 사용하는 이동 속도")]
         [SerializeField] private float _moveSpeed = 6f;

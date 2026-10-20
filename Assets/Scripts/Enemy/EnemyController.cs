@@ -322,6 +322,12 @@ namespace BrokenSovereign.Enemy
             Stunned?.Invoke(duration);
         }
 
+        /// <summary>기절 즉시 종료 (분쇄 일격 처형 등). 띄우기 중이면 모델만 포물선대로 내려옴</summary>
+        public void EndStun()
+        {
+            _stun.Clear();
+        }
+
         private void OnDamaged(DamageInfo info)
         {
             _wasDamaged = true;

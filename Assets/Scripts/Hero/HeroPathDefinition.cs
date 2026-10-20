@@ -12,6 +12,20 @@ namespace BrokenSovereign.Hero
     [CreateAssetMenu(fileName = "HeroPathDefinition", menuName = "BrokenSovereign/Hero Path Definition")]
     public class HeroPathDefinition : ScriptableObject
     {
+        /// <summary>영웅 기술 외에 함께 장착하는 기술 (석천 5번 모드변환 등)</summary>
+        [System.Serializable]
+        public struct ExtraSkill
+        {
+            public SkillSlot Slot;
+            public SkillDefinition Skill;
+
+            public ExtraSkill(SkillSlot slot, SkillDefinition skill)
+            {
+                Slot = slot;
+                Skill = skill;
+            }
+        }
+
         [SerializeField] private string _heroId = "hero";
         [SerializeField] private string _displayName = "영웅";
 
@@ -30,6 +44,9 @@ namespace BrokenSovereign.Hero
 
         [SerializeField] private SkillSlot _heroSkillSlot = SkillSlot.Key4;
 
+        [Tooltip("함께 장착하는 기술 (예: 석천 5번 모드변환)")]
+        [SerializeField] private ExtraSkill[] _extraSkills = new ExtraSkill[0];
+
         [Header("고유 메커니즘")]
         [Tooltip("비우면 규칙 없음 (규칙 구현 전)")]
         [SerializeField] private HeroRuleDefinition _rule;
@@ -42,6 +59,7 @@ namespace BrokenSovereign.Hero
         public SkillDefinition HeroSkill => _heroSkill;
         public SkillSlot HeroSkillSlot => _heroSkillSlot;
         public HeroRuleDefinition Rule => _rule;
+        public System.Collections.Generic.IReadOnlyList<ExtraSkill> ExtraSkills => _extraSkills;
 
 #if UNITY_EDITOR
         public void EditorSetup(string id, string displayName, string title, string mechanicName, string description)
@@ -51,6 +69,15 @@ namespace BrokenSovereign.Hero
             _title = title;
             _mechanicName = mechanicName;
             _description = description;
+        }
+
+        public void EditorSetSkills(SkillDefinition heroSkill, SkillSlot heroSkillSlot, ExtraSkill[] extraSkills,
+            HeroRuleDefinition rule)
+        {
+            _heroSkill = heroSkill;
+            _heroSkillSlot = heroSkillSlot;
+            _extraSkills = extraSkills;
+            _rule = rule;
         }
 #endif
     }

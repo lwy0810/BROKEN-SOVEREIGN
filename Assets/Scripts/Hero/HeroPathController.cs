@@ -1,5 +1,6 @@
 using System;
 using BrokenSovereign.Combat;
+using BrokenSovereign.Core;
 using BrokenSovereign.Skill;
 using UnityEngine;
 
@@ -60,15 +61,30 @@ namespace BrokenSovereign.Hero
         /// <summary>영웅 기술을 지정 슬롯에 다시 장착 (직업 전환으로 기술 구성이 초기화된 뒤 호출)</summary>
         public void RefreshSkill()
         {
-            if (Current == null || Current.HeroSkill == null || _caster == null)
+            if (Current == null || _caster == null)
+            {
+                return;
+            }
+
+            Equip(Current.HeroSkillSlot, Current.HeroSkill);
+
+            foreach (HeroPathDefinition.ExtraSkill extra in Current.ExtraSkills)
+            {
+                Equip(extra.Slot, extra.Skill);
+            }
+        }
+
+        private void Equip(SkillSlot slot, SkillDefinition skill)
+        {
+            if (skill == null)
             {
                 return;
             }
 
             SkillLoadout loadout = _caster.Loadout;
-            loadout.SetCandidates(Current.HeroSkillSlot, new[] { Current.HeroSkill });
-            loadout.Unlock(Current.HeroSkill);
-            loadout.Equip(Current.HeroSkillSlot, Current.HeroSkill, false);
+            loadout.SetCandidates(slot, new[] { skill });
+            loadout.Unlock(skill);
+            loadout.Equip(slot, skill, false);
         }
     }
 }

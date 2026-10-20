@@ -1,4 +1,5 @@
 using BrokenSovereign.Combat;
+using BrokenSovereign.Core;
 using UnityEngine;
 
 namespace BrokenSovereign.Skill
@@ -36,6 +37,15 @@ namespace BrokenSovereign.Skill
 
         /// <summary>동작별 시전 상태 저장 (SkillBehaviour 에셋은 공유되므로 시전마다 여기에 보관)</summary>
         public object State { get; set; }
+
+        /// <summary>시전 비용 자원 (마나). 지속 시전의 유지 비용 소모용. 없으면 null</summary>
+        public ISkillResource Resource { get; set; }
+
+        /// <summary>지속 시전: 마지막으로 키 유지가 확인된 시각 (Time.time)</summary>
+        public float LastHeldTime { get; set; }
+
+        /// <summary>지속 시전: 키를 뗐으면 true (다음 Tick에서 종료)</summary>
+        public bool IsReleased { get; set; }
 
         public SkillContext(SkillDefinition definition, Transform caster, Vector3 cursorPoint,
             SkillParameterSet parameters, StatSheet stats, LayerMask targetMask, bool isEmpowered = false)

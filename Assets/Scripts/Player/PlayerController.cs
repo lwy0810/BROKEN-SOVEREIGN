@@ -21,6 +21,9 @@ namespace BrokenSovereign.Player
         [SerializeField] private BasicAttack _basicAttack = new BasicAttack();
         [SerializeField] private float _heldSkillRepeatInterval = 0.5f;
 
+        // 지속 시전 중 커서가 이 거리(m) 안이면 이동하지 않음 (제자리 회전)
+        private const float CHANNEL_STOP_DISTANCE = 0.6f;
+
         [Tooltip("선택한 대상이 이 거리(m)보다 멀어지면 선택 해제")]
         [SerializeField] private float _targetKeepDistance = 20f;
 
@@ -74,6 +77,9 @@ namespace BrokenSovereign.Player
             _potion = GetComponent<PotionUser>();
             _health = GetComponent<Health>();
             _skillCaster = GetComponent<SkillCaster>();
+
+            // 기본 공격 사거리에 소유자 수정치 반영 (석천 장봉 등)
+            _basicAttack.BindOwner(transform);
 
             // 즉시 발동 기술도 기본 공격과 같은 간격 사용 (값은 Basic Attack의 Interval 한 곳에서만 정함)
             if (_skillCaster != null)
@@ -317,6 +323,52 @@ namespace BrokenSovereign.Player
 
             _nextHeldSkillTime = Time.time + HeldSkillRepeatInterval;
             UseSkill(slot, point);
+        }
+
+        /// <summary>지속 시전 기술인지 (키 유지 동안 진행, 난천무 등)</summary>
+        public bool IsChannelSkill(SkillSlot slot)
+        {
+            return _skillCaster != null && _skillCaster.IsChanneled(slot);
+        }
+
+        /// <summary>
+        /// 지속 시전 키 유지: 커서 쪽으로 이동하며 시전 유지 (매 프레임 호출).
+        /// 처음 호출이면 시전, 이후에는 SkillCaster가 유지만 갱신합니다.
+        /// </summary>
+        public void ChannelSkill(SkillSlot slot, Vector3 point)
+        {
+            if (IsActionLocked)
+            {
+                return;
+            }
+
+            ClearEngage();
+            Vector3 offset = point - transform.position;
+            offset.y = 0f;
+
+            if (offset.sqrMagnitude > CHANNEL_STOP_DISTANCE * CHANNEL_STOP_DISTANCE)
+            {
+                _mover.MoveTo(point);
+                State = PlayerState.Moving;
+            }
+            else if (State == PlayerState.Moving)
+            {
+                _mover.Stop();
+                State = PlayerState.Idle;
+            }
+
+            UseSkill(slot, point);
+        }
+
+        /// <summary>지속 시전 키를 뗐을 때: 시전 종료 + 이동 정지</summary>
+        public void StopChannel(SkillSlot slot)
+        {
+            _skillCaster?.ReleaseChannel(slot);
+
+            if (State == PlayerState.Moving)
+            {
+                StopMoving();
+            }
         }
 
         /// <summary>

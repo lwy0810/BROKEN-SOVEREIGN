@@ -16,11 +16,14 @@ MonoBehaviour:
   _displayName: "\uC11D\uCC9C"
   _title: "\uD22C\uC804\uC131\uC790"
   _mechanicName: "\uC0AC\uAC70\uB9AC \uC804\uD658"
-  _description: "\uC801\uACFC\uC758 \uAC70\uB9AC\uC5D0 \uB530\uB77C \uC2E0\uBD09
-    \uAE38\uC774\uAC00 \uBC14\uB010\uB2E4.\n\uAC00\uAE4C\uC6B0\uBA74 \uBE60\uB978
-    \uC5F0\uD0C0, \uBA40\uBA74 \uB113\uC740 \uD718\uB450\uB974\uAE30.\n\uB09C\uCC9C\uBB34\uB85C
+  _description: "\uBAA8\uB4DC\uBCC0\uD658\uC73C\uB85C \uC2E0\uBD09 \uAE38\uC774\uB97C
+    \uBC14\uAFBC\uB2E4.\n\uC7A5\uBD09\uC740 \uBA40\uB9AC \uC77C\uC9C1\uC120\uC73C\uB85C,
+    \uB2E8\uBD09\uC740 \uAC15\uD558\uAC8C \uAFF0\uB6AB\uB294\uB2E4.\n\uB09C\uCC9C\uBB34\uB85C
     \uD68C\uC804\uD558\uBA70 \uC801\uC744 \uC4F8\uC5B4 \uB2F4\uB294\uB2E4.\n\n\uD718\uC800\uC73C\uBA70
     \uC4F8\uC5B4 \uB2F4\uB294 \uC704\uCE58 \uC6B4\uC601\uD615"
-  _heroSkill: {fileID: 0}
+  _heroSkill: {fileID: 11400000, guid: 673d336b721bbe34490cdd113f494e45, type: 2}
   _heroSkillSlot: 5
-  _rule: {fileID: 0}
+  _extraSkills:
+  - Slot: 6
+    Skill: {fileID: 11400000, guid: d52850f927f6d914caadf003453fb9bd, type: 2}
+  _rule: {fileID: 11400000, guid: ef4862eac9613654d93a71f4c7304d4d, type: 2}

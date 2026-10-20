@@ -32,6 +32,9 @@ namespace BrokenSovereign.Player
 
         private bool _isPrimaryHeld;
         private bool _isSecondaryHeld;
+
+        // 숫자 키별 지속 시전 유지 중 여부 (떼는 순간 StopChannel)
+        private readonly bool[] _isChannelHeld = new bool[6];
         private bool _isAttackPress;
         private bool _isSkillPress;
 
@@ -140,8 +143,16 @@ namespace BrokenSovereign.Player
 
             for (int i = 0; i < _skillKeys.Length; i++)
             {
+                SkillSlot slot = SkillSlot.Key1 + i;
+
                 if (!_skillKeys[i].IsPressed())
                 {
+                    if (_isChannelHeld[i])
+                    {
+                        _isChannelHeld[i] = false;
+                        _controller.StopChannel(slot);
+                    }
+
                     continue;
                 }
 
@@ -151,7 +162,15 @@ namespace BrokenSovereign.Player
                     hasPoint = true;
                 }
 
-                _controller.UseSkill(SkillSlot.Key1 + i, point);
+                // 지속 시전(난천무 등): 커서 쪽으로 이동하며 유지
+                if (_controller.IsChannelSkill(slot))
+                {
+                    _isChannelHeld[i] = true;
+                    _controller.ChannelSkill(slot, point);
+                    continue;
+                }
+
+                _controller.UseSkill(slot, point);
             }
         }
 

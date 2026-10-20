@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62fc366054784d91af65406481d5053f, type: 3}
   m_Name: HeavenSoldierElite
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Enemy.EnemyDefinition
+  _rank: 1
   _detectRange: 8
   _loseRangeMultiplier: 2
   _leashDistance: 20
