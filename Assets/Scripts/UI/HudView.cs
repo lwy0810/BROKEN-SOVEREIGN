@@ -84,6 +84,15 @@ namespace BrokenSovereign.UI
         private NpcDialogView _npcDialog;
         private MinimapView _minimap;
         private WorldMapView _worldMap;
+        private BossHudView _bossHud;
+        private StatusLabelView _statusLabels;
+        private DamageNumberView _damageNumbers;
+        private SkillWindowView _skillWindow;
+        private CharacterWindowView _characterWindow;
+        private OutcomeScreenView _outcome;
+        private Health _frameTarget;
+        private float _noticeStartTime = float.NegativeInfinity;
+        private bool _noticeEmphasis;
         private HeroPathController _hero;
         private RectTransform _expRoot;
         private Image _expFill;
@@ -246,13 +255,13 @@ namespace BrokenSovereign.UI
 
         private void OnAscended(AscensionTier tier)
         {
-            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}");
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}", true);
         }
 
         // 격 돌파 알림에 전직을 이어 붙임 (JobChanged 알림이 돌파 알림을 덮어쓰지 않도록)
         private void OnJobAdvanced(JobDefinition job)
         {
-            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(_progression.Tier)} · {job.DisplayName} 전직");
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(_progression.Tier)} · {job.DisplayName} 전직", true);
         }
 
         private void OnJobSelectionRequested()
@@ -270,13 +279,16 @@ namespace BrokenSovereign.UI
 
         private void OnHeroPathChosen(HeroPathDefinition path)
         {
-            ShowNotice($"영웅의 길 — {path.DisplayName} ({path.Title})");
+            ShowNotice($"영웅의 길 — {path.DisplayName} ({path.Title})", true);
         }
 
-        private void ShowNotice(string message)
+        // emphasis: 격 돌파·영웅의 길처럼 큰 사건은 크게 튀어나왔다 줄어드는 연출
+        private void ShowNotice(string message, bool emphasis = false)
         {
             _noticeText.text = message;
-            _noticeEndTime = Time.time + _jobDisplay.NoticeDuration;
+            _noticeStartTime = Time.time;
+            _noticeEmphasis = emphasis;
+            _noticeEndTime = Time.time + _jobDisplay.NoticeDuration * (emphasis ? 1.5f : 1f);
         }
 
         // 경험치 막대와 "직업 · 격 · 레벨" 표시 (값이 바뀔 때만 문자열 갱신)
@@ -374,7 +386,16 @@ namespace BrokenSovereign.UI
             float fade = _jobDisplay.NoticeFadeTime;
             color.a *= fade > 0f ? Mathf.Clamp01(remaining / fade) : 1f;
             _noticeText.color = color;
+
+            // 등장 순간 크게 → 0.3초에 걸쳐 원래 크기
+            float punch = _noticeEmphasis ? NOTICE_PUNCH_EMPHASIS : NOTICE_PUNCH;
+            float t = 1f - Mathf.Clamp01((Time.time - _noticeStartTime) / NOTICE_PUNCH_TIME);
+            _noticeText.rectTransform.localScale = Vector3.one * (1f + punch * t * t);
         }
+
+        private const float NOTICE_PUNCH = 0.15f;
+        private const float NOTICE_PUNCH_EMPHASIS = 0.5f;
+        private const float NOTICE_PUNCH_TIME = 0.3f;
 
         // 지속 중인 기술 버프 (불굴의 갑주 등)와 남은 시간
         private void UpdateBuffs()
@@ -439,6 +460,20 @@ namespace BrokenSovereign.UI
         private void UpdateTarget()
         {
             Health target = _player.CurrentTarget;
+            bool bossShowing = _bossHud != null && _bossHud.IsShowing;
+
+            // 보스를 선택하면 상단 보스 체력바가 대신 보여 주므로 대상 게이지는 숨김.
+            // 다른 대상을 고르면 보스 체력바 아래로 내려 겹치지 않게 함
+            Health frameTarget = bossShowing && target == _bossHud.ShownHealth ? null : target;
+            float top = _target.TopMargin + (bossShowing ? _bossHud.OccupiedHeight : 0f);
+            Vector2 position = _targetFrame.Rect.anchoredPosition;
+            _targetFrame.Rect.anchoredPosition = new Vector2(position.x, -top);
+
+            if (frameTarget != _frameTarget)
+            {
+                _frameTarget = frameTarget;
+                _targetFrame.SetTarget(frameTarget);
+            }
 
             if (target == _shownTarget)
             {
@@ -446,7 +481,6 @@ namespace BrokenSovereign.UI
             }
 
             _shownTarget = target;
-            _targetFrame.SetTarget(target);
             _targetRing.SetTarget(target);
         }
 
@@ -503,8 +537,28 @@ namespace BrokenSovereign.UI
             _potionSlot = CreateSlot("Slot_Potion", "Q");
             _dodgeSlot = CreateSlot("Slot_Dodge", "SPACE");
 
+            // 데미지 숫자는 다른 HUD 아래에 그리도록 먼저 생성
+            _damageNumbers = HudGraphics.CreateRect("DamageNumbers", transform).gameObject.AddComponent<DamageNumberView>();
+            _damageNumbers.Initialize(_player.gameObject);
+
+            // 적 머리 위 효과 이름 (도발·기절 등)
+            _statusLabels = HudGraphics.CreateRect("StatusLabels", transform).gameObject.AddComponent<StatusLabelView>();
+            _statusLabels.Initialize(_player.gameObject);
+
+            // 바닥 클릭 이동 표식 (월드에 그리므로 Canvas 밖, 1개만 재사용)
+            PlayerInputHandler input = _player.GetComponent<PlayerInputHandler>();
+
+            if (input != null)
+            {
+                new GameObject("MoveMarker", typeof(LineRenderer)).AddComponent<MoveMarkerView>().Initialize(input);
+            }
+
             _targetFrame = HudGraphics.CreateRect("TargetFrame", transform).gameObject.AddComponent<TargetFrameView>();
             _targetFrame.Initialize();
+
+            // 상단 보스 체력바 (BossStatus가 붙은 적과 교전 중일 때만)
+            _bossHud = HudGraphics.CreateRect("BossHud", transform).gameObject.AddComponent<BossHudView>();
+            _bossHud.Initialize();
 
             // 원 테두리는 월드에 그리므로 Canvas 밖에 생성
             _targetRing = new GameObject("TargetRing", typeof(LineRenderer)).AddComponent<TargetRingView>();
@@ -580,6 +634,16 @@ namespace BrokenSovereign.UI
                 _npcDialog.Initialize(interactor);
             }
 
+            // 기술 창(K)·캐릭터 창(C)
+            if (_caster != null)
+            {
+                _skillWindow = HudGraphics.CreateRect("SkillWindow", transform).gameObject.AddComponent<SkillWindowView>();
+                _skillWindow.Initialize(_caster);
+            }
+
+            _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
+            _characterWindow.Initialize(_player.gameObject);
+
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
             _jobSelect.Initialize(_job);
@@ -591,6 +655,14 @@ namespace BrokenSovereign.UI
                 _heroSelect.Initialize(_hero);
                 _heroSelect.PathChosen += OnHeroPathChosen;
             }
+
+            // 사망·클리어 화면: 모든 UI 위
+            if (_health != null)
+            {
+                _outcome = HudGraphics.CreateRect("Outcome", transform).gameObject.AddComponent<OutcomeScreenView>();
+                _outcome.Initialize(_health);
+            }
+
             _isBuilt = true;
         }
 

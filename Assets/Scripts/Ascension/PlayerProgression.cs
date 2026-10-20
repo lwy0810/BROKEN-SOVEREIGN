@@ -97,6 +97,25 @@ namespace BrokenSovereign.Ascension
         public bool IsMaxLevel => Model.IsMaxLevel;
         public AscensionTier Tier { get; private set; } = AscensionTier.Mortal;
 
+        /// <summary>다음 격 돌파 조건 안내 (캐릭터 창)</summary>
+        public string NextAscensionHint
+        {
+            get
+            {
+                switch (Tier)
+                {
+                    case AscensionTier.Mortal:
+                        return _job != null && !_job.HasJob
+                            ? $"Lv {_level.JobSelectLevel}에 직업 선택 → Lv {_ascension.SuperhumanLevel} 달성 시 초인"
+                            : $"Lv {_ascension.SuperhumanLevel} 달성 시 초인 (현재 Lv {Level})";
+                    case AscensionTier.Superhuman:
+                        return $"Lv {_ascension.DemigodLevel} 달성 시 반신 (현재 Lv {Level})";
+                    default:
+                        return "최고 격 도달 (프로토타입 범위: 반신까지)";
+                }
+            }
+        }
+
         /// <summary>무직이고 직업 선택 레벨에 도달함 (직업 선택 화면을 열어야 함)</summary>
         public bool IsJobSelectionPending => _job != null && !_job.HasJob && Level >= _level.JobSelectLevel;
 
