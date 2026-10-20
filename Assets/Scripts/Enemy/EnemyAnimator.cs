@@ -55,12 +55,17 @@ namespace BrokenSovereign.Enemy
             bool frozen = _controller.IsStunned || _controller.IsAirborne || _controller.State == EnemyState.Dead;
             _animator.speed = frozen ? 0f : 1f;
 
+            EnemyState state = _controller.State;
+
+            // 공격 중에는 이동으로 보지 않음: 플레이어와 부딪혀 밀린 속도가 Moving을 켜면
+            // 공격 모션이 이동 전이로 끊김 (10/20 버그). 공격 판정은 원래 끝까지 진행됨
+            bool attacking = state == EnemyState.Attack;
             float maxSpeed = _agent != null && _agent.speed > 0f ? _agent.speed : 1f;
-            float speed = _agent != null && _agent.enabled ? Mathf.Clamp01(_agent.velocity.magnitude / maxSpeed) : 0f;
+            float speed = !attacking && _agent != null && _agent.enabled
+                ? Mathf.Clamp01(_agent.velocity.magnitude / maxSpeed)
+                : 0f;
             _animator.SetFloat(SPEED, speed);
             _animator.SetBool(MOVING, speed > _movingThreshold);
-
-            EnemyState state = _controller.State;
 
             if (state == EnemyState.Attack && _lastState != EnemyState.Attack)
             {
