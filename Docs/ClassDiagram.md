@@ -801,7 +801,7 @@ classDiagram
 
 ## 8. Hero
 
-영웅의 길 정의, 영웅 고유 메커니즘 규칙 객체, 성물 기술 변형
+영웅의 길 정의, 영웅 고유 메커니즘 규칙 객체, 성물 기술 변형 (10/20 석천·야로미르 구현 기준)
 
 ```mermaid
 classDiagram
@@ -809,15 +809,15 @@ classDiagram
         <<ScriptableObject>>
         -string _heroId
         -string _displayName
-        -RelicDefinition _sacredRelic
         -SkillDefinition _heroSkill
+        -SkillSlot _heroSkillSlot
+        -ExtraSkill[] _extraSkills
         -HeroRuleDefinition _rule
-        -List~SkillVisualOverride~ _visualOverrides
     }
-    class SkillVisualOverride {
+    class ExtraSkill {
         <<struct>>
+        +SkillSlot Slot
         +SkillDefinition Skill
-        +GameObject VfxPrefab
     }
     class HeroRuleDefinition {
         <<abstract ScriptableObject>>
@@ -833,52 +833,68 @@ classDiagram
         <<pure>>
         +GameObject Player
         +SkillCaster Caster
-        +StatSheet Stats
+        +CharacterStats Stats
     }
     class HeroPathController {
         <<MonoBehaviour>>
-        -HeroPathDefinition _current
+        +HeroPathDefinition Current
         -HeroRule _rule
-        +SelectPath(HeroPathDefinition path)
-        +GetVfx(SkillDefinition skill) GameObject
+        +SelectPath(HeroPathDefinition path) bool
+        +RefreshSkill()
     }
     class CrushRuleDefinition {
         <<ScriptableObject>>
-        -float _staggerPerCoefficient
+        -float _normalPoise
+        -float _elitePoise
+        -float _bossPoise
+        -float _poisePerCoefficient
+        +MaxPoise(EnemyRank rank) float
+        +StaggerDuration(EnemyRank rank) float
     }
     class CrushRule {
         <<pure>>
-        -OnDamageDealt(DamageDealtEvent e)
+        -OnAnyDamaged(Health victim, DamageInfo info)
+    }
+    class PoiseReceiver {
+        <<MonoBehaviour>>
+        +bool ShowBar
+        +Hit(float amount)
+        +float DamageTakenMultiplier
     }
     class IStaggerable {
         <<interface>>
-        +StaggerGauge Gauge
-        +ReduceStagger(float amount)
-        +bool IsBroken
+        +bool IsStaggered
+        +ReduceRatio(float ratio)
+        +EndStagger()
     }
-    class StaggerGauge {
+    class PoiseGauge {
         <<pure>>
         +float Current
         +float Max
-        +bool IsBroken
-        +Reduce(float amount, float now) bool
-        +Tick(float now)
-        +Recover()
+        +Reduce(float amount, float now, float staggerDuration) bool
+        +EndStagger(float now)
+        +Tick(float now, float dt)
     }
     class ReachShiftRuleDefinition {
         <<ScriptableObject>>
-        -float _nearDistance
-        -float _farDistance
-        -SkillParameterSet _shortStaff
-        -SkillParameterSet _longStaff
+        +ReachShiftSettings Settings
+        +string ToggleSkillId
     }
     class ReachShiftRule {
         <<pure>>
-        +StaffLength CurrentLength
-        +Modify(SkillDefinition skill, SkillContext ctx)
+    }
+    class StaffReachMode {
+        <<MonoBehaviour>>
+        +StaffMode Mode
+        +ToggleMode()
+        +ModifyBasicAttack(ref BasicAttackProfile p)
+    }
+    class ReachShift {
+        <<static pure>>
+        +Apply(StaffMode mode, ReachShiftSettings s, ref BasicAttackProfile p)
     }
     HeroPathDefinition --> HeroRuleDefinition
-    HeroPathDefinition --> SkillVisualOverride
+    HeroPathDefinition --> ExtraSkill
     HeroRuleDefinition ..> HeroRule : 생성
     HeroRule --> HeroRuleContext
     HeroPathController --> HeroPathDefinition
@@ -887,17 +903,26 @@ classDiagram
     HeroRuleDefinition <|-- ReachShiftRuleDefinition
     HeroRule <|-- CrushRule
     HeroRule <|-- ReachShiftRule
-    ReachShiftRule ..|> ISkillParameterModifier
-    CrushRule ..> IStaggerable : 게이지 감소
-    IStaggerable --> StaggerGauge
+    CrushRule ..> PoiseReceiver : 적에 추가·게이지 감소
+    PoiseReceiver ..|> IStaggerable
+    PoiseReceiver ..|> IDamageTakenModifier
+    PoiseReceiver --> PoiseGauge
+    ReachShiftRule ..> StaffReachMode : 플레이어에 추가
+    StaffReachMode ..|> IBasicAttackModifier
+    StaffReachMode ..|> IModeToggle
+    StaffReachMode ..|> ISkillLabelSource
+    StaffReachMode ..> ReachShift
 ```
 
-- 규칙 객체 수명: `SelectPath`에서 `CreateRule` → `Activate`(이벤트 구독·등록), 사망·씬 종료 시 `Deactivate`(해제)
-- 야로미르(분쇄): `CrushRule`이 `DamageDealtEvent`를 구독해 대상 `IStaggerable`의 버팀 게이지를 계수 × 10만큼 감소. 0이 되면 적이 무력화(기존 `IStunnable.Stun` + 받는 피해 증가 수정치)하고 `EnemyStaggeredEvent` 발행. 분쇄 일격은 `ExecuteStrikeBehaviour`가 `IsBroken`이면 처형 수치 적용
-- `StaggerGauge`는 순수 클래스 (게이지 감소·회복 대기·무력화 후 저항 시간). 영웅 미선택 시에도 적 컴포넌트에 존재하며 감소 주체만 영웅 규칙
-- 석천(사거리 전환): 5번 기술 모드변환으로 장봉·단봉 전환 → `ISkillParameterModifier`로 좌클릭 수치 교체 (장봉: 사거리·다중 타격, 단봉: 피해·방어 관통). 2026-10-15 자동 전환에서 변경
-- 성물 기술 변형: `_visualOverrides`로 이펙트 프리팹만 교체 (영웅 2명 × 기술 3개 = 6개). `SkillBehaviour`는 `HeroPathController.GetVfx` 결과 사용
-- 무력화 알림(금이 간 방패 표시): `EnemyStaggeredEvent` 발행 → UI 구독
+- 규칙 객체 수명: `SelectPath`에서 `CreateRule` → `Activate`(이벤트 구독·컴포넌트 추가), 플레이어 제거 시 `Deactivate`(해제)
+- 영웅 기술: `_heroSkill`(4번) + `_extraSkills`(석천 5번 모드변환). 직업 전환으로 기술 구성이 초기화되면 `RefreshSkill`이 모두 다시 장착
+- 야로미르(분쇄): `CrushRule`이 `Health.AnyDamaged`를 구독 → 플레이어가 피해를 준 적에게 `PoiseReceiver`를 붙이고(등급별 최대치) 피해 계수(`DamageInfo.Coefficient`) × 10만큼 감소. 0이 되면 `IStunnable.Stun`(일반·정예 3초, 보스 2초) + 받는 피해 +25%(`IDamageTakenModifier`), 끝난 뒤 10초 면역
+- 분쇄 일격: `CrushStrikeBehaviour`(SingleStrike 파생)가 대상 `IStaggerable.IsStaggered`면 처형(600% + 2.5m 충격파 150% + `EndStagger`), 아니면 300% + 충만 시 게이지 50% 감소
+- 적 등급: `EnemyDefinition._rank` (일반·정예·보스). 정예·보스만 대상 프레임에 버팀 막대 (`TargetFrameView`)
+- 석천(사거리 전환): `ReachShiftRule`이 플레이어에 `StaffReachMode`(단봉 시작)를 붙임. 5번 모드변환(`ModeToggleBehaviour` → `IModeToggle`)으로 전환, `BasicAttack`이 `IBasicAttackModifier`로 좌클릭 수치 교체 (장봉: 사거리 +1.5m·일직선 3명·×0.75 / 단봉: ×1.3·방어 관통 30%). 10/15 설계의 `ISkillParameterModifier`는 기본 공격이 기술이 아니어서 기본 공격 전용 연결 지점으로 대체 (10/20)
+- 난천무: `SpinningStaffBehaviour` + `SkillDefinition._channeled`(지속 시전). 키 유지 동안 `PlayerController.ChannelSkill`이 커서 쪽 이동, `SkillCaster`는 유지만 갱신, 키를 떼면 `ReleaseChannel`. 0.5초마다 반경 2.5m, 이동 속도 ×0.8(`ISpeedMultiplierTarget`), 유지 비용 초당 15
+- HUD: `ISkillLabelSource`로 5번 슬롯 이름에 현재 모드 표시 ("모드변환 · 단봉")
+- 성물 기술 변형(`SkillVisualOverride`)은 프로토타입 제외 (10/14 조정)
 - 클래스 이름은 영웅 이름이 아닌 메커니즘 이름 사용 (영웅 이름·칭호 변경에 영향받지 않도록)
 
 ## 9. Relic · Equipment
