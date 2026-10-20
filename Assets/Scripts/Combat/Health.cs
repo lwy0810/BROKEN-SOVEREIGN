@@ -8,7 +8,8 @@ namespace BrokenSovereign.Combat
     /// 체력. 피해 적용, 회복, 사망 판정을 담당합니다.
     /// 같은 오브젝트의 IInvulnerabilitySource가 무적이면 피해를 무시합니다 (회피 무적, GDD 6.1).
     /// CharacterStats가 있으면 최대 체력·생명력 회복·회피율·방어력·원소 저항·피해 감소를 능력치에서 읽습니다.
-    /// 피해 처리 순서: 무적 → 회피율 판정 → 속성 감소(방어력·원소 저항) × 전체 피해 감소 → 체력 차감.
+    /// 피해 처리 순서: 무적 → 회피율 판정 → 속성 감소(방어력·원소 저항, 방어 관통 반영) × 전체 피해 감소
+    /// → 받는 피해 배율(IDamageTakenModifier, 무력화 등) → 체력 차감.
     /// </summary>
     [DisallowMultipleComponent]
     public class Health : MonoBehaviour, IDamageable
@@ -21,6 +22,8 @@ namespace BrokenSovereign.Combat
 
         private bool _hasDied;
         private IInvulnerabilitySource[] _invulnerabilitySources;
+        private readonly System.Collections.Generic.List<IDamageTakenModifier> _takenModifiers =
+            new System.Collections.Generic.List<IDamageTakenModifier>();
         private CharacterStats _stats;
 
         public float Current => _current;
@@ -132,7 +135,16 @@ namespace BrokenSovereign.Combat
                     return;
                 }
 
-                final = info.WithAmount(DamageCalculator.ApplyMitigation(info.Amount, sheet.GetMitigation(info.Type)));
+                final = info.WithAmount(DamageCalculator.ApplyMitigation(info.Amount,
+                    sheet.GetMitigation(info.Type, info.ArmorPenetration)));
+            }
+
+            // 받는 피해 배율 (무력화 +25% 등). 런타임에 붙는 컴포넌트라 매번 조회
+            GetComponents(_takenModifiers);
+
+            foreach (IDamageTakenModifier modifier in _takenModifiers)
+            {
+                final = final.WithAmount(final.Amount * Mathf.Max(0f, modifier.DamageTakenMultiplier));
             }
 
             _current = Mathf.Max(0f, _current - final.Amount);

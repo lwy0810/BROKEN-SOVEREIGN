@@ -12,7 +12,7 @@ namespace BrokenSovereign.Skill
     [CreateAssetMenu(fileName = "SingleStrikeBehaviour", menuName = "BrokenSovereign/Skill Behaviour/Single Strike")]
     public class SingleStrikeBehaviour : SkillBehaviour
     {
-        private const float FALLBACK_ATTACK_POWER = 100f;
+        protected const float FALLBACK_ATTACK_POWER = 100f;
 
         [Tooltip("커서 지점에서 이 반경 안의 적을 우선 대상으로 선택 (m)")]
         [SerializeField] private float _cursorPickRadius = 1f;
@@ -50,6 +50,13 @@ namespace BrokenSovereign.Skill
                     _areaDuration);
             }
 
+            Strike(context, target, targetPosition, coefficient);
+        }
+
+        /// <summary>대상 타격. 파생 동작(분쇄 일격 등)이 처형·충격파 같은 추가 효과를 덧붙임</summary>
+        protected virtual void Strike(SkillContext context, IDamageable target, Vector3 targetPosition,
+            float coefficient)
+        {
             DamageInfo info = AttackDamage.Build(context.Caster.gameObject, context.Stats, coefficient,
                 FALLBACK_ATTACK_POWER, false);
             target.ApplyDamage(info);

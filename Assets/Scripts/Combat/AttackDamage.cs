@@ -10,13 +10,15 @@ namespace BrokenSovereign.Combat
     public static class AttackDamage
     {
         /// <param name="stats">공격자 능력치. null이면 fallbackAttackPower로 계산 (치명타 없음)</param>
+        /// <param name="armorPenetration">방어 관통 (0.3 = 대상 방어력 30% 무시)</param>
         public static DamageInfo Build(GameObject attacker, StatSheet stats, float coefficient,
-            float fallbackAttackPower, bool isBasicAttack, DamageType type = DamageType.Physical)
+            float fallbackAttackPower, bool isBasicAttack, DamageType type = DamageType.Physical,
+            float armorPenetration = 0f)
         {
             if (stats == null)
             {
                 float plain = DamageCalculator.Calculate(new DamageRequest(fallbackAttackPower, coefficient));
-                return new DamageInfo(attacker, plain, isBasicAttack, type);
+                return new DamageInfo(attacker, plain, isBasicAttack, type, false, coefficient, armorPenetration);
             }
 
             bool isCritical = StatFormula.RollCrit(stats.Get(StatType.CritChance), Random.value);
@@ -30,7 +32,7 @@ namespace BrokenSovereign.Combat
                 stats.MainStatDamageMultiplier,
                 critMultiplier));
 
-            return new DamageInfo(attacker, amount, isBasicAttack, type, isCritical);
+            return new DamageInfo(attacker, amount, isBasicAttack, type, isCritical, coefficient, armorPenetration);
         }
     }
 }

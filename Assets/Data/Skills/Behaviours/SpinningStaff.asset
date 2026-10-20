@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c42707fe7e9b584c87c6f2bbdc66d31, type: 3}
+  m_Name: SpinningStaff
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SpinningStaffBehaviour
+  _holdGrace: 0.25
+  _spinSpeed: 900
+  _showArea: 1
+  _areaColor: {r: 1, g: 0.82, b: 0.3, a: 0.35}
+  _finishColor: {r: 1, g: 0.6, b: 0.1, a: 0.5}
+  _areaDuration: 0.15

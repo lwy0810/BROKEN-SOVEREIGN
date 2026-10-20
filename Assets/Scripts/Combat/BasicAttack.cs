@@ -11,6 +11,7 @@ namespace BrokenSovereign.Combat
     /// 공격자에게 CharacterStats가 있으면 공격력·피해 증가·주 스탯·치명타·공격 속도를 능력치에서 읽고,
     /// 없으면 아래 기본값을 사용합니다. 방어 측 감소(방어력·회피)는 대상 Health가 적용합니다.
     /// 원거리 기본 공격이 필요하면 Range를 늘리거나 ITargetedAction을 구현한 별도 클래스로 교체합니다.
+    /// 공격자의 IBasicAttackModifier(석천 모드변환 등)가 사거리·계수·방어 관통·일직선 다중 타격을 바꿉니다.
     /// </summary>
     [Serializable]
     public class BasicAttack : ITargetedAction
@@ -43,8 +44,47 @@ namespace BrokenSovereign.Combat
         private float _nextReadyTime;
         private float _lastInterval = -1f;
         private float _lastActionTime;
+        private Transform _owner;
 
-        public float Range => _range;
+        private static readonly System.Collections.Generic.List<IBasicAttackModifier> _modifierBuffer =
+            new System.Collections.Generic.List<IBasicAttackModifier>();
+        private static readonly System.Collections.Generic.List<IDamageable> _lineBuffer =
+            new System.Collections.Generic.List<IDamageable>();
+
+        /// <summary>현재 사거리 (소유자 수정치 반영: 석천 장봉 +1.5m 등)</summary>
+        public float Range => _range + GetProfile(_owner).RangeBonus;
+
+        /// <summary>사거리 계산에 쓸 소유자 연결 (PlayerController가 Awake에서 호출)</summary>
+        public void BindOwner(Transform owner)
+        {
+            _owner = owner;
+        }
+
+        /// <summary>공격자 수정치를 모두 적용한 판정 방식</summary>
+        public static BasicAttackProfile GetProfile(Transform attacker)
+        {
+            BasicAttackProfile profile = BasicAttackProfile.Default;
+
+            if (attacker == null)
+            {
+                return profile;
+            }
+
+            attacker.GetComponents(_modifierBuffer);
+
+            foreach (IBasicAttackModifier modifier in _modifierBuffer)
+            {
+                if (modifier is Behaviour behaviour && !behaviour.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                modifier.ModifyBasicAttack(ref profile);
+            }
+
+            _modifierBuffer.Clear();
+            return profile;
+        }
 
         /// <summary>마지막 공격에 적용된 공격 간격 (공격 속도 반영). HUD 재사용 대기 표시용</summary>
         public float Interval => _lastInterval > 0f ? _lastInterval : _interval;
@@ -87,12 +127,21 @@ namespace BrokenSovereign.Combat
             _lastActionTime = Mathf.Min(_actionTime, baseInterval) / (1f + attackSpeed);
 
             Vector3 origin = attacker.position;
-            Vector3 forward = point - origin;
+            Vector3 forward = (target != null ? target.position : point) - origin;
             forward.y = 0f;
 
             if (forward.sqrMagnitude < 0.0001f)
             {
                 forward = attacker.forward;
+            }
+
+            BasicAttackProfile profile = GetProfile(attacker);
+            float range = _range + profile.RangeBonus;
+
+            if (profile.IsLine)
+            {
+                ExecuteLine(attacker, target, origin, forward, range, profile, stats, point.y);
+                return true;
             }
 
             IDamageable victim = null;
@@ -108,13 +157,13 @@ namespace BrokenSovereign.Combat
             }
             else
             {
-                AttackArea.TryFindClosestInCone(origin, forward, _range, _inPlaceAngle, _targetMask,
+                AttackArea.TryFindClosestInCone(origin, forward, range, _inPlaceAngle, _targetMask,
                     out victim, out _);
             }
 
             if (_showArea)
             {
-                AttackAreaDebugDrawer.ShowCone(origin, forward, _range, _inPlaceAngle, point.y, _areaColor, _areaDuration);
+                AttackAreaDebugDrawer.ShowCone(origin, forward, range, _inPlaceAngle, point.y, _areaColor, _areaDuration);
             }
 
             if (victim == null || victim.IsDead)
@@ -123,15 +172,53 @@ namespace BrokenSovereign.Combat
                 return true;
             }
 
-            DamageInfo info = BuildDamage(attacker.gameObject, stats);
+            DamageInfo info = BuildDamage(attacker.gameObject, stats, profile);
             victim.ApplyDamage(info);
             Debug.Log($"BasicAttack: 기본 공격 → {(victim as Component)?.name} 피해 {info.Amount:0}{(info.IsCritical ? " (치명타)" : string.Empty)} (방어 측 감소 전)");
             return true;
         }
 
-        private DamageInfo BuildDamage(GameObject attacker, StatSheet stats)
+        // 일직선 다중 타격: 대상(있으면) 방향 직사각형 안의 적을 가까운 순으로 최대 수까지
+        private void ExecuteLine(Transform attacker, Transform target, Vector3 origin, Vector3 forward, float range,
+            BasicAttackProfile profile, StatSheet stats, float groundY)
         {
-            return AttackDamage.Build(attacker, stats, _coefficient, _attackPower, true);
+            int maxTargets = profile.MaxTargets > 0 ? profile.MaxTargets : 1;
+            AttackArea.FindAllInLine(origin, forward, range, profile.LineWidth, 0, _targetMask, _lineBuffer);
+
+            // 지정한 대상은 판정 폭 밖이어도 맨 앞에 포함
+            IDamageable picked = target != null ? target.GetComponentInParent<IDamageable>() : null;
+
+            if (picked != null && !picked.IsDead)
+            {
+                _lineBuffer.Remove(picked);
+                _lineBuffer.Insert(0, picked);
+            }
+
+            if (_lineBuffer.Count > maxTargets)
+            {
+                _lineBuffer.RemoveRange(maxTargets, _lineBuffer.Count - maxTargets);
+            }
+
+            if (_showArea)
+            {
+                float halfAngle = Mathf.Atan2(profile.LineWidth * 0.5f, Mathf.Max(range, 0.01f)) * Mathf.Rad2Deg;
+                AttackAreaDebugDrawer.ShowCone(origin, forward, range, Mathf.Max(6f, halfAngle * 2f), groundY,
+                    _areaColor, _areaDuration);
+            }
+
+            foreach (IDamageable victim in _lineBuffer)
+            {
+                victim.ApplyDamage(BuildDamage(attacker.gameObject, stats, profile));
+            }
+
+            Debug.Log($"BasicAttack: 일직선 기본 공격 → {_lineBuffer.Count}명 적중");
+            _lineBuffer.Clear();
+        }
+
+        private DamageInfo BuildDamage(GameObject attacker, StatSheet stats, BasicAttackProfile profile)
+        {
+            return AttackDamage.Build(attacker, stats, _coefficient * profile.CoefficientMultiplier, _attackPower, true,
+                DamageType.Physical, profile.ArmorPenetration);
         }
     }
 }

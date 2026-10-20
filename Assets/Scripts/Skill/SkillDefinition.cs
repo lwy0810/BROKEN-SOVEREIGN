@@ -64,6 +64,13 @@ namespace BrokenSovereign.Skill
         [Tooltip("시전 동작 시간(초). 이 시간 동안 시전자는 멈춰 있고 이동·다른 공격 불가 (회피는 가능). MoveWhileCasting 기술은 적용 안 함")]
         [SerializeField, Min(0f)] private float _castTime = 0.4f;
 
+        [Tooltip("켜면 지속 시전(채널): 키를 누르고 있는 동안 진행, 떼거나 자원이 부족하면 종료 (난천무). 즉시 발동 간격·재사용 대기 미사용")]
+        [SerializeField] private bool _channeled;
+
+        [Tooltip("시전 모션 Animator 상태 이름. 비우면 \"Skill\" + 기술 ID 파스칼 표기 (radiant_smite → SkillRadiantSmite). " +
+            "상태가 없으면 기본 공격 모션")]
+        [SerializeField] private string _animationState;
+
         [Tooltip("신앙 충만 시 적용할 수치 수정치")]
         [SerializeField] private List<SkillModifierEntry> _empoweredModifiers = new List<SkillModifierEntry>();
 
@@ -78,6 +85,26 @@ namespace BrokenSovereign.Skill
         public bool LocksMovement => _locksMovement;
         public SkillCastMovement CastMovement => _castMovement;
         public float CastTime => _castTime;
+        public bool IsChanneled => _channeled;
+
+        /// <summary>시전 모션 Animator 상태 이름 (CharacterSetupTools가 같은 규칙으로 상태 생성)</summary>
+        public string AnimationState => string.IsNullOrEmpty(_animationState) ? ToAnimationState(_skillId) : _animationState;
+
+        /// <summary>기술 ID → 상태 이름: radiant_smite → SkillRadiantSmite</summary>
+        public static string ToAnimationState(string skillId)
+        {
+            var builder = new System.Text.StringBuilder("Skill");
+
+            foreach (string part in (skillId ?? string.Empty).Split('_'))
+            {
+                if (part.Length > 0)
+                {
+                    builder.Append(char.ToUpperInvariant(part[0])).Append(part, 1, part.Length - 1);
+                }
+            }
+
+            return builder.ToString();
+        }
 
         /// <summary>에셋에 적힌 기본 수치 하나 (분기·충만 적용 전). 없으면 fallback</summary>
         public float GetBaseParameter(string key, float fallback = 0f)
@@ -92,6 +119,27 @@ namespace BrokenSovereign.Skill
 
             return fallback;
         }
+
+#if UNITY_EDITOR
+        /// <summary>에디터 도구에서 기술 에셋을 만들 때 사용 (HeroSetupTools)</summary>
+        public void EditorSetup(string skillId, string displayName, float cooldown, float resourceCost,
+            SkillCastMovement castMovement, float castTime, bool channeled, SkillParameter[] parameters,
+            SkillModifierEntry[] empoweredModifiers, SkillBehaviour behaviour)
+        {
+            _skillId = skillId;
+            _displayName = displayName;
+            _cooldown = cooldown;
+            _attackInterval = 0f;
+            _resourceCost = resourceCost;
+            _castMovement = castMovement;
+            _castTime = castTime;
+            _channeled = channeled;
+            _locksMovement = false;
+            _parameters = new List<SkillParameter>(parameters);
+            _empoweredModifiers = new List<SkillModifierEntry>(empoweredModifiers);
+            _behaviour = behaviour;
+        }
+#endif
 
         /// <summary>시전마다 새 수치 목록 생성 (분기·충만 수정치가 에셋을 바꾸지 않도록)</summary>
         public SkillParameterSet CreateParameters(bool empowered = false)

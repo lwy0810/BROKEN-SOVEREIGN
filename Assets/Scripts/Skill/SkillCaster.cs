@@ -154,13 +154,25 @@ namespace BrokenSovereign.Skill
         {
             SkillDefinition skill = GetSkill(slot);
 
-            if (skill == null || !_cooldowns.IsReady(skill.SkillId))
+            if (skill == null)
             {
                 return false;
             }
 
-            // 즉시 발동 기술(재사용 대기 0)은 기본 공격과 같은 간격을 공유
-            bool isInstant = skill.Cooldown <= 0f;
+            // 지속 시전 중인 기술: 새로 시전하지 않고 유지만 갱신 (false → 시전 이벤트·동작 없음)
+            if (skill.IsChanneled && FindActiveCast(skill) is SkillContext channel)
+            {
+                channel.LastHeldTime = Time.time;
+                return false;
+            }
+
+            if (!_cooldowns.IsReady(skill.SkillId))
+            {
+                return false;
+            }
+
+            // 즉시 발동 기술(재사용 대기 0)은 기본 공격과 같은 간격을 공유. 지속 시전은 간격 미사용
+            bool isInstant = skill.Cooldown <= 0f && !skill.IsChanneled;
 
             if (isInstant && !IsAttackReady)
             {
@@ -173,10 +185,10 @@ namespace BrokenSovereign.Skill
                 return false;
             }
 
+            ISkillResource resource = FindActiveResource();
+
             if (skill.ResourceCost > 0f)
             {
-                ISkillResource resource = FindActiveResource();
-
                 if (resource == null || !resource.TrySpend(skill.ResourceCost))
                 {
                     CastFailed?.Invoke(slot, skill, SkillCastFailReason.NotEnoughResource);
@@ -188,7 +200,11 @@ namespace BrokenSovereign.Skill
 
             StatSheet stats = _stats != null ? _stats.Sheet : null;
             var context = new SkillContext(skill, transform, cursorPoint, skill.CreateParameters(empowered), stats,
-                _targetMask, empowered);
+                _targetMask, empowered)
+            {
+                Resource = resource,
+                LastHeldTime = Time.time
+            };
 
             skill.Behaviour.Begin(context);
             _activeCasts.Add(context);
@@ -196,13 +212,51 @@ namespace BrokenSovereign.Skill
             {
                 ConsumeAttack(GetInstantInterval(skill));
             }
-            else
+            else if (skill.Cooldown > 0f)
             {
                 _cooldowns.Start(skill.SkillId, GetCooldown(stats, skill));
             }
             _combat.NotifyCombatAction();
             SkillCast?.Invoke(slot, skill);
             return true;
+        }
+
+        /// <summary>지속 시전 기술의 키를 뗐을 때 (다음 Tick에서 종료)</summary>
+        public void ReleaseChannel(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+
+            if (skill != null && skill.IsChanneled && FindActiveCast(skill) is SkillContext channel)
+            {
+                channel.IsReleased = true;
+            }
+        }
+
+        /// <summary>슬롯의 지속 시전이 진행 중인지 (모션 유지 판정)</summary>
+        public bool IsChannelActive(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null && skill.IsChanneled && FindActiveCast(skill) != null;
+        }
+
+        /// <summary>지속 시전 기술인지 (키 유지 동안 진행)</summary>
+        public bool IsChanneled(SkillSlot slot)
+        {
+            SkillDefinition skill = GetSkill(slot);
+            return skill != null && skill.IsChanneled;
+        }
+
+        private SkillContext FindActiveCast(SkillDefinition skill)
+        {
+            foreach (SkillContext context in _activeCasts)
+            {
+                if (context.Definition == skill)
+                {
+                    return context;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>HUD 표시용. 기술이 없는 슬롯은 미개방</summary>
@@ -213,6 +267,11 @@ namespace BrokenSovereign.Skill
             if (skill == null)
             {
                 return SkillSlotState.Locked;
+            }
+
+            if (skill.IsChanneled && skill.Cooldown <= 0f)
+            {
+                return new SkillSlotState(true);
             }
 
             if (skill.Cooldown <= 0f)

@@ -409,11 +409,31 @@ namespace BrokenSovereign.UI
             for (int i = 0; i < SKILL_SLOTS.Length; i++)
             {
                 SkillDefinition skill = _caster != null ? _caster.GetSkill(SKILL_SLOTS[i]) : null;
-                string skillName = skill != null ? skill.DisplayName
+                string skillName = skill != null ? GetSkillLabel(skill)
                     : SKILL_SLOTS[i] == SkillSlot.LeftClick ? "기본 공격" : string.Empty;
                 _skillSlots[i].SetSkillName(skillName);
             }
         }
+
+        // 기술 이름 (플레이어의 ISkillLabelSource가 덧붙일 이름이 있으면 사용: 석천 모드변환 → "모드변환 · 단봉")
+        private string GetSkillLabel(SkillDefinition skill)
+        {
+            _caster.GetComponents(_labelSources);
+
+            foreach (ISkillLabelSource source in _labelSources)
+            {
+                if (source.TryGetSkillLabel(skill.SkillId, out string label))
+                {
+                    _labelSources.Clear();
+                    return label;
+                }
+            }
+
+            _labelSources.Clear();
+            return skill.DisplayName;
+        }
+
+        private readonly List<ISkillLabelSource> _labelSources = new List<ISkillLabelSource>();
 
         // 플레이어가 선택한 대상이 바뀌면 원 테두리와 상단 게이지를 새 대상으로 전환
         private void UpdateTarget()

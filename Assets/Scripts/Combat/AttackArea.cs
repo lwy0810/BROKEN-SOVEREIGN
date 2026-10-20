@@ -79,6 +79,65 @@ namespace BrokenSovereign.Combat
             return results.Count;
         }
 
+        /// <summary>
+        /// 시작점에서 forward 방향 직사각형(길이 length, 폭 width) 안의 살아 있는 대상을 가까운 순으로 찾습니다.
+        /// maxCount가 0보다 크면 그 수까지만 담습니다 (석천 장봉 일직선 다중 타격).
+        /// </summary>
+        public static int FindAllInLine(Vector3 origin, Vector3 forward, float length, float width, int maxCount,
+            LayerMask mask, List<IDamageable> results)
+        {
+            results.Clear();
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.0001f || length <= 0f)
+            {
+                return 0;
+            }
+
+            forward.Normalize();
+            float halfWidth = width * 0.5f;
+            var distances = new List<float>();
+            int count = Physics.OverlapSphereNonAlloc(origin, length + halfWidth, _buffer, mask,
+                QueryTriggerInteraction.Ignore);
+
+            for (int i = 0; i < count; i++)
+            {
+                IDamageable candidate = _buffer[i].GetComponentInParent<IDamageable>();
+
+                if (candidate == null || candidate.IsDead || results.Contains(candidate))
+                {
+                    continue;
+                }
+
+                Vector3 offset = FlatOffset(origin, _buffer[i].transform.position);
+                float along = Vector3.Dot(offset, forward);
+                float side = Mathf.Abs(Vector3.Dot(offset, new Vector3(forward.z, 0f, -forward.x)));
+
+                // 대상 충돌체 크기만큼 여유 (중심점 기준 판정이라 폭의 절반을 더 허용)
+                if (along < -halfWidth || along > length || side > halfWidth + 0.4f)
+                {
+                    continue;
+                }
+
+                int index = 0;
+
+                while (index < distances.Count && distances[index] <= along)
+                {
+                    index++;
+                }
+
+                results.Insert(index, candidate);
+                distances.Insert(index, along);
+            }
+
+            if (maxCount > 0 && results.Count > maxCount)
+            {
+                results.RemoveRange(maxCount, results.Count - maxCount);
+            }
+
+            return results.Count;
+        }
+
         /// <summary>원 안의 살아 있는 대상을 모두 찾습니다 (중심 원형 범위 기술용)</summary>
         public static int FindAllInCircle(Vector3 origin, float radius, LayerMask mask, List<IDamageable> results)
         {

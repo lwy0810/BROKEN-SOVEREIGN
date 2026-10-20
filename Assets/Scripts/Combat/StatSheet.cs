@@ -106,10 +106,11 @@ namespace BrokenSovereign.Combat
         }
 
         /// <summary>방어 측 최종 감소율: 속성 감소(방어력 또는 원소 저항)와 전체 피해 감소를 곱셈 쌓기</summary>
-        public float GetMitigation(DamageType type)
+        /// <param name="armorPenetration">방어 관통 (0.3 = 방어력 30% 무시). 물리 피해에만 적용</param>
+        public float GetMitigation(DamageType type, float armorPenetration = 0f)
         {
             float typeReduction = type == DamageType.Physical
-                ? StatFormula.ArmorReduction(Get(StatType.Armor))
+                ? StatFormula.ArmorReduction(Get(StatType.Armor) * (1f - Mathf.Clamp01(armorPenetration)))
                 : Get(StatType.ElementalResistance);
             return StatFormula.StackMultiplicative(typeReduction, Get(StatType.DamageReduction));
         }

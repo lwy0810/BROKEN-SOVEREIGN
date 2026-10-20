@@ -9,6 +9,9 @@ namespace BrokenSovereign.Enemy
     [CreateAssetMenu(fileName = "EnemyDefinition", menuName = "BrokenSovereign/Enemy Definition")]
     public class EnemyDefinition : ScriptableObject
     {
+        [Tooltip("등급: 버팀 게이지(일반 30 / 정예 100 / 보스 300)·무력화 시간·버팀 막대 표시")]
+        [SerializeField] private EnemyRank _rank = EnemyRank.Normal;
+
         [Header("감지·추적")]
         [Tooltip("이 거리(m) 안에 대상이 들어오면 추적 시작")]
         [SerializeField, Min(0f)] private float _detectRange = 8f;
@@ -69,10 +72,18 @@ namespace BrokenSovereign.Enemy
         public float AttackWindup => _attackWindup;
         public float AttackRecovery => _attackRecovery;
         public float AttackInterval => _attackInterval;
+        public EnemyRank Rank => _rank;
         public float AttackCoefficient => _attackCoefficient;
         public float FallbackAttackPower => _fallbackAttackPower;
         public bool ShowAttackArea => _showAttackArea;
         public Color AttackAreaColor => _attackAreaColor;
+
+#if UNITY_EDITOR
+        public void EditorSetRank(EnemyRank rank)
+        {
+            _rank = rank;
+        }
+#endif
 
         public EnemyBrain.Settings ToBrainSettings()
         {

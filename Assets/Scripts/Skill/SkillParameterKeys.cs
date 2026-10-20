@@ -52,5 +52,35 @@ namespace BrokenSovereign.Skill
 
         /// <summary>띄우기 시간 (초). 공중에 있는 동안 행동 불능</summary>
         public const string AIRBORNE_DURATION = "airborneDuration";
+
+        /// <summary>지속 시전의 반복 타격 간격 (초, 난천무)</summary>
+        public const string TICK_INTERVAL = "tickInterval";
+
+        /// <summary>지속 시전 중 이동 속도 배율 (0.8 = 20% 감소)</summary>
+        public const string MOVE_SPEED_MULTIPLIER = "moveSpeedMultiplier";
+
+        /// <summary>지속 시전 유지 비용 (초당 자원)</summary>
+        public const string COST_PER_SECOND = "costPerSecond";
+
+        /// <summary>시작 후 유지 비용이 없는 시간 (초, 난천무 충만)</summary>
+        public const string FREE_DURATION = "freeDuration";
+
+        /// <summary>마무리 타격 계수 (난천무 충만 종료 내려찍기). 0이면 없음</summary>
+        public const string FINISH_COEFFICIENT = "finishCoefficient";
+
+        /// <summary>마무리 타격 반경 (m)</summary>
+        public const string FINISH_RADIUS = "finishRadius";
+
+        /// <summary>처형 계수 (분쇄 일격: 무력화된 대상)</summary>
+        public const string EXECUTE_COEFFICIENT = "executeCoefficient";
+
+        /// <summary>처형 충격파 반경 (m)</summary>
+        public const string SHOCKWAVE_RADIUS = "shockwaveRadius";
+
+        /// <summary>처형 충격파 계수</summary>
+        public const string SHOCKWAVE_COEFFICIENT = "shockwaveCoefficient";
+
+        /// <summary>적중 시 버팀 게이지 즉시 감소 비율 (0.5 = 50%, 분쇄 일격 충만)</summary>
+        public const string POISE_BREAK_RATIO = "poiseBreakRatio";
     }
 }

@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 829de8fe4427461e880102b35fec0811, type: 3}
+  m_Name: SkillCrushingBlow
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SkillDefinition
+  _skillId: crushing_blow
+  _displayName: "\uBD84\uC1C4 \uC77C\uACA9"
+  _cooldown: 10
+  _attackInterval: 0
+  _resourceCost: 30
+  _parameters:
+  - Key: coefficient
+    Value: 3
+  - Key: radius
+    Value: 2.5
+  - Key: angle
+    Value: 120
+  - Key: castRange
+    Value: 2.2
+  - Key: executeCoefficient
+    Value: 6
+  - Key: shockwaveRadius
+    Value: 2.5
+  - Key: shockwaveCoefficient
+    Value: 1.5
+  - Key: poiseBreakRatio
+    Value: 0
+  _locksMovement: 0
+  _castMovement: 0
+  _castTime: 0.5
+  _channeled: 0
+  _animationState: 
+  _empoweredModifiers:
+  - Key: poiseBreakRatio
+    Type: 0
+    Value: 0.5
+  _behaviour: {fileID: 11400000, guid: dc088f906ff71fc459bb63a2dfb13a27, type: 2}

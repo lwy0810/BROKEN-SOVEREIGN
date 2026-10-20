@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8270d83aef171694599c64efe254f6d5, type: 3}
+  m_Name: RuleReachShift
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Hero.ReachShiftRuleDefinition
+  _longRangeBonus: 1.5
+  _longLineWidth: 0.8
+  _longMaxTargets: 3
+  _longCoefficient: 0.75
+  _shortCoefficient: 1.3
+  _shortArmorPenetration: 0.3
+  _toggleSkillId: reach_shift
+  _toggleSkillName: "\uBAA8\uB4DC\uBCC0\uD658"
