@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using BrokenSovereign.Player;
+using BrokenSovereign.Skill;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
@@ -16,7 +18,9 @@ namespace BrokenSovereign.Editor
     /// 1. FBX 임포트 설정 (Humanoid, 클립 반복·루트 굽기) 재적용
     /// 2. 텍스처 설정 (노멀 맵, 선형 색공간)
     /// 3. URP Lit 머티리얼 M_{이름} 생성·갱신
-    /// 4. Animator Controller 생성 (Locomotion 블렌드 트리 + Attack)
+    /// 4. Animator Controller 생성 (Locomotion 블렌드 트리 + Attack + 기술 모션)
+    ///    기술 모션: Animations/{이름}/{이름}Skill{기술 ID 파스칼}.fbx가 있으면 상태 Skill{...} 추가 (10/20).
+    ///    예: radiant_smite → PaladinSkillRadiantSmite.fbx. 지속 시전 기술(난천무)은 반복 재생·자동 종료 없음
     /// 5. 모델 프리팹 생성 (Animator·머티리얼 연결)
     /// 6. 선택한 플레이어 아래에 모델 배치, 기존 도형 렌더러 숨김, PlayerAnimator 연결
     /// </summary>
@@ -145,8 +149,67 @@ namespace BrokenSovereign.Editor
                 anim.SaveAndReimport();
             }
 
+            foreach (SkillMotion motion in FindSkillMotions(spec))
+            {
+                var anim = (ModelImporter)AssetImporter.GetAtPath(motion.Path);
+                CharacterModelImporter.ApplyAnimationSettings(anim);
+                anim.SaveAndReimport();
+                CharacterModelImporter.ApplyClipSettings(anim, motion.Path);
+                ModelImporterClipAnimation[] clips = anim.clipAnimations;
+
+                foreach (ModelImporterClipAnimation clip in clips)
+                {
+                    clip.loopTime = motion.Loop;
+                    clip.loopPose = motion.Loop;
+                }
+
+                anim.clipAnimations = clips;
+                anim.SaveAndReimport();
+            }
+
             ModelAssetUtility.ConfigureTextures(spec.TextureRoot, spec.Name);
             return true;
+        }
+
+        /// <summary>기술 모션 파일 1개 (상태 이름, FBX 경로, 반복 여부)</summary>
+        private readonly struct SkillMotion
+        {
+            public readonly string State;
+            public readonly string Path;
+            public readonly bool Loop;
+
+            public SkillMotion(string state, string path, bool loop)
+            {
+                State = state;
+                Path = path;
+                Loop = loop;
+            }
+        }
+
+        // 프로젝트의 모든 기술 정의 중 모션 FBX가 있는 것 (상태 이름 중복 제거)
+        private static List<SkillMotion> FindSkillMotions(CharacterSpec spec)
+        {
+            var motions = new List<SkillMotion>();
+            var states = new HashSet<string>();
+
+            foreach (string guid in AssetDatabase.FindAssets("t:SkillDefinition"))
+            {
+                var skill = AssetDatabase.LoadAssetAtPath<SkillDefinition>(AssetDatabase.GUIDToAssetPath(guid));
+
+                if (skill == null || !states.Add(skill.AnimationState))
+                {
+                    continue;
+                }
+
+                string path = $"{spec.AnimationRoot}/{spec.Name}{skill.AnimationState}.fbx";
+
+                if (AssetImporter.GetAtPath(path) is ModelImporter)
+                {
+                    motions.Add(new SkillMotion(skill.AnimationState, path, skill.IsChanneled));
+                }
+            }
+
+            return motions;
         }
 
         private static Material BuildMaterial(CharacterSpec spec)
@@ -156,19 +219,32 @@ namespace BrokenSovereign.Editor
 
         private static AnimatorController BuildController(CharacterSpec spec, AnimationClip idle, AnimationClip run, AnimationClip attack)
         {
-            // 매번 새로 만들어 상태 구성이 코드와 항상 같게 유지
-            if (AssetDatabase.LoadAssetAtPath<AnimatorController>(spec.ControllerPath) != null)
-            {
-                AssetDatabase.DeleteAsset(spec.ControllerPath);
-            }
+            // 상태 구성은 매번 코드대로 다시 만들되, 에셋은 지우지 않고 내용만 비움.
+            // 지우고 새로 만들면 열려 있는 씬의 Animator가 사라진 컨트롤러를 가리켜
+            // Play 시 "Animator is not playing an AnimatorController" → T포즈 (10/20)
+            AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(spec.ControllerPath);
 
-            AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(spec.ControllerPath);
+            if (controller == null)
+            {
+                controller = AnimatorController.CreateAnimatorControllerAtPath(spec.ControllerPath);
+            }
+            else
+            {
+                ClearController(controller);
+            }
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
             controller.AddParameter("Moving", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
             controller.AddParameter(new AnimatorControllerParameter
             {
                 name = "AttackSpeed",
+                type = AnimatorControllerParameterType.Float,
+                defaultFloat = 1f,
+            });
+
+            controller.AddParameter(new AnimatorControllerParameter
+            {
+                name = "SkillSpeed",
                 type = AnimatorControllerParameterType.Float,
                 defaultFloat = 1f,
             });
@@ -207,8 +283,99 @@ namespace BrokenSovereign.Editor
             cancel.hasExitTime = false;
             cancel.duration = 0.1f;
 
+            AddSkillStates(spec, machine, locomotion);
+
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        // 컨트롤러 내용 비우기: 파라미터, 추가 레이어, 기본 레이어의 상태·전이, 남은 블렌드 트리 하위 에셋
+        private static void ClearController(AnimatorController controller)
+        {
+            while (controller.parameters.Length > 0)
+            {
+                controller.RemoveParameter(0);
+            }
+
+            for (int i = controller.layers.Length - 1; i > 0; i--)
+            {
+                controller.RemoveLayer(i);
+            }
+
+            AnimatorStateMachine machine = controller.layers[0].stateMachine;
+
+            foreach (AnimatorStateTransition transition in machine.anyStateTransitions)
+            {
+                machine.RemoveAnyStateTransition(transition);
+            }
+
+            foreach (AnimatorTransition transition in machine.entryTransitions)
+            {
+                machine.RemoveEntryTransition(transition);
+            }
+
+            foreach (ChildAnimatorStateMachine child in machine.stateMachines)
+            {
+                machine.RemoveStateMachine(child.stateMachine);
+            }
+
+            foreach (ChildAnimatorState child in machine.states)
+            {
+                machine.RemoveState(child.state);
+            }
+
+            string path = AssetDatabase.GetAssetPath(controller);
+
+            foreach (Object sub in AssetDatabase.LoadAllAssetsAtPath(path))
+            {
+                if (sub is BlendTree)
+                {
+                    AssetDatabase.RemoveObjectFromAsset(sub);
+                    Object.DestroyImmediate(sub, true);
+                }
+            }
+        }
+
+        // 기술 모션 상태: PlayerAnimator가 CrossFade로 직접 재생 (트리거 없음)
+        private static void AddSkillStates(CharacterSpec spec, AnimatorStateMachine machine, AnimatorState locomotion)
+        {
+            var added = new List<string>();
+
+            foreach (SkillMotion motion in FindSkillMotions(spec))
+            {
+                AnimationClip clip = LoadClip(motion.Path);
+
+                if (clip == null)
+                {
+                    continue;
+                }
+
+                AnimatorState state = machine.AddState(motion.State);
+                state.motion = clip;
+                state.speedParameter = "SkillSpeed";
+                state.speedParameterActive = true;
+                added.Add(motion.State);
+
+                // 지속 시전 모션은 반복 재생, 종료는 PlayerAnimator가 Locomotion으로 전환
+                if (motion.Loop)
+                {
+                    continue;
+                }
+
+                AnimatorStateTransition finished = state.AddTransition(locomotion);
+                finished.hasExitTime = true;
+                finished.exitTime = 0.9f;
+                finished.duration = 0.1f;
+
+                AnimatorStateTransition cancel = state.AddTransition(locomotion);
+                cancel.AddCondition(AnimatorConditionMode.If, 0f, "Moving");
+                cancel.hasExitTime = false;
+                cancel.duration = 0.1f;
+            }
+
+            Debug.Log(added.Count > 0
+                ? $"CharacterSetupTools: {spec.Name} 기술 모션 {added.Count}개 ({string.Join(", ", added)})"
+                : $"CharacterSetupTools: {spec.Name} 기술 모션 없음 → 모든 기술이 공격 모션 사용");
         }
 
         private static GameObject BuildPrefab(CharacterSpec spec, Material material, AnimatorController controller)
