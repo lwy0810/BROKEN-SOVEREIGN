@@ -11,6 +11,9 @@ namespace BrokenSovereign.Player
     [RequireComponent(typeof(PlayerController))]
     public class PlayerInputHandler : MonoBehaviour
     {
+        /// <summary>좌클릭으로 바닥을 찍었을 때 (이동 표식용, 누르는 순간 1회)</summary>
+        public event System.Action<Vector3> GroundClicked;
+
         private const string MAP_NAME = "Gameplay";
         private const float RAY_DISTANCE = 500f;
 
@@ -183,13 +186,21 @@ namespace BrokenSovereign.Player
 
             _isPrimaryHeld = true;
             _isAttackPress = false;
+            bool standStill = _standStill.IsPressed();
+            bool hasEnemy = TryGetEnemyUnderCursor(out Transform enemy);
 
             // 누르기 시작한 순간 적을 가리키고 있으면 교전 시작 (추적·공격은 PlayerController가 처리)
-            if (!_standStill.IsPressed() && TryGetEnemyUnderCursor(out Transform enemy))
+            if (!standStill && hasEnemy)
             {
                 _isAttackPress = true;
                 _controller.AttackTarget(enemy);
                 return;
+            }
+
+            // 바닥 클릭: 이동 표식
+            if (!standStill && !hasEnemy)
+            {
+                GroundClicked?.Invoke(GetCursorGroundPoint());
             }
 
             HandlePrimaryHeld();
@@ -210,34 +221,29 @@ namespace BrokenSovereign.Player
         private void HandlePrimaryHeld()
         {
             // 적을 눌러 시작한 입력: 교전 중이면 PlayerController가 처리.
-            // 대상이 죽거나 사라져도 누르고 있는 동안 계속 공격 (커서 위 적으로 교전, 없으면 커서 방향 제자리 공격)
+            // 대상이 죽거나 사라지면 커서 위 다른 적으로 이어서 교전 (적이 없으면 공격하지 않음: 기본 공격은 대상을 찍을 때만)
             if (_isAttackPress)
             {
-                if (!_controller.IsEngaging)
+                if (!_controller.IsEngaging && TryGetEnemyUnderCursor(out Transform next))
                 {
-                    if (TryGetEnemyUnderCursor(out Transform next))
-                    {
-                        _controller.AttackTarget(next);
-                    }
-                    else
-                    {
-                        _controller.AttackInPlace(GetCursorGroundPoint());
-                    }
+                    _controller.AttackTarget(next);
                 }
 
                 return;
             }
 
-            Vector3 point = GetCursorGroundPoint();
-
+            // Shift: 이동하지 않음. 커서가 적 위일 때만 그 적 방향으로 제자리 공격 (바닥은 무시)
             if (_standStill.IsPressed())
             {
-                _controller.AttackInPlace(point);
+                if (TryGetEnemyUnderCursor(out Transform enemy))
+                {
+                    _controller.AttackInPlace(enemy.position);
+                }
+
+                return;
             }
-            else
-            {
-                _controller.MoveTo(point);
-            }
+
+            _controller.MoveTo(GetCursorGroundPoint());
         }
 
         private void OnSecondaryStarted(InputAction.CallbackContext context)
