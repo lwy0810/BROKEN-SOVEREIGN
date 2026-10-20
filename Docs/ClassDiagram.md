@@ -1268,19 +1268,24 @@ classDiagram
 | `HealthBarView` | 체력 | `PlayerDamagedEvent`, `Health` |
 | `FaithBarView` | 신앙, 충만 표시 | `FaithChangedEvent` |
 | `SkillSlotView` | 기술 슬롯·재사용 대기 | `SkillCastEvent`, `CooldownTracker` |
-| `CharacterWindow` | 격 단계, 스탯 분배, 돌파 진행도 | `PlayerProgression`, `BreakthroughResult` |
+| `CharacterWindowView` | 캐릭터 창 (C). 직업·격·레벨·경험치·다음 격 돌파 조건·영웅의 길·능력치 (읽기 전용, 구현 완료) | `PlayerProgression.NextAscensionHint`, `PlayerJob`, `HeroPathController`, `CharacterStats` |
 | `RelicWindow` | 신물창, 신화 세트 | `RelicInventory` |
 | `EquipmentWindow` | 장비창 | `EquipmentLoadout` |
-| `SkillWindow` | 후보 기술 장착, 슬롯 레벨, 분기 선택 | `SkillLoadout`, `SkillPointPool` |
+| `SkillWindowView` | 스킬 창 (K). 슬롯별 장착 기술·수치 요약, 후보 클릭 장착 (구현 완료. 슬롯 레벨·분기 선택은 이후) | `SkillCaster.TryEquip`, `SkillLoadout.Changed` |
 | `TrialWindow` | 시련 목록·진행 | `TrialTracker` |
 | `NoticeView` | 돌파·해금·무력화 알림 | `AscensionRaisedEvent`, `SkillUnlockedEvent`, `EnemyStaggeredEvent` |
 | `JobSelectView` | 1차 직업 선택 화면 (4개 카드, 프로토타입은 성기사만 활성) | `PlayerProgression`, `JobDefinition` |
 | `HeroPathSelectView` | 영웅의 길 선택 연출 | `HeroPathController` |
-| `BossHealthView` | 보스 체력 | `BossController` |
+| `BossHudView` | 상단 보스 체력·보호막·버팀·격 결정, 등장·격파 배너 (구현 완료) | `BossStatus`(Enemy, 정적 목록·`AnyDefeated`), `PoiseReceiver` |
+| `DamageNumberView` | 피해 숫자 (풀 48개) | `Health.AnyDamaged` |
+| `OutcomeScreenView` | 사망(R 부활)·보스 처치 클리어 화면 | `Health.Died`·`Restored`, `BossStatus.AnyDefeated` |
+| `UiKit` | 창 공용 생성·배치·마우스 판정 함수 (정적) | `HudGraphics` |
 
 - UI는 화면 표시와 버튼 입력만 담당. 규칙 판정은 각 시스템 클래스에서 처리
 - 대상 표시 설정: `HudView`의 `TargetSettings` (원 색·두께·여백, 게이지 크기·색·위쪽 여백). Play 중 Inspector 변경 즉시 반영
-- `BossHealthView`: 구현 시 `TargetFrameView`와 위치 겹침. 보스전 중 대상 게이지 숨김 여부 확인 필요
+- 보스 체력바가 보이면: 보스를 선택한 경우 대상 게이지 숨김, 다른 대상은 보스 체력바 아래로 내려 표시 (`HudView.UpdateTarget`)
+- 보스 규칙(이랑진군)은 `BossStatus.SetShield`·`SetCrystals`로 보호막·결정 표시만 갱신. 테스트 메뉴: BrokenSovereign/UI/선택한 적을 보스로 표시
+- 창 단축키: K 스킬, C 캐릭터, M 지도, Esc 닫기. 창이 열리면 `GameplayInput.IsBlocked` (다른 창이 열려 있으면 열지 않음)
 
 ### 12.2 Manager
 
@@ -1380,7 +1385,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[좌클릭 누름] --> B{Shift 없음 + 커서 아래 첫 물체가 적?}
-    B -- 아니오 --> M[바닥 지점으로 이동 / Shift면 제자리 공격]
+    B -- 아니오 --> M[바닥 지점으로 이동 + 이동 표식 / Shift면 적 위일 때만 제자리 공격, 바닥은 무시]
     B -- 예 --> C["Engage(BasicAttack, 적)<br/>보관: 대상·행동, 누름 유지 = 참"]
     C --> D{매 프레임: 대상 유효?<br/>존재·활성·생존}
     D -- 아니오 --> X[교전 해제, 추적 중이면 정지]
