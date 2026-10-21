@@ -10,7 +10,7 @@ namespace BrokenSovereign.UI
 {
     /// <summary>
     /// 능력치 목록 (주능력치·공격·방어·보조·자원 5분류, 10/21). 캐릭터 창 오른쪽·인벤토리 상세 정보창 공용.
-    /// 넘치면 마우스 휠로 스크롤 (넘칠 때만 스크롤 막대). bonus를 주면 그만큼을 초록 "+값"으로 함께 표시 (장비 보너스).
+    /// 넘치면 마우스 휠로 스크롤 (넘칠 때만 스크롤 막대). bonus를 주면 값 오른쪽에 "(+값)"으로 증감 표시 (장비 보너스, 늘면 초록·줄면 빨강).
     /// </summary>
     public sealed class StatListView
     {
@@ -127,13 +127,15 @@ namespace BrokenSovereign.UI
                 entry.NameText = UiKit.Label("Name", _content, 15, UiTheme.P.TextDim, TextAnchor.MiddleLeft);
                 UiKit.PlaceTopLeft(entry.NameText.rectTransform, new Vector2(8f, y), new Vector2(width - 120f, ROW));
                 entry.NameText.text = entry.Name;
+                // 증감 표시가 있으면 값 오른쪽에 "(+64)" 칸을 둠
+                float valueRight = _bonus != null ? width - 78f : width - 8f;
                 entry.ValueText = UiKit.Label("Value", _content, 16, UiTheme.P.Text, TextAnchor.MiddleRight, FontStyle.Bold);
-                UiKit.PlaceTopLeft(entry.ValueText.rectTransform, new Vector2(width - 108f, y), new Vector2(100f, ROW));
+                UiKit.PlaceTopLeft(entry.ValueText.rectTransform, new Vector2(valueRight - 100f, y), new Vector2(100f, ROW));
 
                 if (_bonus != null && entry.Stat.HasValue)
                 {
-                    entry.BonusText = UiKit.Label("Bonus", _content, 12, new Color(0.37f, 0.7f, 0.42f), TextAnchor.MiddleRight, FontStyle.Bold);
-                    UiKit.PlaceTopLeft(entry.BonusText.rectTransform, new Vector2(width - 172f, y), new Vector2(60f, ROW));
+                    entry.BonusText = UiKit.Label("Bonus", _content, 13, new Color(0.37f, 0.7f, 0.42f), TextAnchor.MiddleLeft, FontStyle.Bold);
+                    UiKit.PlaceTopLeft(entry.BonusText.rectTransform, new Vector2(valueRight + 6f, y), new Vector2(72f, ROW));
                 }
 
                 _entries.Add(entry);
@@ -198,7 +200,8 @@ namespace BrokenSovereign.UI
                 if (entry.BonusText != null)
                 {
                     float bonus = _bonus(entry.Stat.Value);
-                    entry.BonusText.text = Mathf.Abs(bonus) > 0.0001f ? StatText.Signed(entry.Stat.Value, bonus) : string.Empty;
+                    entry.BonusText.text = Mathf.Abs(bonus) > 0.0001f ? $"({StatText.Signed(entry.Stat.Value, bonus)})" : string.Empty;
+                    entry.BonusText.color = bonus >= 0f ? new Color(0.37f, 0.7f, 0.42f) : new Color(0.85f, 0.3f, 0.25f);
                 }
             }
         }

@@ -5,34 +5,19 @@ using UnityEngine;
 namespace BrokenSovereign.Item
 {
     /// <summary>
-    /// 가방 (10/21): 96칸(12×8), 겹침, 골드. 칸 위치는 플레이어가 끌어서 바꿀 수 있고 정렬 버튼으로 정리합니다.
-    /// UI(InventoryWindowView)는 Changed를 받아 다시 그립니다.
+    /// 가방 (10/21): 분류(장비·소모품·재료)마다 따로 96칸(12×8), 겹침, 골드. 아이템은 자기 분류 가방에만 들어갑니다.
+    /// 칸 위치는 플레이어가 끌어서 바꿀 수 있고 정렬 버튼으로 정리합니다. UI(InventoryWindowView)는 Changed를 받아 다시 그립니다.
     /// </summary>
     public class Inventory : MonoBehaviour
     {
         public const int SIZE = 96;
 
-        private readonly ItemStack[] _slots = new ItemStack[SIZE];
+        private readonly ItemStack[][] _pages =
+        {
+            new ItemStack[SIZE], new ItemStack[SIZE], new ItemStack[SIZE]
+        };
 
         public int Gold { get; private set; }
-
-        public int UsedCount
-        {
-            get
-            {
-                int count = 0;
-
-                foreach (ItemStack stack in _slots)
-                {
-                    if (stack != null)
-                    {
-                        count++;
-                    }
-                }
-
-                return count;
-            }
-        }
 
         /// <summary>내용이 바뀜 (UI 다시 그리기)</summary>
         public event Action Changed;
@@ -43,12 +28,32 @@ namespace BrokenSovereign.Item
         /// <summary>골드 얻음 (획득 알림)</summary>
         public event Action<int> GoldAcquired;
 
-        public ItemStack Get(int index)
+        private ItemStack[] Page(ItemKind kind)
         {
-            return index >= 0 && index < SIZE ? _slots[index] : null;
+            return _pages[(int)kind];
         }
 
-        /// <summary>겹칠 수 있는 칸부터 채우고 남으면 빈 칸에. 다 못 넣으면 남은 개수 반환</summary>
+        public int UsedCount(ItemKind kind)
+        {
+            int count = 0;
+
+            foreach (ItemStack stack in Page(kind))
+            {
+                if (stack != null)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public ItemStack Get(ItemKind kind, int index)
+        {
+            return index >= 0 && index < SIZE ? Page(kind)[index] : null;
+        }
+
+        /// <summary>그 분류 가방에서 겹칠 수 있는 칸부터 채우고 남으면 빈 칸에. 다 못 넣으면 남은 개수 반환</summary>
         public int Add(ItemDefinition item, int count = 1, bool notify = true)
         {
             if (item == null || count <= 0)
@@ -56,11 +61,12 @@ namespace BrokenSovereign.Item
                 return 0;
             }
 
+            ItemStack[] slots = Page(item.Kind);
             int remaining = count;
 
             for (int i = 0; i < SIZE && remaining > 0 && item.MaxStack > 1; i++)
             {
-                ItemStack stack = _slots[i];
+                ItemStack stack = slots[i];
 
                 if (stack != null && stack.Item == item && stack.Count < item.MaxStack)
                 {
@@ -72,10 +78,10 @@ namespace BrokenSovereign.Item
 
             for (int i = 0; i < SIZE && remaining > 0; i++)
             {
-                if (_slots[i] == null)
+                if (slots[i] == null)
                 {
                     int add = Mathf.Min(remaining, item.MaxStack);
-                    _slots[i] = new ItemStack(item, add);
+                    slots[i] = new ItemStack(item, add);
                     remaining -= add;
                 }
             }
@@ -95,23 +101,23 @@ namespace BrokenSovereign.Item
             return remaining;
         }
 
-        /// <summary>지정 칸에 그대로 놓기 (빈 칸일 때만)</summary>
+        /// <summary>지정 칸에 그대로 놓기 (그 아이템 분류 가방의 빈 칸일 때만)</summary>
         public bool Place(int index, ItemStack stack)
         {
-            if (stack == null || index < 0 || index >= SIZE || _slots[index] != null)
+            if (stack == null || index < 0 || index >= SIZE || Page(stack.Item.Kind)[index] != null)
             {
                 return false;
             }
 
-            _slots[index] = stack;
+            Page(stack.Item.Kind)[index] = stack;
             Changed?.Invoke();
             return true;
         }
 
         /// <summary>칸에서 개수만큼 빼기. 다 빠지면 칸 비움</summary>
-        public void Remove(int index, int count = 1)
+        public void Remove(ItemKind kind, int index, int count = 1)
         {
-            ItemStack stack = Get(index);
+            ItemStack stack = Get(kind, index);
 
             if (stack == null)
             {
@@ -122,36 +128,38 @@ namespace BrokenSovereign.Item
 
             if (stack.Count <= 0)
             {
-                _slots[index] = null;
+                Page(kind)[index] = null;
             }
 
             Changed?.Invoke();
         }
 
         /// <summary>칸에서 꺼냄 (칸 비움)</summary>
-        public ItemStack Take(int index)
+        public ItemStack Take(ItemKind kind, int index)
         {
-            ItemStack stack = Get(index);
+            ItemStack stack = Get(kind, index);
 
             if (stack != null)
             {
-                _slots[index] = null;
+                Page(kind)[index] = null;
                 Changed?.Invoke();
             }
 
             return stack;
         }
 
-        /// <summary>두 칸 바꾸기. 같은 아이템이면 겹치기</summary>
-        public void Move(int from, int to)
+        /// <summary>같은 가방 안 두 칸 바꾸기. 같은 아이템이면 겹치기</summary>
+        public void Move(ItemKind kind, int from, int to)
         {
-            if (from == to || Get(from) == null || to < 0 || to >= SIZE)
+            ItemStack[] slots = Page(kind);
+
+            if (from == to || Get(kind, from) == null || to < 0 || to >= SIZE)
             {
                 return;
             }
 
-            ItemStack a = _slots[from];
-            ItemStack b = _slots[to];
+            ItemStack a = slots[from];
+            ItemStack b = slots[to];
 
             if (b != null && b.Item == a.Item && a.Item.MaxStack > 1 && b.Count < b.Item.MaxStack)
             {
@@ -161,23 +169,25 @@ namespace BrokenSovereign.Item
 
                 if (a.Count <= 0)
                 {
-                    _slots[from] = null;
+                    slots[from] = null;
                 }
             }
             else
             {
-                _slots[from] = b;
-                _slots[to] = a;
+                slots[from] = b;
+                slots[to] = a;
             }
 
             Changed?.Invoke();
         }
 
-        public int FirstEmpty()
+        public int FirstEmpty(ItemKind kind)
         {
+            ItemStack[] slots = Page(kind);
+
             for (int i = 0; i < SIZE; i++)
             {
-                if (_slots[i] == null)
+                if (slots[i] == null)
                 {
                     return i;
                 }
@@ -186,12 +196,13 @@ namespace BrokenSovereign.Item
             return -1;
         }
 
-        /// <summary>정렬: 장비(부위 순) → 소모품 → 재료, 같은 분류는 희귀도 높은 순·이름 순. 같은 아이템은 합침</summary>
-        public void Sort()
+        /// <summary>정렬: 장비는 부위 순, 모두 희귀도 높은 순·이름 순. 같은 아이템은 합침</summary>
+        public void Sort(ItemKind kind)
         {
+            ItemStack[] slots = Page(kind);
             var stacks = new List<ItemStack>();
 
-            foreach (ItemStack stack in _slots)
+            foreach (ItemStack stack in slots)
             {
                 if (stack != null)
                 {
@@ -199,11 +210,10 @@ namespace BrokenSovereign.Item
                 }
             }
 
-            Array.Clear(_slots, 0, SIZE);
+            Array.Clear(slots, 0, SIZE);
             stacks.Sort((a, b) =>
             {
-                int c = a.Item.Kind.CompareTo(b.Item.Kind);
-                if (c != 0) return c;
+                int c;
                 if (a.Item.IsEquipment && (c = a.Item.Slot.CompareTo(b.Item.Slot)) != 0) return c;
                 if ((c = b.Item.Rarity.CompareTo(a.Item.Rarity)) != 0) return c;
                 return string.CompareOrdinal(a.Item.DisplayName, b.Item.DisplayName);
@@ -213,7 +223,7 @@ namespace BrokenSovereign.Item
 
             foreach (ItemStack stack in stacks)
             {
-                ItemStack last = index > 0 ? _slots[index - 1] : null;
+                ItemStack last = index > 0 ? slots[index - 1] : null;
 
                 if (last != null && last.Item == stack.Item && last.Count < last.Item.MaxStack)
                 {
@@ -224,7 +234,7 @@ namespace BrokenSovereign.Item
 
                 if (stack.Count > 0)
                 {
-                    _slots[index++] = stack;
+                    slots[index++] = stack;
                 }
             }
 
