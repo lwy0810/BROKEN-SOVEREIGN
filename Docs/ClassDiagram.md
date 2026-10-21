@@ -1272,6 +1272,15 @@ classDiagram
 | `WorldMapView` | 지도 화면: 스타일 셰이더(`Resources/UI/MapStyle`), 우클릭 메뉴(자동 이동·핀), 조작 안내 | `PlayerController.AutoMoveTo`, `MapPin` |
 | `CharacterWindowView` | 캐릭터 창 (C). 왼쪽 직업·격·레벨·경험치·다음 격 돌파·영웅의 길 / 가운데 `CharacterPreview` 모델 / 오른쪽 능력치 5분류(휠 스크롤) | `PlayerProgression.NextAscensionHint`, `PlayerJob`, `HeroPathController`, `CharacterStats`, `CharacterPreview` |
 | `CharacterPreview` | 캐릭터 창 모델 미리보기. 플레이어 모델을 화면 밖 무대에 복제(스크립트·충돌체 제거)해 레이어 31 전용 카메라 → RenderTexture → RawImage. 끌어서 회전, 닫으면 복제본 삭제 | `PlayerAnimator.Animator` |
+| `InventoryWindowView` | 인벤토리 창 (I). 모델·장비 6칸·효과 합계·상세 정보창 / 탭·정렬·가방 12×8·골드·물약 / 우클릭·끌어 놓기·툴팁 | `Inventory.Changed`, `PlayerEquipment`, `PotionUser`, `StatListView`, `CharacterPreview` |
+| `StatListView` | 능력치 5분류 목록 + 휠 스크롤 (캐릭터 창·인벤토리 상세 정보 공용), 장비 보너스 표시 선택 | `CharacterStats`, `Health`, `IResourceGauge`, `IJobGauge` |
+| `ItemSlotView` / `ItemTooltipView` / `ItemVisuals` | 아이템 칸(희귀도 테두리·개수) / 툴팁(착용 비교) / 희귀도 색·이름·코드 생성 아이콘 | `ItemDefinition` |
+| `LootFeedView` | 획득 알림 (오른쪽, 최대 6줄, 3.5초) | `Inventory.ItemAcquired`·`GoldAcquired` |
+| `StatText` | 능력치 표시 이름·형식 (정적) | `StatType` |
+| `Inventory` (Item) | 가방 96칸·겹침·정렬·골드 (MonoBehaviour, HudView가 없으면 붙임) | - |
+| `PlayerEquipment` (Item) | 장비 6칸, `IStatModifierSource` "장비" | `Inventory`, `CharacterStats` |
+| `LootDropper` (Item) | 적 처치 보상·시작 지급 | `Health.AnyDied`, `EnemyDefinition.Rank` |
+| `ItemDefinition` / `ItemCatalog` (Item) | 아이템 정의(분류·부위·희귀도·아이콘·능력치) / 프로토타입 코드 목록 (장비 25·물약·재료 4) | - |
 | `RelicWindow` | 신물창, 신화 세트 | `RelicInventory` |
 | `EquipmentWindow` | 장비창 | `EquipmentLoadout` |
 | `SkillWindowView` | 스킬 창 (K). 슬롯별 장착 기술·수치 요약, 후보 클릭 장착 (구현 완료. 슬롯 레벨·분기 선택은 이후) | `SkillCaster.TryEquip`, `SkillLoadout.Changed` |
