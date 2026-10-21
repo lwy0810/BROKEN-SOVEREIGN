@@ -29,6 +29,14 @@ namespace BrokenSovereign.Player
             _charges = _maxCharges;
         }
 
+        /// <summary>물약 칸 충전 (가방의 치유 물약 사용). 실제로 채운 수 반환</summary>
+        public int AddCharges(int amount)
+        {
+            int add = Mathf.Clamp(_maxCharges - _charges, 0, Mathf.Max(0, amount));
+            _charges += add;
+            return add;
+        }
+
         public bool TryUse()
         {
             if (_charges <= 0)

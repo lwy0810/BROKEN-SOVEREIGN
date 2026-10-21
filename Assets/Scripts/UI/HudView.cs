@@ -3,6 +3,7 @@ using BrokenSovereign.Ascension;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Hero;
+using BrokenSovereign.Item;
 using BrokenSovereign.Player;
 using BrokenSovereign.Skill;
 using BrokenSovereign.Town;
@@ -94,6 +95,7 @@ namespace BrokenSovereign.UI
         private DamageNumberView _damageNumbers;
         private SkillWindowView _skillWindow;
         private CharacterWindowView _characterWindow;
+        private InventoryWindowView _inventoryWindow;
         private OutcomeScreenView _outcome;
         private Health _frameTarget;
         private float _noticeStartTime = float.NegativeInfinity;
@@ -281,6 +283,12 @@ namespace BrokenSovereign.UI
             {
                 _heroSelect.Open(_job.Current.ResolveHeroPaths());
             }
+        }
+
+        private static T EnsureComponent<T>(GameObject target) where T : Component
+        {
+            T component = target.GetComponent<T>();
+            return component != null ? component : target.AddComponent<T>();
         }
 
         private void OnHeroPathChosen(HeroPathDefinition path)
@@ -635,8 +643,18 @@ namespace BrokenSovereign.UI
                 _skillWindow.Initialize(_caster);
             }
 
+            // 가방·장비·처치 보상 (10/21): 씬 수정 없이 플레이어에 없으면 붙임
+            Inventory inventory = EnsureComponent<Inventory>(_player.gameObject);
+            EnsureComponent<PlayerEquipment>(_player.gameObject);
+            EnsureComponent<LootDropper>(_player.gameObject);
+
             _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
-            _characterWindow.Initialize(_player.gameObject);
+            _characterWindow.Initialize(_player.gameObject, (RectTransform)transform);
+
+            // 인벤토리 창(I)·획득 알림
+            _inventoryWindow = HudGraphics.CreateRect("InventoryWindow", transform).gameObject.AddComponent<InventoryWindowView>();
+            _inventoryWindow.Initialize(_player.gameObject, (RectTransform)transform);
+            HudGraphics.CreateRect("LootFeed", transform).gameObject.AddComponent<LootFeedView>().Initialize(inventory);
 
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();

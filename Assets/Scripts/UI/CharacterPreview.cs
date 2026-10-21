@@ -21,8 +21,10 @@ namespace BrokenSovereign.UI
         private const int POSE_SAMPLES = 40;
         private static readonly int LOCOMOTION_ID = Animator.StringToHash("Locomotion");
         private static readonly Vector3 STAGE = new Vector3(0f, -2000f, 0f);
+        private static int _stageCount;
 
         private readonly RawImage _image;
+        private readonly Vector3 _stagePosition;
         private readonly RenderTexture _texture;
         private Camera _camera;
         private Light _light;
@@ -36,8 +38,10 @@ namespace BrokenSovereign.UI
 
         public RectTransform Rect => _image.rectTransform;
 
+        /// <summary>미리보기마다 무대를 따로 두어(캐릭터 창·인벤토리) 서로의 복제본이 비치지 않게 함</summary>
         public CharacterPreview(Transform parent, Vector2 size)
         {
+            _stagePosition = STAGE + new Vector3(60f * _stageCount++, 0f, 0f);
             _image = HudGraphics.CreateRect("ModelPreview", parent).gameObject.AddComponent<RawImage>();
             _image.raycastTarget = false;
             _texture = new RenderTexture(Mathf.RoundToInt(size.x * 2f), Mathf.RoundToInt(size.y * 2f), 24, RenderTextureFormat.ARGB32)
@@ -304,7 +308,7 @@ namespace BrokenSovereign.UI
             }
 
             GameObject stage = new GameObject("CharacterPreviewStage");
-            stage.transform.position = STAGE;
+            stage.transform.position = _stagePosition;
             _pivot = new GameObject("Pivot").transform;
             _pivot.SetParent(stage.transform, false);
 

@@ -230,7 +230,7 @@ namespace BrokenSovereign.UI
         }
 
         // 둥근 사각형 부호 거리 (안 < 0). inset만큼 안쪽 사각형
-        private static float RoundRect(float x, float y, float w, float h, float radius, float inset = 0f)
+        internal static float RoundRect(float x, float y, float w, float h, float radius, float inset = 0f)
         {
             float hx = w * 0.5f - inset, hy = h * 0.5f - inset;
             float px = Mathf.Abs(x - w * 0.5f) - (hx - radius);
@@ -247,7 +247,7 @@ namespace BrokenSovereign.UI
         }
 
         // 가장자리에서 width 안쪽까지 테두리 색
-        private static Color Stroke(Color fill, Color stroke, float d, float width)
+        internal static Color Stroke(Color fill, Color stroke, float d, float width)
         {
             float t = Mathf.Clamp01(d + width + 0.5f);
             return Color.Lerp(fill, stroke, t * stroke.a + (1f - stroke.a) * 0f);
@@ -262,13 +262,13 @@ namespace BrokenSovereign.UI
             return c;
         }
 
-        private static Color Cover(Color c, float d)
+        internal static Color Cover(Color c, float d)
         {
             c.a *= Mathf.Clamp01(0.5f - d);
             return c;
         }
 
-        private static Sprite Make(string name, int w, int h, int border, Func<float, float, float, float, Color> pixel)
+        internal static Sprite Make(string name, int w, int h, int border, Func<float, float, float, float, Color> pixel)
         {
             var texture = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = name, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
             var pixels = new Color[w * h];
@@ -290,7 +290,7 @@ namespace BrokenSovereign.UI
         }
 
         // 4x4 표본으로 경계를 부드럽게 (도형 판정 함수용)
-        private static Sprite MakeSuper(string name, int size, Func<float, float, Color> sample)
+        internal static Sprite MakeSuper(string name, int size, Func<float, float, Color> sample)
         {
             return Make(name, size, size, 0, (x, y, w, h) =>
             {
