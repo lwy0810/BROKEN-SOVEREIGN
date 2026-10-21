@@ -447,6 +447,7 @@ namespace BrokenSovereign.UI
                 string skillName = skill != null ? GetSkillLabel(skill)
                     : SKILL_SLOTS[i] == SkillSlot.LeftClick ? "기본 공격" : string.Empty;
                 _skillSlots[i].SetSkillName(skillName);
+                _skillSlots[i].SetIcon(SkillIcons.Get(skill));
             }
         }
 
@@ -640,13 +641,14 @@ namespace BrokenSovereign.UI
             if (_caster != null)
             {
                 _skillWindow = HudGraphics.CreateRect("SkillWindow", transform).gameObject.AddComponent<SkillWindowView>();
-                _skillWindow.Initialize(_caster);
+                _skillWindow.Initialize(_caster, _player.gameObject);
             }
 
             // 가방·장비·처치 보상 (10/21): 씬 수정 없이 플레이어에 없으면 붙임
             Inventory inventory = EnsureComponent<Inventory>(_player.gameObject);
             EnsureComponent<PlayerEquipment>(_player.gameObject);
             EnsureComponent<LootDropper>(_player.gameObject);
+            EnsureComponent<SkillPointGrant>(_player.gameObject);
 
             _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
             _characterWindow.Initialize(_player.gameObject, (RectTransform)transform);

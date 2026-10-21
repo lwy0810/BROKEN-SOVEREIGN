@@ -199,7 +199,9 @@ namespace BrokenSovereign.Skill
             bool empowered = IsEmpowered();
 
             StatSheet stats = _stats != null ? _stats.Sheet : null;
-            var context = new SkillContext(skill, transform, cursorPoint, skill.CreateParameters(empowered), stats,
+            SkillParameterSet parameters = skill.CreateParameters(empowered);
+            SkillGrowth.Apply(parameters, Loadout.DesignatedOf(slot), Loadout.GetSlotLevel(slot), Loadout.GetBranch(skill));
+            var context = new SkillContext(skill, transform, cursorPoint, parameters, stats,
                 _targetMask, empowered)
             {
                 Resource = resource,

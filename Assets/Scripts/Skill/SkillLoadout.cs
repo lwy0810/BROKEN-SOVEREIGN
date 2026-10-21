@@ -24,7 +24,7 @@ namespace BrokenSovereign.Skill
     /// 슬롯별 기술 구성 (순수 클래스, EditMode 테스트 대상).
     /// 슬롯마다 후보 목록을 두고, 해금한 후보 중 하나를 장착합니다.
     /// 해금은 직업을 바꿔도 유지되고, 후보·장착은 직업 전환 시 다시 구성합니다.
-    /// 슬롯 레벨·강화 분기 선택은 저장 자리만 두고, 효과 적용은 이후 단계에서 연결합니다.
+    /// 슬롯 레벨·강화 분기·기술 포인트를 저장하고, 효과는 SkillGrowth가 시전 수치에 적용합니다 (10/21).
     /// </summary>
     public class SkillLoadout
     {
@@ -37,8 +37,17 @@ namespace BrokenSovereign.Skill
         private readonly Dictionary<SkillSlot, int> _slotLevels = new Dictionary<SkillSlot, int>();
         private readonly Dictionary<SkillDefinition, int> _branchChoices = new Dictionary<SkillDefinition, int>();
 
+        // 키 순서 바꾸기 (10/21): 직업·영웅이 정한 슬롯(지정) → 실제 키. 직업이 바뀌어도 유지
+        private readonly Dictionary<SkillSlot, SkillSlot> _remap = new Dictionary<SkillSlot, SkillSlot>();
+
         /// <summary>슬롯 장착 기술이 바뀌었을 때 (슬롯, 새 기술 또는 null)</summary>
         public event Action<SkillSlot, SkillDefinition> Changed;
+
+        /// <summary>기술 포인트·슬롯 레벨·분기가 바뀌었을 때</summary>
+        public event Action GrowthChanged;
+
+        /// <summary>남은 기술 포인트 (레벨업당 1)</summary>
+        public int SkillPoints { get; private set; }
 
         /// <summary>후보·장착 초기화 (직업 전환 시). 해금·슬롯 레벨·분기 선택은 유지</summary>
         public void ClearSlots()
@@ -53,9 +62,73 @@ namespace BrokenSovereign.Skill
             }
         }
 
-        /// <summary>슬롯 후보 지정. null·중복은 제외. 현재 장착 기술이 후보에서 빠지면 해제</summary>
+        /// <summary>지정 슬롯이 지금 놓인 실제 키 (키 순서를 바꾸지 않았으면 그대로)</summary>
+        public SkillSlot MapSlot(SkillSlot designated)
+        {
+            return _remap.TryGetValue(designated, out SkillSlot actual) ? actual : designated;
+        }
+
+        /// <summary>실제 키에 놓인 지정 슬롯 (MapSlot의 반대)</summary>
+        public SkillSlot DesignatedOf(SkillSlot actual)
+        {
+            foreach (KeyValuePair<SkillSlot, SkillSlot> pair in _remap)
+            {
+                if (pair.Value == actual)
+                {
+                    return pair.Key;
+                }
+            }
+
+            return actual;
+        }
+
+        /// <summary>
+        /// 두 키의 기술 맞바꾸기 (기술 창 장착 슬롯 끌어 놓기). 후보·장착·슬롯 레벨이 함께 옮겨지고,
+        /// 이후 직업 전환·영웅 기술 장착도 바뀐 키에 들어갑니다. 좌클릭(기본 공격)은 제외, 전투 중 불가.
+        /// </summary>
+        public bool SwapSlots(SkillSlot a, SkillSlot b, bool inCombat)
+        {
+            if (a == b || inCombat || a == SkillSlot.LeftClick || b == SkillSlot.LeftClick)
+            {
+                return false;
+            }
+
+            Swap(_candidates, a, b);
+            Swap(_equipped, a, b);
+            Swap(_slotLevels, a, b);
+
+            SkillSlot da = DesignatedOf(a), db = DesignatedOf(b);
+            _remap[da] = b;
+            _remap[db] = a;
+
+            Changed?.Invoke(a, GetEquipped(a));
+            Changed?.Invoke(b, GetEquipped(b));
+            GrowthChanged?.Invoke();
+            return true;
+        }
+
+        private static void Swap<T>(Dictionary<SkillSlot, T> map, SkillSlot a, SkillSlot b)
+        {
+            bool hasA = map.TryGetValue(a, out T va);
+            bool hasB = map.TryGetValue(b, out T vb);
+            map.Remove(a);
+            map.Remove(b);
+
+            if (hasA)
+            {
+                map[b] = va;
+            }
+
+            if (hasB)
+            {
+                map[a] = vb;
+            }
+        }
+
+        /// <summary>슬롯 후보 지정 (직업·영웅 설정용, 지정 슬롯 기준 → 실제 키로 옮겨 저장). null·중복은 제외. 현재 장착 기술이 후보에서 빠지면 해제</summary>
         public void SetCandidates(SkillSlot slot, IEnumerable<SkillDefinition> candidates)
         {
+            slot = MapSlot(slot);
             var list = new List<SkillDefinition>();
 
             if (candidates != null)
@@ -106,6 +179,12 @@ namespace BrokenSovereign.Skill
         /// <summary>장착. 실패 이유를 돌려줍니다 (해금 안 됨·다른 슬롯 후보·전투 중)</summary>
         public EquipResult Equip(SkillSlot slot, SkillDefinition skill, bool inCombat)
         {
+            // 직업·영웅 설정은 지정 슬롯으로 부름: 그 키의 후보가 아니면 옮겨진 실제 키로
+            if (!IsCandidate(slot, skill) && IsCandidate(MapSlot(slot), skill))
+            {
+                slot = MapSlot(slot);
+            }
+
             if (!IsCandidate(slot, skill))
             {
                 return EquipResult.NotCandidate;
@@ -169,7 +248,47 @@ namespace BrokenSovereign.Skill
             }
         }
 
-        /// <summary>슬롯 레벨 (기본 1). 효과 적용은 이후 단계</summary>
+        public void AddPoints(int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            SkillPoints += amount;
+            GrowthChanged?.Invoke();
+        }
+
+        /// <summary>포인트 1을 써서 슬롯 레벨 +1 (최대 SkillGrowth.MAX_LEVEL)</summary>
+        public bool TryLevelUp(SkillSlot slot)
+        {
+            int level = GetSlotLevel(slot);
+
+            if (SkillPoints <= 0 || level >= SkillGrowth.MAX_LEVEL)
+            {
+                return false;
+            }
+
+            SkillPoints--;
+            _slotLevels[slot] = level + 1;
+            GrowthChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>모든 슬롯 레벨을 1로 되돌리고 포인트 환급, 분기 선택 초기화</summary>
+        public void ResetGrowth()
+        {
+            foreach (int level in _slotLevels.Values)
+            {
+                SkillPoints += Math.Max(0, level - 1);
+            }
+
+            _slotLevels.Clear();
+            _branchChoices.Clear();
+            GrowthChanged?.Invoke();
+        }
+
+        /// <summary>슬롯 레벨 (기본 1). 효과는 SkillGrowth.Apply (SkillCaster 시전 시)</summary>
         public int GetSlotLevel(SkillSlot slot)
         {
             return _slotLevels.TryGetValue(slot, out int level) ? level : 1;
@@ -178,6 +297,7 @@ namespace BrokenSovereign.Skill
         public void SetSlotLevel(SkillSlot slot, int level)
         {
             _slotLevels[slot] = Math.Max(1, level);
+            GrowthChanged?.Invoke();
         }
 
         /// <summary>기술 강화 분기 선택 (-1 = 미선택). 효과 적용은 이후 단계</summary>
@@ -196,10 +316,13 @@ namespace BrokenSovereign.Skill
             if (branch < 0)
             {
                 _branchChoices.Remove(skill);
-                return;
+            }
+            else
+            {
+                _branchChoices[skill] = branch;
             }
 
-            _branchChoices[skill] = branch;
+            GrowthChanged?.Invoke();
         }
 
         private static int IndexOf(IReadOnlyList<SkillDefinition> list, SkillDefinition skill)
