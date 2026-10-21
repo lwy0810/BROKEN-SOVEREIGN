@@ -28,14 +28,14 @@ namespace BrokenSovereign.UI
             }
         }
 
-        /// <summary>내장 동적 폰트. 숫자·영문 표시용 (한글 폰트는 툴팁 도입 시 준비)</summary>
+        /// <summary>기본 본문 서체 (10/21: Noto Sans KR, 없으면 내장 폰트). 제목은 UiTheme.TitleFont</summary>
         public static Font Font
         {
             get
             {
                 if (_font == null)
                 {
-                    _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    _font = UiTheme.BodyFont;
                 }
 
                 return _font;

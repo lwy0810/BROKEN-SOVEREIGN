@@ -36,6 +36,7 @@ namespace BrokenSovereign.Player
         private float _actionEndTime;
         private bool _isSkillAction;
         private bool _hasPendingMove;
+        private bool _isAutoMoving;
         private Vector3 _pendingMove;
 
         // 교전 상태
@@ -143,8 +144,10 @@ namespace BrokenSovereign.Player
                 // 기술 동작 중에 들어온 이동 입력: 동작이 끝난 뒤 마지막 지점으로 이동
                 if (_hasPendingMove)
                 {
+                    bool auto = _isAutoMoving;
                     _hasPendingMove = false;
                     MoveTo(_pendingMove);
+                    _isAutoMoving = auto;
                 }
             }
         }
@@ -175,9 +178,26 @@ namespace BrokenSovereign.Player
             }
 
             _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.MoveTo(point);
             State = PlayerState.Moving;
+        }
+
+        /// <summary>지도에서 고른 자동 이동 중 (다른 이동·공격·회피 입력이나 도착 시 해제)</summary>
+        public bool IsAutoMoving => _isAutoMoving && State == PlayerState.Moving;
+
+        /// <summary>지도 우클릭 [자동 이동]: 지점까지 길찾기 이동. 이동을 시작하지 못하면 false</summary>
+        public bool AutoMoveTo(Vector3 point)
+        {
+            if (IsDead || IsActionLocked)
+            {
+                return false;
+            }
+
+            MoveTo(point);
+            _isAutoMoving = State == PlayerState.Moving || _hasPendingMove;
+            return _isAutoMoving;
         }
 
         /// <summary>
@@ -201,6 +221,7 @@ namespace BrokenSovereign.Player
             }
 
             _hasPendingMove = false;
+            _isAutoMoving = false;
             _engageAction = action;
             _engageTarget = target;
             SelectTarget(target);
@@ -234,6 +255,7 @@ namespace BrokenSovereign.Player
             }
 
             _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.Stop();
             _mover.FaceTowards(point);
@@ -441,6 +463,7 @@ namespace BrokenSovereign.Player
             }
 
             _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.Stop();
             State = PlayerState.Idle;
@@ -459,6 +482,7 @@ namespace BrokenSovereign.Player
             if (_dodge.TryDodge(point - transform.position))
             {
                 _hasPendingMove = false;
+                _isAutoMoving = false;
                 ClearEngage();
                 State = PlayerState.Dodging;
                 Dodged?.Invoke(_dodge.Direction);
@@ -586,6 +610,7 @@ namespace BrokenSovereign.Player
         {
             _isSkillAction = isSkill;
             _hasPendingMove = false;
+            _isAutoMoving = false;
             _mover.Stop();
             State = PlayerState.Attacking;
             _actionEndTime = Time.time + Mathf.Max(0f, duration);

@@ -18,7 +18,7 @@ namespace BrokenSovereign.UI
         private const float HEAD_HEIGHT = 2.75f;
         private const float TRACK_TIME = 10f;
 
-        private static readonly Color COLOR = new Color(1f, 0.62f, 0.25f);
+        private static Color COLOR => UiTheme.P.Status;
 
         private sealed class Entry
         {
@@ -80,7 +80,7 @@ namespace BrokenSovereign.UI
                     Health = health,
                     Enemy = health.GetComponent<EnemyController>(),
                     Poise = health.GetComponent<PoiseReceiver>(),
-                    Text = UiKit.Label("Status", _root, 17, COLOR, TextAnchor.MiddleCenter, FontStyle.Bold)
+                    Text = UiKit.SceneLabel("Status", _root, 17, COLOR, TextAnchor.MiddleCenter)
                 };
                 entry.Text.rectTransform.sizeDelta = new Vector2(320f, 26f);
                 entry.Text.rectTransform.anchorMin = entry.Text.rectTransform.anchorMax = Vector2.zero;

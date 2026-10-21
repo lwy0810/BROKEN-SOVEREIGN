@@ -22,8 +22,8 @@ namespace BrokenSovereign.UI
 
         private static readonly string[] KEYS = { "LMB", "RMB", "1", "2", "3", "4", "5", "6" };
 
-        private const float WIDTH = 1040f;
-        private const float ROW_HEIGHT = 62f;
+        private const float WIDTH = 1100f;
+        private const float ROW_HEIGHT = 74f;
         private const float CANDIDATE_WIDTH = 150f;
 
         private sealed class Candidate
@@ -32,13 +32,15 @@ namespace BrokenSovereign.UI
             public SkillDefinition Skill;
             public RectTransform Rect;
             public Image Background;
-            public Outline Outline;
+            public Image Glow;
             public Text Label;
         }
 
         private SkillCaster _caster;
         private RectTransform _panel;
         private RectTransform _rows;
+        private Image _close;
+        private WindowDrag _drag;
         private Text _message;
         private float _messageEndTime;
         private bool _dirty = true;
@@ -51,31 +53,26 @@ namespace BrokenSovereign.UI
             _caster = caster;
             RectTransform root = (RectTransform)transform;
             HudGraphics.Stretch(root);
+            UiPalette p = UiTheme.P;
 
-            float height = 120f + SLOTS.Length * ROW_HEIGHT + 50f;
-            _panel = UiKit.Panel("Panel", root).rectTransform;
-            UiKit.Place(_panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 30f),
+            float height = 100f + SLOTS.Length * ROW_HEIGHT + 56f;
+            _panel = UiKit.Plate("Panel", root).rectTransform;
+            UiKit.Place(_panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 20f),
                 new Vector2(WIDTH, height));
+            _drag = new WindowDrag(_panel, (RectTransform)UiKit.TitleTab(_panel, "기술").transform.parent);
 
-            Text title = UiKit.Label("Title", _panel, 30, UiKit.GOLD, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.PlaceTopLeft(title.rectTransform, new Vector2(28f, 18f), new Vector2(400f, 40f));
-            title.text = "기술";
+            Text help = UiKit.Label("Help", _panel, 14, p.TextDim, TextAnchor.MiddleLeft);
+            UiKit.PlaceTopLeft(help.rectTransform, new Vector2(30f, 38f), new Vector2(420f, 22f));
+            help.text = "해금한 후보를 눌러 장착 · 전투 중에는 교체 불가";
 
-            Text help = UiKit.Label("Help", _panel, 16, UiKit.DIM_TEXT, TextAnchor.MiddleRight);
-            UiKit.Place(help.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -26f),
-                new Vector2(600f, 24f));
-            help.text = "해금한 후보를 눌러 장착 · 전투 중에는 교체 불가 · K / Esc 닫기";
-
-            Text header = UiKit.Label("Header", _panel, 15, UiKit.DIM_TEXT, TextAnchor.MiddleLeft);
-            UiKit.PlaceTopLeft(header.rectTransform, new Vector2(28f, 70f), new Vector2(WIDTH - 56f, 22f));
-            header.text = "키        장착 기술                                                           후보 기술";
+            _close = UiKit.CloseButton(_panel);
 
             _rows = HudGraphics.CreateRect("Rows", _panel);
-            UiKit.PlaceTopLeft(_rows, new Vector2(20f, 98f), new Vector2(WIDTH - 40f, SLOTS.Length * ROW_HEIGHT));
+            UiKit.PlaceTopLeft(_rows, new Vector2(24f, 84f), new Vector2(WIDTH - 48f, SLOTS.Length * ROW_HEIGHT));
 
-            _message = UiKit.Label("Message", _panel, 18, UiKit.GOLD, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Place(_message.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f),
-                new Vector2(WIDTH, 28f));
+            _message = UiKit.Label("Message", _panel, 16, p.Title, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Place(_message.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 16f),
+                new Vector2(WIDTH, 26f));
 
             if (_caster != null)
             {
@@ -150,11 +147,18 @@ namespace BrokenSovereign.UI
             {
                 Close();
             }
+            else if (IsOpen && UiKit.IsCloseClicked(_close))
+            {
+                Close();
+                return;
+            }
 
             if (!IsOpen)
             {
                 return;
             }
+
+            _drag.Tick();
 
             if (_dirty)
             {
@@ -168,10 +172,12 @@ namespace BrokenSovereign.UI
                 bool hover = UiKit.IsHover(candidate.Rect);
                 bool equipped = _caster.GetSkill(candidate.Slot) == candidate.Skill;
                 bool unlocked = _caster.Loadout.IsUnlocked(candidate.Skill);
-                candidate.Background.color = equipped ? new Color(0.35f, 0.27f, 0.1f, 0.95f)
-                    : hover && unlocked ? UiKit.ROW_HOVER : new Color(1f, 1f, 1f, 0.06f);
-                candidate.Outline.effectColor = equipped || hover ? UiKit.GOLD : new Color(1f, 1f, 1f, 0.15f);
-                candidate.Label.color = unlocked ? (equipped ? UiKit.GOLD : Color.white) : UiKit.DIM_TEXT;
+                candidate.Background.sprite = equipped ? UiSprites.ButtonEquip : UiSprites.Button;
+                candidate.Background.color = !unlocked ? new Color(1f, 1f, 1f, 0.5f)
+                    : hover && !equipped ? new Color(1f, 0.92f, 0.8f) : Color.white;
+                candidate.Glow.enabled = equipped || (hover && unlocked);
+                candidate.Glow.color = UiTheme.WithAlpha(UiTheme.P.CrackOuter, equipped ? 0.35f : 0.2f);
+                candidate.Label.color = !unlocked ? UiTheme.P.TextDisabled : equipped ? UiTheme.P.EquipText : UiTheme.P.Text;
 
                 if (hover && UiKit.Clicked)
                 {
@@ -216,37 +222,58 @@ namespace BrokenSovereign.UI
         {
             _dirty = false;
             _candidates.Clear();
+            UiPalette p = UiTheme.P;
 
             for (int i = _rows.childCount - 1; i >= 0; i--)
             {
                 Destroy(_rows.GetChild(i).gameObject);
             }
 
-            float rowWidth = WIDTH - 40f;
+            float rowWidth = WIDTH - 48f;
 
             for (int i = 0; i < SLOTS.Length; i++)
             {
                 SkillSlot slot = SLOTS[i];
-                Image row = UiKit.Box($"Row_{slot}", _rows, i % 2 == 0 ? UiKit.ROW : Color.clear);
-                UiKit.PlaceTopLeft(row.rectTransform, new Vector2(0f, i * ROW_HEIGHT), new Vector2(rowWidth, ROW_HEIGHT - 4f));
-
-                Text key = UiKit.Label("Key", row.transform, 20, UiKit.GOLD, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UiKit.PlaceTopLeft(key.rectTransform, new Vector2(8f, 0f), new Vector2(56f, ROW_HEIGHT - 4f));
-                key.text = KEYS[i];
+                Image row = UiKit.Round($"Row_{slot}", _rows, i % 2 == 0 ? p.RowA : p.RowB);
+                UiKit.PlaceTopLeft(row.rectTransform, new Vector2(0f, i * ROW_HEIGHT), new Vector2(rowWidth, ROW_HEIGHT - 6f));
 
                 SkillDefinition equipped = _caster.GetSkill(slot);
-                Text name = UiKit.Label("Name", row.transform, 20, equipped != null ? Color.white : UiKit.DIM_TEXT,
-                    TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.PlaceTopLeft(name.rectTransform, new Vector2(76f, 6f), new Vector2(360f, 26f));
+                bool open = equipped != null || slot == SkillSlot.LeftClick;
+
+                // 기술 칸 (HUD와 같은 모양)
+                Image tile = UiKit.Sliced("Tile", row.transform, UiSprites.Tile);
+                UiKit.PlaceTopLeft(tile.rectTransform, new Vector2(8f, 5f), new Vector2(ROW_HEIGHT - 16f, ROW_HEIGHT - 16f));
+                tile.color = open ? Color.white : new Color(1f, 1f, 1f, 0.45f);
+
+                if (open)
+                {
+                    Image rune = UiKit.Sliced("Rune", tile.transform, UiSprites.Rune);
+                    rune.type = Image.Type.Simple;
+                    HudGraphics.Stretch(rune.rectTransform);
+                    rune.rectTransform.offsetMin = new Vector2(15f, 15f);
+                    rune.rectTransform.offsetMax = new Vector2(-15f, -15f);
+                }
+
+                Text key = UiKit.Label("Key", tile.transform, 11, open ? p.Title : p.TextDisabled, TextAnchor.LowerRight, FontStyle.Bold);
+                HudGraphics.Stretch(key.rectTransform);
+                key.rectTransform.offsetMin = new Vector2(6f, 4f);
+                key.rectTransform.offsetMax = new Vector2(-6f, -4f);
+                key.text = KEYS[i];
+
+                Text name = UiKit.Title("Name", row.transform, 19, open ? p.Text : p.TextDisabled, TextAnchor.MiddleLeft);
+                UiKit.PlaceTopLeft(name.rectTransform, new Vector2(ROW_HEIGHT + 4f, equipped != null ? 8f : 18f), new Vector2(360f, 28f));
                 name.text = equipped != null ? equipped.DisplayName
                     : slot == SkillSlot.LeftClick ? "기본 공격" : "미개방";
 
-                Text info = UiKit.Label("Info", row.transform, 14, UiKit.SUBTLE, TextAnchor.MiddleLeft);
-                UiKit.PlaceTopLeft(info.rectTransform, new Vector2(76f, 32f), new Vector2(380f, 20f));
-                info.text = equipped != null ? Describe(equipped) : string.Empty;
+                if (equipped != null)
+                {
+                    Text info = UiKit.Label("Info", row.transform, 13, p.TextDim, TextAnchor.MiddleLeft);
+                    UiKit.PlaceTopLeft(info.rectTransform, new Vector2(ROW_HEIGHT + 4f, 38f), new Vector2(420f, 20f));
+                    info.text = Describe(equipped);
+                }
 
                 IReadOnlyList<SkillDefinition> candidates = _caster.Loadout.GetCandidates(slot);
-                float x = rowWidth - 12f - CANDIDATE_WIDTH;
+                float x = rowWidth - 14f - CANDIDATE_WIDTH;
 
                 for (int c = candidates.Count - 1; c >= 0; c--)
                 {
@@ -265,15 +292,18 @@ namespace BrokenSovereign.UI
 
         private Candidate CreateCandidate(Transform row, SkillSlot slot, SkillDefinition skill, float x)
         {
-            Image background = UiKit.Box($"Candidate_{skill.SkillId}", row, Color.clear);
-            UiKit.PlaceTopLeft(background.rectTransform, new Vector2(x, 10f), new Vector2(CANDIDATE_WIDTH, ROW_HEIGHT - 24f));
-            Outline outline = background.gameObject.AddComponent<Outline>();
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
+            Image glow = UiKit.Sliced($"Glow_{skill.SkillId}", row, UiSprites.Glow);
+            glow.type = Image.Type.Simple;
+            UiKit.PlaceTopLeft(glow.rectTransform, new Vector2(x - 14f, 2f), new Vector2(CANDIDATE_WIDTH + 28f, ROW_HEIGHT - 10f));
+            glow.enabled = false;
+
+            Image background = UiKit.Button($"Candidate_{skill.SkillId}", row, string.Empty);
+            UiKit.PlaceTopLeft(background.rectTransform, new Vector2(x, 13f), new Vector2(CANDIDATE_WIDTH, ROW_HEIGHT - 32f));
 
             bool unlocked = _caster.Loadout.IsUnlocked(skill);
-            Text label = UiKit.Label("Label", background.transform, 16, Color.white, TextAnchor.MiddleCenter);
-            HudGraphics.Stretch(label.rectTransform);
-            label.text = unlocked ? skill.DisplayName : $"{skill.DisplayName} (잠김)";
+            Text label = background.GetComponentInChildren<Text>();
+            label.fontSize = 14;
+            label.text = unlocked ? skill.DisplayName : $"{skill.DisplayName} · 잠김";
 
             return new Candidate
             {
@@ -281,7 +311,7 @@ namespace BrokenSovereign.UI
                 Skill = skill,
                 Rect = background.rectTransform,
                 Background = background,
-                Outline = outline,
+                Glow = glow,
                 Label = label
             };
         }
@@ -306,7 +336,7 @@ namespace BrokenSovereign.UI
 
             if (skill.ResourceCost > 0f)
             {
-                parts.Add($"마나 {skill.ResourceCost:0}");
+                parts.Add($"기력 {skill.ResourceCost:0}");
             }
 
             float coefficient = skill.GetBaseParameter(SkillParameterKeys.COEFFICIENT);

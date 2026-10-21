@@ -17,9 +17,9 @@ namespace BrokenSovereign.UI
         private const float RISE = 70f;
         private const float HEAD_HEIGHT = 2.2f;
 
-        private static readonly Color DEALT = Color.white;
-        private static readonly Color CRIT = new Color(1f, 0.85f, 0.25f);
-        private static readonly Color TAKEN = new Color(1f, 0.3f, 0.25f);
+        private static Color DEALT => UiTheme.P.Damage;
+        private static Color CRIT => UiTheme.P.Crit;
+        private static Color TAKEN => UiTheme.P.Taken;
 
         private sealed class Number
         {
@@ -45,7 +45,7 @@ namespace BrokenSovereign.UI
 
             for (int i = 0; i < POOL_SIZE; i++)
             {
-                Text text = UiKit.Label($"Number_{i}", _root, 26, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                Text text = UiKit.SceneLabel($"Number_{i}", _root, 26, Color.white, TextAnchor.MiddleCenter);
                 text.rectTransform.sizeDelta = new Vector2(200f, 40f);
                 text.enabled = false;
                 _pool.Add(new Number { Text = text });

@@ -8,31 +8,23 @@ namespace BrokenSovereign.UI
     /// <summary>
     /// 상단 보스 체력바 (10/21): 교전 중인 보스(BossStatus)의 이름·칭호, 체력(깎인 만큼 늦게 따라오는 흔적), 보호막,
     /// 버팀 게이지(야로미르), 격 수확 결정 수·흡수까지 남은 시간, 흡수 단계. 첫 교전 시 이름 배너, 처치 시 격파 배너.
-    /// HudView가 생성합니다. 보스가 없으면 숨김.
+    /// B안 스타일: 균열이 간 금속판 위 알약형 막대 (UiTheme). HudView가 생성합니다. 보스가 없으면 숨김.
     /// </summary>
     public class BossHudView : MonoBehaviour
     {
-        private const float BAR_WIDTH = 760f;
-        private const float BAR_HEIGHT = 18f;
+        private const float BAR_WIDTH = 900f;
+        private const float BAR_HEIGHT = 22f;
+        private const float PLATE_TOP = 18f;
+        private const float PLATE_HEIGHT = 132f;
         private const float TRAIL_DELAY = 0.45f;
         private const float TRAIL_SPEED = 0.6f;
         private const float BANNER_TIME = 2.6f;
 
-        private static readonly Color HP_COLOR = new Color(0.75f, 0.12f, 0.1f);
-        private static readonly Color TRAIL_COLOR = new Color(1f, 0.85f, 0.6f, 0.9f);
-        private static readonly Color SHIELD_COLOR = new Color(0.55f, 0.85f, 1f, 0.85f);
-        private static readonly Color POISE_COLOR = new Color(0.95f, 0.78f, 0.3f);
-        private static readonly Color STAGGER_COLOR = new Color(1f, 0.45f, 0.15f);
-        private static readonly Color CRYSTAL_COLOR = new Color(0.7f, 0.5f, 1f);
-
-        private RectTransform _bar;
-        private Image _hpFill;
-        private Image _trailFill;
-        private Image _shieldFill;
+        private RectTransform _plate;
+        private UiBar _bar;
+        private UiBar _poise;
         private Text _nameText;
-        private Text _percentText;
-        private RectTransform _poiseBar;
-        private Image _poiseFill;
+        private Text _titleText;
         private Text _crystalText;
         private Text _bannerTitle;
         private Text _bannerSub;
@@ -46,68 +38,63 @@ namespace BrokenSovereign.UI
         private float _bannerEndTime;
 
         /// <summary>보스 체력바가 보이는 중 (대상 체력 게이지 위치 조정용)</summary>
-        public bool IsShowing => _bar != null && _bar.gameObject.activeSelf;
+        public bool IsShowing => _plate != null && _plate.gameObject.activeSelf;
 
         /// <summary>보이는 보스의 체력 (대상 게이지와 겹치지 않게 HudView가 비교)</summary>
         public Health ShownHealth => IsShowing && _boss != null ? _boss.Health : null;
 
         /// <summary>체력바가 차지하는 높이 (위 여백 포함)</summary>
-        public float OccupiedHeight => 96f;
+        public float OccupiedHeight => PLATE_TOP + PLATE_HEIGHT + 12f;
 
         public void Initialize()
         {
             RectTransform root = (RectTransform)transform;
             HudGraphics.Stretch(root);
+            UiPalette p = UiTheme.P;
 
-            _bar = HudGraphics.CreateRect("BossBar", root);
-            UiKit.Place(_bar, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -46f),
-                new Vector2(BAR_WIDTH, BAR_HEIGHT));
-            Image background = UiKit.Box("Background", _bar, new Color(0f, 0f, 0f, 0.75f));
-            HudGraphics.Stretch(background.rectTransform);
-            Outline outline = background.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(UiKit.GOLD.r, UiKit.GOLD.g, UiKit.GOLD.b, 0.9f);
-            outline.effectDistance = new Vector2(2f, -2f);
+            // 균열 간 금속판 (보스 고정 균열)
+            _plate = UiKit.Plate("BossPlate", root).rectTransform;
+            UiKit.Place(_plate, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -PLATE_TOP),
+                new Vector2(BAR_WIDTH + 60f, PLATE_HEIGHT));
 
-            _trailFill = UiKit.Fill("Trail", _bar, TRAIL_COLOR);
-            _hpFill = UiKit.Fill("Health", _bar, HP_COLOR);
-            _shieldFill = UiKit.Fill("Shield", _bar, SHIELD_COLOR);
-            _shieldFill.fillOrigin = (int)Image.OriginHorizontal.Right;
+            _titleText = UiKit.Title("Title", _plate, 14, p.TextDim, TextAnchor.MiddleCenter);
+            UiKit.Place(_titleText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(BAR_WIDTH, 20f));
+            _nameText = UiKit.Title("Name", _plate, 28, p.Title, TextAnchor.MiddleCenter);
+            UiKit.Place(_nameText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(BAR_WIDTH, 38f));
 
-            _percentText = UiKit.Label("Percent", _bar, 14, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
-            HudGraphics.Stretch(_percentText.rectTransform);
-
-            _nameText = UiKit.Label("Name", _bar, 22, UiKit.GOLD, TextAnchor.LowerCenter, FontStyle.Bold);
-            UiKit.Place(_nameText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0f), new Vector2(0f, 4f),
-                new Vector2(BAR_WIDTH, 28f));
+            _bar = UiKit.Bar("Health", _plate, p.Hp, p.HpDark);
+            UiKit.Place(_bar.Rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(BAR_WIDTH, BAR_HEIGHT));
+            _bar.EnableTrail(p.Trail);
+            _bar.EnableShield(UiTheme.WithAlpha(p.Shield, 0.85f));
+            _bar.EnableText(13);
 
             // 버팀 게이지 (야로미르 선택 시 첫 피해부터)
-            _poiseBar = HudGraphics.CreateRect("Poise", _bar);
-            UiKit.Place(_poiseBar, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, -4f),
-                new Vector2(BAR_WIDTH * 0.6f, 6f));
-            Image poiseBackground = UiKit.Box("Background", _poiseBar, new Color(0f, 0f, 0f, 0.6f));
-            HudGraphics.Stretch(poiseBackground.rectTransform);
-            _poiseFill = UiKit.Fill("Fill", _poiseBar, POISE_COLOR);
+            _poise = UiKit.Bar("Poise", _plate, p.Poise, p.ResourceDark);
+            UiKit.Place(_poise.Rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -98f), new Vector2(BAR_WIDTH * 0.5f, 7f));
 
             // 격 수확 결정
-            _crystalText = UiKit.Label("Crystals", _bar, 15, CRYSTAL_COLOR, TextAnchor.UpperCenter, FontStyle.Bold);
-            UiKit.Place(_crystalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, -14f),
-                new Vector2(BAR_WIDTH, 20f));
+            _crystalText = UiKit.Label("Crystals", _plate, 14, p.Crystal, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Place(_crystalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 6f), new Vector2(BAR_WIDTH, 20f));
 
-            // 등장·격파 배너 (화면 가운데 위)
+            // 등장·격파 배너 (화면 가운데 위, 가로 띠 + 위아래 금선)
             RectTransform banner = HudGraphics.CreateRect("Banner", root);
-            UiKit.Place(banner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 170f),
-                new Vector2(1200f, 120f));
+            UiKit.Place(banner, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 170f), new Vector2(1920f, 200f));
             _bannerGroup = banner.gameObject.AddComponent<CanvasGroup>();
             _bannerGroup.blocksRaycasts = false;
-            _bannerTitle = UiKit.Label("Title", banner, 64, UiKit.GOLD, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.Place(_bannerTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 14f),
-                new Vector2(1200f, 76f));
-            _bannerSub = UiKit.Label("Sub", banner, 24, UiKit.SUBTLE, TextAnchor.MiddleCenter);
-            UiKit.Place(_bannerSub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f),
-                new Vector2(1200f, 32f));
+            Image band = UiKit.Box("Band", banner, new Color(0f, 0f, 0f, 0.6f));
+            HudGraphics.Stretch(band.rectTransform);
+            Image lineTop = UiKit.Box("LineTop", banner, UiTheme.WithAlpha(p.CrackOuter, 0.8f));
+            UiKit.Place(lineTop.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -18f), new Vector2(1000f, 2f));
+            Image lineBottom = UiKit.Box("LineBottom", banner, UiTheme.WithAlpha(p.CrackOuter, 0.8f));
+            UiKit.Place(lineBottom.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 18f), new Vector2(1000f, 2f));
+            _bannerTitle = UiKit.Title("Title", banner, 76, p.Title, TextAnchor.MiddleCenter);
+            UiKit.Place(_bannerTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 16f), new Vector2(1400f, 96f));
+            _bannerTitle.gameObject.AddComponent<Outline>().effectColor = UiTheme.WithAlpha(p.CrackOuter, 0.45f);
+            _bannerSub = UiKit.Title("Sub", banner, 24, p.Text, TextAnchor.MiddleCenter);
+            UiKit.Place(_bannerSub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -52f), new Vector2(1400f, 34f));
             _bannerGroup.alpha = 0f;
 
-            _bar.gameObject.SetActive(false);
+            _plate.gameObject.SetActive(false);
             BossStatus.AnyDefeated += OnBossDefeated;
         }
 
@@ -130,11 +117,11 @@ namespace BrokenSovereign.UI
                 if (boss != null && boss != _introducedBoss)
                 {
                     _introducedBoss = boss;
-                    ShowBanner(boss.BossName, boss.Title);
+                    ShowBanner(boss.BossName, Spaced(boss.Title));
                 }
             }
 
-            _bar.gameObject.SetActive(_boss != null);
+            _plate.gameObject.SetActive(_boss != null);
 
             if (_boss == null)
             {
@@ -161,14 +148,14 @@ namespace BrokenSovereign.UI
                 _trail = Mathf.MoveTowards(_trail, ratio, TRAIL_SPEED * Time.deltaTime);
             }
 
-            _hpFill.fillAmount = ratio;
-            _trailFill.fillAmount = _trail;
-            _shieldFill.fillAmount = health.Max > 0f ? Mathf.Clamp01(_boss.Shield / health.Max) : 0f;
-            _nameText.text = string.IsNullOrEmpty(_boss.Title) ? _boss.BossName : $"{_boss.BossName}  <size=16>{_boss.Title}</size>";
-            _nameText.supportRichText = true;
+            _bar.SetRatio(ratio);
+            _bar.SetTrail(_trail);
+            _bar.SetShield(health.Max > 0f ? Mathf.Clamp01(_boss.Shield / health.Max) : 0f);
+            _nameText.text = _boss.BossName;
+            _titleText.text = _boss.Title;
 
-            string shield = _boss.Shield > 0f ? $"  +보호막 {Mathf.CeilToInt(_boss.Shield)}" : string.Empty;
-            _percentText.text = $"{Mathf.CeilToInt(ratio * 100f)}%{shield}";
+            string shield = _boss.Shield > 0f ? $"   +보호막 {Mathf.CeilToInt(_boss.Shield)}" : string.Empty;
+            _bar.Text.text = $"{Mathf.CeilToInt(ratio * 100f)}%{shield}";
 
             UpdatePoise();
             UpdateCrystals();
@@ -177,7 +164,7 @@ namespace BrokenSovereign.UI
         private void UpdatePoise()
         {
             PoiseReceiver poise = _boss.GetComponent<PoiseReceiver>();
-            _poiseBar.gameObject.SetActive(poise != null);
+            _poise.Rect.gameObject.SetActive(poise != null);
 
             if (poise == null)
             {
@@ -185,8 +172,9 @@ namespace BrokenSovereign.UI
             }
 
             bool staggered = poise.IsStaggered;
-            _poiseFill.fillAmount = staggered ? 1f : poise.Ratio;
-            _poiseFill.color = staggered ? STAGGER_COLOR : POISE_COLOR;
+            _poise.SetRatio(staggered ? 1f : poise.Ratio);
+            Color color = staggered ? UiTheme.P.Stagger : UiTheme.P.Poise;
+            _poise.SetColor(color, color);
         }
 
         private void UpdateCrystals()
@@ -195,7 +183,7 @@ namespace BrokenSovereign.UI
 
             if (_boss.ActiveCrystals > 0)
             {
-                text = $"격 결정 {_boss.ActiveCrystals}개 — 흡수까지 {_boss.CrystalTimeRemaining:0.0}초";
+                text = $"◆ 격 결정 {_boss.ActiveCrystals}개 — 흡수까지 {_boss.CrystalTimeRemaining:0.0}초";
             }
 
             if (_boss.AbsorbedStacks > 0)
@@ -205,10 +193,9 @@ namespace BrokenSovereign.UI
             }
 
             _crystalText.text = text;
-            _crystalText.rectTransform.anchoredPosition = new Vector2(0f, _poiseBar.gameObject.activeSelf ? -14f : -6f);
         }
 
-        // 교전 중인 보스 중 가장 가까운 보스 (플레이어 기준은 카메라 대신 첫 번째로 충분)
+        // 교전 중인 보스 중 첫 번째
         private static BossStatus FindEngagedBoss()
         {
             foreach (BossStatus boss in BossStatus.Active)
@@ -249,7 +236,25 @@ namespace BrokenSovereign.UI
             float alpha = Mathf.Min(Mathf.Clamp01(elapsed / 0.3f), Mathf.Clamp01(remaining / 0.6f));
             _bannerGroup.alpha = alpha;
             float scale = Mathf.Lerp(1.15f, 1f, Mathf.Clamp01(elapsed / 0.35f));
-            _bannerGroup.transform.localScale = new Vector3(scale, scale, 1f);
+            _bannerTitle.transform.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        // 칭호 글자 사이 띄우기 ("천계의 무신" → "천 계 의   무 신")
+        private static string Spaced(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var builder = new System.Text.StringBuilder();
+
+            foreach (char c in text)
+            {
+                builder.Append(c == ' ' ? "  " : c.ToString()).Append(' ');
+            }
+
+            return builder.ToString().TrimEnd();
         }
 
         private static float Ratio(Health health)

@@ -23,6 +23,9 @@ namespace BrokenSovereign.UI
         private Image _dim;
         private Text _title;
         private Text _sub;
+        private Image _lineTop;
+        private Image _lineBottom;
+        private Outline _titleGlow;
         private CanvasGroup _group;
         private float _showTime = float.PositiveInfinity;
         private bool _isDeath;
@@ -39,12 +42,21 @@ namespace BrokenSovereign.UI
             _group = gameObject.AddComponent<CanvasGroup>();
             _group.blocksRaycasts = false;
 
-            _dim = UiKit.Box("Dim", root, new Color(0f, 0f, 0f, 0.7f));
+            _dim = UiKit.Box("Dim", root, UiTheme.P.CrackGlow ? new Color(0f, 0f, 0f, 0.75f) : UiTheme.P.Dim);
+            // 가운데 띠 + 위아래 빛줄 (B안)
+            Image band = UiKit.Box("Band", root, new Color(0f, 0f, 0f, 0.45f));
+            UiKit.Place(band.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 10f), new Vector2(1920f, 230f));
+            _lineTop = UiKit.Box("LineTop", root, UiTheme.P.CrackOuter);
+            UiKit.Place(_lineTop.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 110f), new Vector2(900f, 2f));
+            _lineBottom = UiKit.Box("LineBottom", root, UiTheme.P.CrackOuter);
+            UiKit.Place(_lineBottom.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -12f), new Vector2(900f, 2f));
             HudGraphics.Stretch(_dim.rectTransform);
-            _title = UiKit.Label("Title", root, 72, UiKit.GOLD, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _title = UiKit.Title("Title", root, 88, UiKit.GOLD, TextAnchor.MiddleCenter);
+            _titleGlow = _title.gameObject.AddComponent<Outline>();
+            _titleGlow.effectDistance = new Vector2(2f, -2f);
             UiKit.Place(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 40f),
                 new Vector2(1400f, 90f));
-            _sub = UiKit.Label("Sub", root, 26, UiKit.SUBTLE, TextAnchor.MiddleCenter);
+            _sub = UiKit.Title("Sub", root, 24, UiKit.SUBTLE, TextAnchor.MiddleCenter);
             UiKit.Place(_sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f),
                 new Vector2(1400f, 40f));
             _group.alpha = 0f;
@@ -88,7 +100,8 @@ namespace BrokenSovereign.UI
             _isDeath = true;
             _isClear = false;
             _title.text = "쓰러졌다";
-            _title.color = new Color(0.85f, 0.2f, 0.18f);
+            _title.color = UiTheme.P.Danger;
+            SetAccent(UiTheme.P.Danger);
             _sub.text = "R — 마을에서 다시 일어나기";
             _showTime = Time.time + DEATH_DELAY;
         }
@@ -103,6 +116,7 @@ namespace BrokenSovereign.UI
             _isClear = true;
             _title.text = "천계 평정";
             _title.color = UiKit.GOLD;
+            SetAccent(UiTheme.P.CrackOuter);
             _sub.text = $"{boss.BossName}을(를) 쓰러뜨렸다 — 프로토타입 클리어 (Enter: 계속)";
             _showTime = Time.time + CLEAR_DELAY;
         }
@@ -146,6 +160,14 @@ namespace BrokenSovereign.UI
                 Unblock();
                 _group.alpha = 0f;
             }
+        }
+
+        // 띠의 빛줄·제목 테두리 색 (사망 = 붉은빛, 클리어 = 금빛)
+        private void SetAccent(Color color)
+        {
+            _lineTop.color = color;
+            _lineBottom.color = color;
+            _titleGlow.effectColor = UiTheme.WithAlpha(color, 0.45f);
         }
 
         private void Revive()

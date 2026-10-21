@@ -18,7 +18,7 @@ namespace BrokenSovereign.UI
         private const float WIDTH = 0.06f;
         private const float GROUND_OFFSET = 0.05f;
 
-        private static readonly Color COLOR = new Color(1f, 0.92f, 0.6f, 0.95f);
+        private static Color COLOR => UiTheme.P.Accent;
         private static readonly string[] SHADER_NAMES = { "Sprites/Default", "Universal Render Pipeline/Unlit" };
 
         private LineRenderer _line;

@@ -1265,10 +1265,13 @@ classDiagram
 | `HudView` | HUD 전체 묶음 (코드로 생성, 구현 완료) | `PlayerController`, `Health`, `IResourceGauge` |
 | `TargetFrameView` | 화면 상단 가운데 선택 대상 이름·체력 막대·남은 비율(%) (구현 완료) | `PlayerController.CurrentTarget`, `Health` |
 | `TargetRingView` | 선택 대상 발밑 흰색 원 테두리 (LineRenderer, 구현 완료) | `PlayerController.CurrentTarget` |
-| `HealthBarView` | 체력 | `PlayerDamagedEvent`, `Health` |
-| `FaithBarView` | 신앙, 충만 표시 | `FaithChangedEvent` |
-| `SkillSlotView` | 기술 슬롯·재사용 대기 | `SkillCastEvent`, `CooldownTracker` |
-| `CharacterWindowView` | 캐릭터 창 (C). 직업·격·레벨·경험치·다음 격 돌파 조건·영웅의 길·능력치 (읽기 전용, 구현 완료) | `PlayerProgression.NextAscensionHint`, `PlayerJob`, `HeroPathController`, `CharacterStats` |
+| `UiBar` | 알약형 막대 (체력·자원·직업 게이지·경험치·보스·버팀). 흔적·보호막 선택 (구현 완료) | `UiSprites` |
+| `JobGaugeView` | 신앙(직업 게이지), 충만 표시 (구현 완료) | `IJobGauge` |
+| `SkillSlotView` | 기술 슬롯·재사용 대기 (금속 칸, 기술 이름은 칸 위, 구현 완료) | `PlayerController.GetSlotState` |
+| `MapPin` | 지도 핀 포인트 1개 (정적). 미니맵·지도 표시, 도착 시 삭제 | `MapLayer`, `HudView` |
+| `WorldMapView` | 지도 화면: 스타일 셰이더(`Resources/UI/MapStyle`), 우클릭 메뉴(자동 이동·핀), 조작 안내 | `PlayerController.AutoMoveTo`, `MapPin` |
+| `CharacterWindowView` | 캐릭터 창 (C). 왼쪽 직업·격·레벨·경험치·다음 격 돌파·영웅의 길 / 가운데 `CharacterPreview` 모델 / 오른쪽 능력치 5분류(휠 스크롤) | `PlayerProgression.NextAscensionHint`, `PlayerJob`, `HeroPathController`, `CharacterStats`, `CharacterPreview` |
+| `CharacterPreview` | 캐릭터 창 모델 미리보기. 플레이어 모델을 화면 밖 무대에 복제(스크립트·충돌체 제거)해 레이어 31 전용 카메라 → RenderTexture → RawImage. 끌어서 회전, 닫으면 복제본 삭제 | `PlayerAnimator.Animator` |
 | `RelicWindow` | 신물창, 신화 세트 | `RelicInventory` |
 | `EquipmentWindow` | 장비창 | `EquipmentLoadout` |
 | `SkillWindowView` | 스킬 창 (K). 슬롯별 장착 기술·수치 요약, 후보 클릭 장착 (구현 완료. 슬롯 레벨·분기 선택은 이후) | `SkillCaster.TryEquip`, `SkillLoadout.Changed` |
@@ -1279,7 +1282,9 @@ classDiagram
 | `BossHudView` | 상단 보스 체력·보호막·버팀·격 결정, 등장·격파 배너 (구현 완료) | `BossStatus`(Enemy, 정적 목록·`AnyDefeated`), `PoiseReceiver` |
 | `DamageNumberView` | 피해 숫자 (풀 48개) | `Health.AnyDamaged` |
 | `OutcomeScreenView` | 사망(R 부활)·보스 처치 클리어 화면 | `Health.Died`·`Restored`, `BossStatus.AnyDefeated` |
-| `UiKit` | 창 공용 생성·배치·마우스 판정 함수 (정적) | `HudGraphics` |
+| `UiKit` | 창 공용 생성(금속판·제목 탭·버튼·막대·글자)·배치·마우스 판정 함수 (정적) | `UiTheme`, `UiSprites` |
+| `UiTheme` | 테마 색·서체 (SovereignIron = B안 기본, CelestialJade = A′안 보관). 화면 코드는 색을 직접 쓰지 않음 | `Resources/UI/Fonts` |
+| `UiSprites` | 테마 색으로 코드 생성하는 스프라이트 (금속판·기술 칸·막대·버튼·인장·팔각·문양·빛), 9-slice | `UiTheme.Version` |
 
 - UI는 화면 표시와 버튼 입력만 담당. 규칙 판정은 각 시스템 클래스에서 처리
 - 대상 표시 설정: `HudView`의 `TargetSettings` (원 색·두께·여백, 게이지 크기·색·위쪽 여백). Play 중 Inspector 변경 즉시 반영
