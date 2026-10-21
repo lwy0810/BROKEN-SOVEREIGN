@@ -1283,7 +1283,10 @@ classDiagram
 | `ItemDefinition` / `ItemCatalog` (Item) | 아이템 정의(분류·부위·희귀도·아이콘·능력치) / 프로토타입 코드 목록 (장비 25·물약·재료 4) | - |
 | `RelicWindow` | 신물창, 신화 세트 | `RelicInventory` |
 | `EquipmentWindow` | 장비창 | `EquipmentLoadout` |
-| `SkillWindowView` | 스킬 창 (K). 슬롯별 장착 기술·수치 요약, 후보 클릭 장착 (구현 완료. 슬롯 레벨·분기 선택은 이후) | `SkillCaster.TryEquip`, `SkillLoadout.Changed` |
+| `SkillWindowView` | 기술 창 (K, 시안 C-04). 기술 트리(격 × 키)·장착 슬롯 목록·강화 패널(Lv·현재→다음·분기·강화 +1·초기화) | `SkillLoadout`(Changed·GrowthChanged·TryLevelUp·ResetGrowth·SetBranch), `SkillGrowth`, `PlayerProgression`, `PlayerJob`, `HeroPathController` |
+| `SkillIcons` | 기술 ID별 코드 생성 아이콘 (HUD 기술 칸·기술 창) | `SkillDefinition.SkillId` |
+| `SkillGrowth` (Skill) | 기술 성장 규칙 (정적·순수): 최대 15, 레벨당 피해·효과량 +5%, 우클릭 Lv 3 분기, 시전 수치 적용·미리보기 | `SkillParameterSet` |
+| `SkillPointGrant` (Ascension) | 레벨업당 기술 포인트 1 (HudView가 없으면 붙임) | `PlayerProgression.LeveledUp`, `SkillLoadout.AddPoints` |
 | `TrialWindow` | 시련 목록·진행 | `TrialTracker` |
 | `NoticeView` | 돌파·해금·무력화 알림 | `AscensionRaisedEvent`, `SkillUnlockedEvent`, `EnemyStaggeredEvent` |
 | `JobSelectView` | 1차 직업 선택 화면 (4개 카드, 프로토타입은 성기사만 활성) | `PlayerProgression`, `JobDefinition` |
