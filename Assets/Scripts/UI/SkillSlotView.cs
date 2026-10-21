@@ -6,11 +6,14 @@ namespace BrokenSovereign.UI
 {
     /// <summary>
     /// 기술 슬롯 하나: 키 표시, 재사용 대기 원형 막과 남은 초, 미개방 잠김, 남은 횟수(물약).
+    /// 10/21 B안: 금속 테두리 칸(UiSprites.Tile) + 가운데 문양(기술 아이콘 도입 전), 기술 이름은 칸 위.
     /// </summary>
     public class SkillSlotView : MonoBehaviour
     {
+        private const float INSET = 8f;
+
         private Image _background;
-        private Outline _frame;
+        private Image _icon;
         private Image _cooldown;
         private Image _locked;
         private Text _keyText;
@@ -24,10 +27,14 @@ namespace BrokenSovereign.UI
         public void Initialize(string key)
         {
             _background = gameObject.AddComponent<Image>();
-            _background.sprite = HudGraphics.WhiteSprite;
+            _background.sprite = UiSprites.Tile;
+            _background.type = Image.Type.Sliced;
             _background.raycastTarget = false;
-            _frame = gameObject.AddComponent<Outline>();
-            _frame.effectDistance = new Vector2(2f, -2f);
+
+            _icon = CreateImage("Icon");
+            _icon.sprite = UiSprites.Rune;
+            _icon.rectTransform.offsetMin = new Vector2(20f, 20f);
+            _icon.rectTransform.offsetMax = new Vector2(-20f, -20f);
 
             _cooldown = CreateImage("Cooldown");
             _cooldown.type = Image.Type.Filled;
@@ -40,18 +47,25 @@ namespace BrokenSovereign.UI
             _locked.enabled = false;
 
             _cooldownText = CreateText("CooldownTime", TextAnchor.MiddleCenter);
+            UiTheme.ApplyBody(_cooldownText, true);
             _keyText = CreateText("Key", TextAnchor.LowerRight);
+            UiTheme.ApplyBody(_keyText, true);
             _keyText.text = key;
             _countText = CreateText("Count", TextAnchor.UpperLeft);
+            UiTheme.ApplyBody(_countText, true);
 
-            // 기술 이름: 슬롯 바로 아래 (슬롯 밖)
-            _nameText = CreateText("SkillName", TextAnchor.UpperCenter);
+            // 기술 이름: 슬롯 바로 위 (기술 바 판 위쪽 여백 안)
+            _nameText = CreateText("SkillName", TextAnchor.LowerCenter);
+            _nameText.color = UiTheme.P.TextDim;
             RectTransform nameRect = _nameText.rectTransform;
-            nameRect.anchorMin = new Vector2(0f, 0f);
-            nameRect.anchorMax = new Vector2(1f, 0f);
-            nameRect.pivot = new Vector2(0.5f, 1f);
+            nameRect.anchorMin = new Vector2(0f, 1f);
+            nameRect.anchorMax = new Vector2(1f, 1f);
+            nameRect.pivot = new Vector2(0.5f, 0f);
             _nameText.horizontalOverflow = HorizontalWrapMode.Overflow;
             _nameText.text = string.Empty;
+
+            // 10/21: 기술 바에서는 기술 이름 표시 안 함 (기술 창에서 확인)
+            _nameText.gameObject.SetActive(false);
         }
 
         /// <summary>장착 기술 이름 표시. null·빈 문자열이면 숨김</summary>
@@ -73,23 +87,28 @@ namespace BrokenSovereign.UI
             _nameText.fontSize = settings.SkillNameFontSize;
             RectTransform nameRect = _nameText.rectTransform;
             nameRect.sizeDelta = new Vector2(0f, settings.SkillNameFontSize + 6f);
-            nameRect.anchoredPosition = new Vector2(0f, -settings.SkillNameGap);
+            nameRect.anchoredPosition = new Vector2(0f, settings.SkillNameGap + 2f);
         }
 
         public void ApplyStyle(SkillBarSettings settings)
         {
-            _background.color = settings.SlotColor;
-            _frame.effectColor = settings.FrameColor;
-            _cooldown.color = settings.CooldownColor;
+            // 색은 테마(UiTheme), 크기·방향만 설정값 사용
+            _background.color = Color.white;
+            _cooldown.color = new Color(0f, 0f, 0f, 0.62f);
 
             // 남은 비율만큼 막을 그림. 막을 반시계로 그리면 걷히는 쪽(밝아지는 영역)이 시계 방향으로 진행
             _cooldown.fillClockwise = !settings.CooldownSweepClockwise;
-            _locked.color = settings.LockedColor;
+            _locked.color = new Color(0f, 0f, 0f, 0.6f);
+            Vector2 inner = new Vector2(INSET, INSET);
+            _cooldown.rectTransform.offsetMin = inner;
+            _cooldown.rectTransform.offsetMax = -inner;
+            _locked.rectTransform.offsetMin = inner;
+            _locked.rectTransform.offsetMax = -inner;
             _keyText.fontSize = settings.KeyFontSize;
             _countText.fontSize = settings.KeyFontSize;
             _cooldownText.fontSize = settings.CooldownFontSize;
 
-            Vector2 inset = new Vector2(6f, 4f);
+            Vector2 inset = new Vector2(INSET, INSET - 2f);
             _keyText.rectTransform.offsetMin = inset;
             _keyText.rectTransform.offsetMax = -inset;
             _countText.rectTransform.offsetMin = inset;
@@ -99,7 +118,9 @@ namespace BrokenSovereign.UI
         public void SetState(SkillSlotState state)
         {
             _locked.enabled = !state.IsUnlocked;
-            _keyText.color = state.IsUnlocked ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+            _icon.enabled = state.IsUnlocked;
+            _keyText.color = state.IsUnlocked ? UiTheme.P.Title : UiTheme.P.TextDisabled;
+            _nameText.color = state.IsUnlocked ? UiTheme.P.TextDim : UiTheme.P.TextDisabled;
 
             bool coolingDown = state.IsUnlocked && state.CooldownRemaining > 0.01f;
             _cooldown.fillAmount = coolingDown ? state.CooldownRatio : 0f;
@@ -111,7 +132,7 @@ namespace BrokenSovereign.UI
         public void SetCount(int count)
         {
             _countText.text = $"x{count}";
-            _countText.color = count > 0 ? Color.white : new Color(1f, 0.4f, 0.4f);
+            _countText.color = count > 0 ? UiTheme.P.Text : UiTheme.P.Taken;
         }
 
         private Image CreateImage(string imageName)
@@ -131,7 +152,9 @@ namespace BrokenSovereign.UI
             text.alignment = alignment;
             text.color = Color.white;
             text.raycastTarget = false;
-            text.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(1f, -1f);
+            Shadow shadow = text.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            shadow.effectDistance = new Vector2(1f, -1f);
             return text;
         }
     }

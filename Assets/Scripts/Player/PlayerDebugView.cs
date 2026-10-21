@@ -24,6 +24,9 @@ namespace BrokenSovereign.Player
 
         [Header("기술·회피·물약")]
         [SerializeField] private float _flashDuration = 0.2f;
+
+        [Tooltip("기술 시전 지점·물약 사용 시 디버그 구체(DebugMarker) 표시. 기본 끔")]
+        [SerializeField] private bool _showMarkers;
         [SerializeField] private float _markerDuration = 0.5f;
         [SerializeField] private float _markerSize = 0.4f;
         [SerializeField] private Color _dodgeColor = new Color(0.55f, 0.85f, 1f);
@@ -99,7 +102,11 @@ namespace BrokenSovereign.Player
         {
             Color color = GetSlotColor(slot);
             StartTint(color, _flashDuration);
-            SpawnMarker(point + Vector3.up * (_markerSize * 0.5f), color, _markerDuration);
+
+            if (_showMarkers)
+            {
+                SpawnMarker(point + Vector3.up * (_markerSize * 0.5f), color, _markerDuration);
+            }
         }
 
         private void OnDodged(Vector3 direction)
@@ -109,6 +116,11 @@ namespace BrokenSovereign.Player
 
         private void OnPotionUsed(int remaining)
         {
+            if (!_showMarkers)
+            {
+                return;
+            }
+
             Vector3 start = _headAnchor != null ? _headAnchor.position : transform.position + Vector3.up * 2f;
             GameObject marker = SpawnMarker(start, _potionColor, _potionDuration);
             StartCoroutine(RiseRoutine(marker.transform, start));

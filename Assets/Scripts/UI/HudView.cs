@@ -12,16 +12,14 @@ using UnityEngine.UI;
 namespace BrokenSovereign.UI
 {
     /// <summary>
-    /// 전투 HUD (GDD 10장): 가운데 기술 슬롯과 물약·회피, 그 양 옆에 체력 구슬(왼쪽)과 직업 자원 구슬(오른쪽),
-    /// 선택한 대상의 상단 체력 게이지와 발밑 원 테두리, 직업 이름·전직 알림·슬롯 기술 이름.
+    /// 전투 HUD (GDD 10장, 10/21 B안): 가운데 금속판 기술 바(기술 칸·물약·회피), 양 옆 체력 구슬(왼쪽)·직업 자원 구슬(오른쪽),
+    /// 기술 바 위 직업 게이지(신앙)와 직업 이름, 선택한 대상의 상단 체력 게이지와 발밑 원 테두리, 전직 알림.
     /// 시작 시 코드로 UI를 만들고, 매 프레임 플레이어 상태를 읽어 표시합니다 (UI는 읽기 전용).
-    /// 배치·색·연출 값은 Play 중 Inspector에서 바꾸면 즉시 반영됩니다.
+    /// 색·서체는 UiTheme(_theme), 배치·연출 값은 Play 중 Inspector에서 바꾸면 즉시 반영됩니다.
     /// 아트 확정 후 프리팹으로 옮길 예정입니다.
     /// </summary>
     public class HudView : MonoBehaviour
     {
-        private const string ORB_SHADER_NAME = "BrokenSovereign/UI/ResourceOrb";
-
         private static readonly SkillSlot[] SKILL_SLOTS =
         {
             SkillSlot.LeftClick, SkillSlot.RightClick, SkillSlot.Key1, SkillSlot.Key2, SkillSlot.Key3, SkillSlot.Key4,
@@ -31,8 +29,11 @@ namespace BrokenSovereign.UI
         private static readonly string[] SKILL_KEYS = { "LMB", "RMB", "1", "2", "3", "4", "5", "6" };
 
         [SerializeField] private PlayerController _player;
-        [SerializeField] private Shader _orbShader;
+
+        [Tooltip("UI 테마 (10/21): SovereignIron = B안 어두운 금속판, CelestialJade = A′안 천계 백옥. Play 시작 시 적용")]
+        [SerializeField] private UiThemeId _theme = UiThemeId.SovereignIron;
         [SerializeField] private Vector2 _referenceResolution = new Vector2(1920f, 1080f);
+        [SerializeField] private Shader _orbShader;
         [SerializeField] private OrbSettings _orb = new OrbSettings();
         [SerializeField] private SkillBarSettings _bar = new SkillBarSettings();
         [SerializeField] private TargetSettings _target = new TargetSettings();
@@ -40,6 +41,7 @@ namespace BrokenSovereign.UI
         [SerializeField] private JobGaugeSettings _jobGauge = new JobGaugeSettings();
 
         [Header("아트 (BrokenSovereign > UI > HUD 아트 연결 메뉴가 연결)")]
+        private const string ORB_SHADER_NAME = "BrokenSovereign/UI/ResourceOrb";
         private const string CURSOR_SETTINGS_RESOURCE = "UI/CursorSettings";
         private const string MAP_ICON_SET_RESOURCE = "UI/MapIconSet";
 
@@ -55,6 +57,9 @@ namespace BrokenSovereign.UI
         private CanvasScaler _scaler;
         private ResourceOrbView _healthOrb;
         private ResourceOrbView _resourceOrb;
+        private Text _autoMoveText;
+        private Image _trayPlate;
+        private UiBar _expBar;
         private RectTransform _barRoot;
         private SkillSlotView[] _skillSlots;
         private SkillSlotView _potionSlot;
@@ -70,7 +75,7 @@ namespace BrokenSovereign.UI
         private Text _noticeText;
         private Text _warningText;
         private const string SKILL_NOT_READY_MESSAGE = "아직 사용할 수 없습니다";
-        private const string NOT_ENOUGH_MANA_MESSAGE = "마나가 부족합니다.";
+        private const string NOT_ENOUGH_MANA_MESSAGE = "기력이 부족합니다.";
         private float _warningEndTime = float.NegativeInfinity;
         private float _warningStartTime = float.NegativeInfinity;
         private Text _buffText;
@@ -84,9 +89,16 @@ namespace BrokenSovereign.UI
         private NpcDialogView _npcDialog;
         private MinimapView _minimap;
         private WorldMapView _worldMap;
+        private BossHudView _bossHud;
+        private StatusLabelView _statusLabels;
+        private DamageNumberView _damageNumbers;
+        private SkillWindowView _skillWindow;
+        private CharacterWindowView _characterWindow;
+        private OutcomeScreenView _outcome;
+        private Health _frameTarget;
+        private float _noticeStartTime = float.NegativeInfinity;
+        private bool _noticeEmphasis;
         private HeroPathController _hero;
-        private RectTransform _expRoot;
-        private Image _expFill;
         private string _jobName = string.Empty;
         private int _shownLevel = -1;
         private AscensionTier _shownTier;
@@ -114,6 +126,7 @@ namespace BrokenSovereign.UI
             _progression = _player.GetComponent<PlayerProgression>();
             _hero = _player.GetComponent<HeroPathController>();
 
+            UiTheme.Apply(_theme);
             Build();
             ApplyLayout();
 
@@ -167,6 +180,8 @@ namespace BrokenSovereign.UI
             {
                 _resourceOrb.SetLocked(true);
             }
+
+            UpdateAutoMove();
 
             for (int i = 0; i < SKILL_SLOTS.Length; i++)
             {
@@ -246,13 +261,13 @@ namespace BrokenSovereign.UI
 
         private void OnAscended(AscensionTier tier)
         {
-            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}");
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(tier)}", true);
         }
 
         // 격 돌파 알림에 전직을 이어 붙임 (JobChanged 알림이 돌파 알림을 덮어쓰지 않도록)
         private void OnJobAdvanced(JobDefinition job)
         {
-            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(_progression.Tier)} · {job.DisplayName} 전직");
+            ShowNotice($"격 돌파 — {AscensionModel.DisplayName(_progression.Tier)} · {job.DisplayName} 전직", true);
         }
 
         private void OnJobSelectionRequested()
@@ -270,13 +285,16 @@ namespace BrokenSovereign.UI
 
         private void OnHeroPathChosen(HeroPathDefinition path)
         {
-            ShowNotice($"영웅의 길 — {path.DisplayName} ({path.Title})");
+            ShowNotice($"영웅의 길 — {path.DisplayName} ({path.Title})", true);
         }
 
-        private void ShowNotice(string message)
+        // emphasis: 격 돌파·영웅의 길처럼 큰 사건은 크게 튀어나왔다 줄어드는 연출
+        private void ShowNotice(string message, bool emphasis = false)
         {
             _noticeText.text = message;
-            _noticeEndTime = Time.time + _jobDisplay.NoticeDuration;
+            _noticeStartTime = Time.time;
+            _noticeEmphasis = emphasis;
+            _noticeEndTime = Time.time + _jobDisplay.NoticeDuration * (emphasis ? 1.5f : 1f);
         }
 
         // 경험치 막대와 "직업 · 격 · 레벨" 표시 (값이 바뀔 때만 문자열 갱신)
@@ -284,11 +302,11 @@ namespace BrokenSovereign.UI
         {
             if (_progression == null)
             {
-                _expRoot.gameObject.SetActive(false);
+                _expBar.Rect.gameObject.SetActive(false);
                 return;
             }
 
-            _expFill.fillAmount = _progression.Progress;
+            _expBar.SetRatio(_progression.Progress);
 
             if (_progression.Level != _shownLevel || _progression.Tier != _shownTier)
             {
@@ -328,7 +346,7 @@ namespace BrokenSovereign.UI
             ShowWarning(SKILL_NOT_READY_MESSAGE);
         }
 
-        // 마나 부족: 누르고 있는 동안 반복 시도해도 메시지가 보이는 동안에는 다시 띄우지 않음 (ShowWarning)
+        // 기력(공용 자원, 코드명 Mana) 부족: 누르고 있는 동안 반복 시도해도 메시지가 보이는 동안에는 다시 띄우지 않음 (ShowWarning)
         private void OnSkillCastFailed(SkillSlot slot, SkillDefinition skill, SkillCastFailReason reason)
         {
             if (reason == SkillCastFailReason.NotEnoughResource)
@@ -354,7 +372,7 @@ namespace BrokenSovereign.UI
             float alphaIn = fadeIn > 0f ? Mathf.Clamp01((Time.time - _warningStartTime) / fadeIn) : 1f;
             float alphaOut = fadeOut > 0f ? Mathf.Clamp01(remaining / fadeOut) : 1f;
 
-            Color color = _jobDisplay.WarningColor;
+            Color color = UiTheme.P.Warning;
             color.a *= Mathf.Min(alphaIn, alphaOut);
             _warningText.color = color;
         }
@@ -370,11 +388,20 @@ namespace BrokenSovereign.UI
                 return;
             }
 
-            Color color = _jobDisplay.NoticeColor;
+            Color color = UiTheme.P.Title;
             float fade = _jobDisplay.NoticeFadeTime;
             color.a *= fade > 0f ? Mathf.Clamp01(remaining / fade) : 1f;
             _noticeText.color = color;
+
+            // 등장 순간 크게 → 0.3초에 걸쳐 원래 크기
+            float punch = _noticeEmphasis ? NOTICE_PUNCH_EMPHASIS : NOTICE_PUNCH;
+            float t = 1f - Mathf.Clamp01((Time.time - _noticeStartTime) / NOTICE_PUNCH_TIME);
+            _noticeText.rectTransform.localScale = Vector3.one * (1f + punch * t * t);
         }
+
+        private const float NOTICE_PUNCH = 0.15f;
+        private const float NOTICE_PUNCH_EMPHASIS = 0.5f;
+        private const float NOTICE_PUNCH_TIME = 0.3f;
 
         // 지속 중인 기술 버프 (불굴의 갑주 등)와 남은 시간
         private void UpdateBuffs()
@@ -439,6 +466,20 @@ namespace BrokenSovereign.UI
         private void UpdateTarget()
         {
             Health target = _player.CurrentTarget;
+            bool bossShowing = _bossHud != null && _bossHud.IsShowing;
+
+            // 보스를 선택하면 상단 보스 체력바가 대신 보여 주므로 대상 게이지는 숨김.
+            // 다른 대상을 고르면 보스 체력바 아래로 내려 겹치지 않게 함
+            Health frameTarget = bossShowing && target == _bossHud.ShownHealth ? null : target;
+            float top = _target.TopMargin + (bossShowing ? _bossHud.OccupiedHeight : 0f);
+            Vector2 position = _targetFrame.Rect.anchoredPosition;
+            _targetFrame.Rect.anchoredPosition = new Vector2(position.x, -top);
+
+            if (frameTarget != _frameTarget)
+            {
+                _frameTarget = frameTarget;
+                _targetFrame.SetTarget(frameTarget);
+            }
 
             if (target == _shownTarget)
             {
@@ -446,7 +487,6 @@ namespace BrokenSovereign.UI
             }
 
             _shownTarget = target;
-            _targetFrame.SetTarget(target);
             _targetRing.SetTarget(target);
         }
 
@@ -492,6 +532,9 @@ namespace BrokenSovereign.UI
             _healthOrb = CreateOrb("HealthOrb", shader);
             _resourceOrb = CreateOrb("ResourceOrb", shader);
 
+            // 기술 바 금속판 (기술 칸보다 먼저 = 뒤에 그림)
+            _trayPlate = UiKit.Plate("SkillTray", transform);
+
             _barRoot = HudGraphics.CreateRect("SkillBar", transform);
             _skillSlots = new SkillSlotView[SKILL_SLOTS.Length];
 
@@ -503,8 +546,28 @@ namespace BrokenSovereign.UI
             _potionSlot = CreateSlot("Slot_Potion", "Q");
             _dodgeSlot = CreateSlot("Slot_Dodge", "SPACE");
 
+            // 데미지 숫자는 다른 HUD 아래에 그리도록 먼저 생성
+            _damageNumbers = HudGraphics.CreateRect("DamageNumbers", transform).gameObject.AddComponent<DamageNumberView>();
+            _damageNumbers.Initialize(_player.gameObject);
+
+            // 적 머리 위 효과 이름 (도발·기절 등)
+            _statusLabels = HudGraphics.CreateRect("StatusLabels", transform).gameObject.AddComponent<StatusLabelView>();
+            _statusLabels.Initialize(_player.gameObject);
+
+            // 바닥 클릭 이동 표식 (월드에 그리므로 Canvas 밖, 1개만 재사용)
+            PlayerInputHandler input = _player.GetComponent<PlayerInputHandler>();
+
+            if (input != null)
+            {
+                new GameObject("MoveMarker", typeof(LineRenderer)).AddComponent<MoveMarkerView>().Initialize(input);
+            }
+
             _targetFrame = HudGraphics.CreateRect("TargetFrame", transform).gameObject.AddComponent<TargetFrameView>();
             _targetFrame.Initialize();
+
+            // 상단 보스 체력바 (BossStatus가 붙은 적과 교전 중일 때만)
+            _bossHud = HudGraphics.CreateRect("BossHud", transform).gameObject.AddComponent<BossHudView>();
+            _bossHud.Initialize();
 
             // 원 테두리는 월드에 그리므로 Canvas 밖에 생성
             _targetRing = new GameObject("TargetRing", typeof(LineRenderer)).AddComponent<TargetRingView>();
@@ -514,38 +577,23 @@ namespace BrokenSovereign.UI
             _jobGaugeView.Initialize();
 
             _jobLabel = CreateLabel("JobLabel", TextAnchor.LowerCenter);
+            UiTheme.ApplyTitle(_jobLabel);
             _jobLabel.text = string.Empty;
             _buffText = CreateLabel("BuffList", TextAnchor.LowerCenter);
             _buffText.text = string.Empty;
             _noticeText = CreateLabel("JobNotice", TextAnchor.MiddleCenter);
-            _noticeText.fontStyle = FontStyle.Bold;
+            UiTheme.ApplyTitle(_noticeText);
             _noticeText.enabled = false;
             _warningText = CreateLabel("Warning", TextAnchor.MiddleCenter);
-            _warningText.fontStyle = FontStyle.Bold;
+            _autoMoveText = CreateLabel("AutoMove", TextAnchor.MiddleCenter);
+            UiTheme.ApplyTitle(_autoMoveText);
+            _autoMoveText.text = "자동 이동 중";
+            _autoMoveText.enabled = false;
             _warningText.enabled = false;
 
-            // 경험치 막대: 기술 바 바로 아래
-            _expRoot = HudGraphics.CreateRect("ExpBar", transform);
-            Image expBackground = _expRoot.gameObject.AddComponent<Image>();
-            expBackground.sprite = HudGraphics.WhiteSprite;
-            expBackground.color = new Color(0f, 0f, 0f, 0.7f);
-            expBackground.raycastTarget = false;
-            // 금테 (10/19 추가)
-            Outline expOutline = _expRoot.gameObject.AddComponent<Outline>();
-            expOutline.effectColor = new Color(0.78f, 0.6f, 0.28f, 0.95f);
-            expOutline.effectDistance = new Vector2(1.5f, -1.5f);
-            Outline expOutlineInner = _expRoot.gameObject.AddComponent<Outline>();
-            expOutlineInner.effectColor = new Color(0.78f, 0.6f, 0.28f, 0.95f);
-            expOutlineInner.effectDistance = new Vector2(-1.5f, 1.5f);
-            RectTransform fillRect = HudGraphics.CreateRect("Fill", _expRoot);
-            HudGraphics.Stretch(fillRect);
-            _expFill = fillRect.gameObject.AddComponent<Image>();
-            _expFill.sprite = HudGraphics.WhiteSprite;
-            _expFill.color = new Color(0.95f, 0.78f, 0.3f);
-            _expFill.type = Image.Type.Filled;
-            _expFill.fillMethod = Image.FillMethod.Horizontal;
-            _expFill.fillAmount = 0f;
-            _expFill.raycastTarget = false;
+            // 경험치 막대: 기술 바 판 바로 아래 (얇은 알약형)
+            _expBar = UiKit.Bar("ExpBar", transform, UiTheme.P.Xp, UiTheme.P.Xp * 0.5f);
+            _expBar.SetRatio(0f);
 
             // 씬에 연결하지 않았으면 Resources/UI의 기본 설정 사용 (씬마다 메뉴 실행 불필요)
             if (_cursorSettings == null)
@@ -580,6 +628,16 @@ namespace BrokenSovereign.UI
                 _npcDialog.Initialize(interactor);
             }
 
+            // 기술 창(K)·캐릭터 창(C)
+            if (_caster != null)
+            {
+                _skillWindow = HudGraphics.CreateRect("SkillWindow", transform).gameObject.AddComponent<SkillWindowView>();
+                _skillWindow.Initialize(_caster);
+            }
+
+            _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
+            _characterWindow.Initialize(_player.gameObject);
+
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
             _jobSelect.Initialize(_job);
@@ -591,16 +649,20 @@ namespace BrokenSovereign.UI
                 _heroSelect.Initialize(_hero);
                 _heroSelect.PathChosen += OnHeroPathChosen;
             }
+
+            // 사망·클리어 화면: 모든 UI 위
+            if (_health != null)
+            {
+                _outcome = HudGraphics.CreateRect("Outcome", transform).gameObject.AddComponent<OutcomeScreenView>();
+                _outcome.Initialize(_health);
+            }
+
             _isBuilt = true;
         }
 
         private void ApplyLayout()
         {
             _scaler.referenceResolution = _referenceResolution;
-
-            _healthOrb.ApplyStyle(_orb, _orb.HealthColor, _orb.HealthSurfaceColor);
-            Color resourceColor = _resource != null ? _resource.DisplayColor : Color.gray;
-            _resourceOrb.ApplyStyle(_orb, resourceColor);
 
             // 기술 6칸 + 묶음 간격 + 물약·회피 2칸을 가운데 정렬
             float slot = _bar.SlotSize;
@@ -611,11 +673,30 @@ namespace BrokenSovereign.UI
             PlaceCorner(_barRoot, new Vector2(0.5f, 0f), new Vector2(0f, _bar.BottomMargin), new Vector2(totalWidth, slot));
             _barRoot.pivot = new Vector2(0.5f, 0f);
 
-            // 구슬은 기술 바 양 끝에 붙여 배치 (화면 아래 가운데 기준)
+            _healthOrb.ApplyStyle(_orb, _orb.HealthColor, _orb.HealthSurfaceColor);
+            Color resourceColor = _resource != null ? _resource.DisplayColor : Color.gray;
+            _resourceOrb.ApplyStyle(_orb, resourceColor);
+
+            // 기술 바 판: 칸 둘레 여백 (10/21 B안)
+            float trayWidth = totalWidth + TRAY_SIDE * 2f;
+            float trayBottom = _bar.BottomMargin - TRAY_BOTTOM;
+            float trayTop = _bar.BottomMargin + slot + TRAY_TOP;
+            PlaceAt(_trayPlate.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, trayBottom),
+                new Vector2(trayWidth, trayTop - trayBottom));
+
+            // 구슬은 기술 바 판 양 끝에 붙여 배치 (화면 아래 가운데 기준)
             Vector2 orbSize = new Vector2(_orb.Size, _orb.Size);
-            float orbOffset = totalWidth * 0.5f + _orb.GapToBar;
+            float orbOffset = trayWidth * 0.5f + _orb.GapToBar;
             PlaceAt(_healthOrb.Rect, new Vector2(1f, 0f), new Vector2(-orbOffset, _orb.BottomMargin), orbSize);
             PlaceAt(_resourceOrb.Rect, new Vector2(0f, 0f), new Vector2(orbOffset, _orb.BottomMargin), orbSize);
+
+            // 자동 이동 중 표시 (화면 가운데 위)
+            _autoMoveText.fontSize = 26;
+            RectTransform autoRect = _autoMoveText.rectTransform;
+            autoRect.anchorMin = autoRect.anchorMax = new Vector2(0.5f, 0.5f);
+            autoRect.pivot = new Vector2(0.5f, 0.5f);
+            autoRect.sizeDelta = new Vector2(600f, 40f);
+            autoRect.anchoredPosition = new Vector2(0f, 90f);
 
             float x = 0f;
 
@@ -630,26 +711,26 @@ namespace BrokenSovereign.UI
             x += slot + _bar.Spacing;
             PlaceSlot(_dodgeSlot, x);
 
-            // 경험치 막대: 기술 바 아래 (기술 바 너비)
-            PlaceAt(_expRoot, new Vector2(0.5f, 0f), new Vector2(0f, Mathf.Max(2f, _bar.BottomMargin - 14f)),
-                new Vector2(totalWidth, 8f));
+            // 경험치 막대: 기술 바 판 아래
+            PlaceAt(_expBar.Rect, new Vector2(0.5f, 0f), new Vector2(0f, Mathf.Max(1f, trayBottom - 8f)),
+                new Vector2(trayWidth - 24f, 6f));
 
-            // 직업 게이지: 기술 바 바로 위 (기술 바 너비)
-            float gaugeBottom = _bar.BottomMargin + slot + _jobGauge.GapToBar;
+            // 직업 게이지: 체력 막대 위 (기술 바 판 너비)
+            float gaugeBottom = trayTop + _jobGauge.GapToBar;
             PlaceAt(_jobGaugeView.Rect, new Vector2(0.5f, 0f), new Vector2(0f, gaugeBottom),
-                new Vector2(totalWidth, _jobGauge.Height));
+                new Vector2(trayWidth, _jobGauge.Height));
             _jobGaugeView.ApplyStyle(_jobGauge);
 
             // 직업 이름: 게이지 위 가운데 (게이지가 없어도 같은 자리)
             _jobLabel.fontSize = _jobDisplay.LabelFontSize;
-            _jobLabel.color = _jobDisplay.LabelColor;
+            _jobLabel.color = UiTheme.P.Title;
             PlaceAt(_jobLabel.rectTransform, new Vector2(0.5f, 0f),
                 new Vector2(0f, gaugeBottom + _jobGauge.Height + _jobDisplay.LabelGapToBar),
                 new Vector2(totalWidth, _jobDisplay.LabelFontSize + 8f));
 
             // 지속 버프 목록: 직업 이름 위
             _buffText.fontSize = _jobDisplay.LabelFontSize - 4;
-            _buffText.color = new Color(0.75f, 0.9f, 1f);
+            _buffText.color = UiTheme.P.Buff;
             PlaceAt(_buffText.rectTransform, new Vector2(0.5f, 0f),
                 new Vector2(0f, gaugeBottom + _jobGauge.Height + _jobDisplay.LabelGapToBar + _jobDisplay.LabelFontSize + 8f),
                 new Vector2(totalWidth, _jobDisplay.LabelFontSize + 4f));
@@ -744,6 +825,10 @@ namespace BrokenSovereign.UI
             rect.anchoredPosition = position;
         }
 
+        private const float TRAY_SIDE = 24f;
+        private const float TRAY_BOTTOM = 14f;
+        private const float TRAY_TOP = 12f;
+
         private ResourceOrbView CreateOrb(string orbName, Shader shader)
         {
             ResourceOrbView orb = HudGraphics.CreateRect(orbName, transform).gameObject.AddComponent<ResourceOrbView>();
@@ -751,15 +836,25 @@ namespace BrokenSovereign.UI
             return orb;
         }
 
+        // 지도에서 고른 자동 이동: 이동 중이면 화면 가운데 "자동 이동 중" (천천히 깜빡임)
+        private void UpdateAutoMove()
+        {
+            MapPin.CheckArrival(_player.transform.position);
+            bool moving = _player.IsAutoMoving;
+            _autoMoveText.enabled = moving;
+
+            if (moving)
+            {
+                Color color = UiTheme.P.Title;
+                color.a = 0.65f + 0.35f * Mathf.Sin(Time.time * 4f);
+                _autoMoveText.color = color;
+            }
+        }
+
         private Text CreateLabel(string labelName, TextAnchor alignment)
         {
-            Text text = HudGraphics.CreateRect(labelName, transform).gameObject.AddComponent<Text>();
-            text.font = HudGraphics.Font;
-            text.alignment = alignment;
-            text.color = Color.white;
-            text.raycastTarget = false;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2f, -2f);
+            Text text = UiKit.SceneLabel(labelName, transform, 20, UiTheme.P.OnScene, alignment);
+            text.verticalOverflow = VerticalWrapMode.Overflow;
             return text;
         }
 

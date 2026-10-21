@@ -18,11 +18,11 @@ namespace BrokenSovereign.UI
         private static readonly Vector2 CARD_SIZE = new Vector2(340f, 420f);
         private const float CARD_SPACING = 48f;
 
-        private static readonly Color DIM_COLOR = new Color(0f, 0f, 0f, 0.8f);
-        private static readonly Color CARD_COLOR = new Color(0.1f, 0.09f, 0.12f, 0.95f);
-        private static readonly Color CARD_HOVER_COLOR = new Color(0.22f, 0.18f, 0.1f, 0.98f);
-        private static readonly Color GOLD = new Color(0.95f, 0.8f, 0.45f);
-        private static readonly Color SUBTLE = new Color(0.85f, 0.82f, 0.75f);
+        private static Color DIM_COLOR => new Color(0f, 0f, 0f, 0.8f);
+        private static Color CARD_COLOR => Color.white;
+        private static Color CARD_HOVER_COLOR => new Color(1f, 0.93f, 0.82f);
+        private static Color GOLD => UiTheme.P.Title;
+        private static Color SUBTLE => UiTheme.P.Text;
 
         private const float HOVER_SCALE = 1.05f;
         private const float CHOSEN_SCALE = 1.1f;
@@ -60,6 +60,7 @@ namespace BrokenSovereign.UI
 
             Text title = CreateText("Title", root, 44, GOLD, FontStyle.Bold);
             title.text = "반신의 격 — 걸어갈 영웅의 길을 고르라";
+            UiTheme.ApplyTitle(title);
             Place(title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, CARD_SIZE.y * 0.5f + 80f),
                 new Vector2(1200f, 60f));
 
@@ -131,7 +132,7 @@ namespace BrokenSovereign.UI
                 bool hover = RectTransformUtility.RectangleContainsScreenPoint(_cardRects[i], pointer, null);
                 _cardImages[i].color = hover ? CARD_HOVER_COLOR : CARD_COLOR;
                 _outlines[i].effectDistance = hover ? new Vector2(4f, -4f) : new Vector2(2f, -2f);
-                _outlines[i].effectColor = hover ? Color.Lerp(GOLD, Color.white, pulse * 0.6f) : GOLD;
+                _outlines[i].effectColor = hover ? Color.Lerp(GOLD, Color.white, pulse * 0.6f) : Color.clear;
                 _glows[i].color = hover ? new Color(GOLD.r, GOLD.g, GOLD.b, 0.25f + pulse * 0.35f) : Color.clear;
                 _footers[i].color = hover ? Color.Lerp(GOLD, Color.white, pulse) : GOLD;
                 AnimateCard(i, hover ? HOVER_SCALE : 1f, step);
@@ -203,29 +204,32 @@ namespace BrokenSovereign.UI
             glow.offsetMin = new Vector2(-GLOW_PADDING, -GLOW_PADDING);
             glow.offsetMax = new Vector2(GLOW_PADDING, GLOW_PADDING);
             Image glowImage = glow.gameObject.AddComponent<Image>();
-            glowImage.sprite = HudGraphics.WhiteSprite;
+            glowImage.sprite = UiSprites.Glow;
             glowImage.color = Color.clear;
             glowImage.raycastTarget = false;
 
             RectTransform face = HudGraphics.CreateRect("Face", card);
             HudGraphics.Stretch(face);
             Image image = face.gameObject.AddComponent<Image>();
-            image.sprite = HudGraphics.WhiteSprite;
+            image.sprite = UiSprites.Plate;
+            image.type = Image.Type.Sliced;
             image.color = CARD_COLOR;
             image.raycastTarget = false;
             Outline outline = face.gameObject.AddComponent<Outline>();
-            outline.effectColor = GOLD;
+            outline.effectColor = Color.clear;
             outline.effectDistance = new Vector2(2f, -2f);
 
-            Text title = CreateText("Title", card, 22, SUBTLE, FontStyle.Italic);
+            Text title = CreateText("Title", card, 22, UiTheme.P.TextDim, FontStyle.Normal);
             title.text = path.Title;
+            UiTheme.ApplyTitle(title);
             Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(CARD_SIZE.x, 30f));
 
             Text name = CreateText("Name", card, 44, GOLD, FontStyle.Bold);
             name.text = path.DisplayName;
+            UiTheme.ApplyTitle(name);
             Place(name.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(CARD_SIZE.x, 56f));
 
-            Text mechanic = CreateText("Mechanic", card, 24, Color.white, FontStyle.Bold);
+            Text mechanic = CreateText("Mechanic", card, 24, UiTheme.P.Accent, FontStyle.Bold);
             mechanic.text = string.IsNullOrEmpty(path.MechanicName) ? "" : $"고유 메커니즘: {path.MechanicName}";
             Place(mechanic.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(CARD_SIZE.x, 30f));
 
@@ -253,6 +257,11 @@ namespace BrokenSovereign.UI
             text.fontSize = fontSize;
             text.color = color;
             text.fontStyle = style;
+
+            if (style == FontStyle.Bold)
+            {
+                UiTheme.ApplyBody(text, true);
+            }
             text.alignment = TextAnchor.MiddleCenter;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;

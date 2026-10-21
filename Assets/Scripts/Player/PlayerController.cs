@@ -34,6 +34,10 @@ namespace BrokenSovereign.Player
         private SkillCaster _skillCaster;
         private float _nextHeldSkillTime;
         private float _actionEndTime;
+        private bool _isSkillAction;
+        private bool _hasPendingMove;
+        private bool _isAutoMoving;
+        private Vector3 _pendingMove;
 
         // 교전 상태
         private ITargetedAction _engageAction;
@@ -136,6 +140,15 @@ namespace BrokenSovereign.Player
             else if (State == PlayerState.Attacking && Time.time >= _actionEndTime)
             {
                 State = PlayerState.Idle;
+
+                // 기술 동작 중에 들어온 이동 입력: 동작이 끝난 뒤 마지막 지점으로 이동
+                if (_hasPendingMove)
+                {
+                    bool auto = _isAutoMoving;
+                    _hasPendingMove = false;
+                    MoveTo(_pendingMove);
+                    _isAutoMoving = auto;
+                }
             }
         }
 
@@ -149,16 +162,42 @@ namespace BrokenSovereign.Player
                 return;
             }
 
-            // 공격·시전 동작 중이어도 이동 입력이 들어오면 동작을 끊고 바로 이동 (피해는 시전 순간 이미 적용됨)
+            // 기술 시전 동작 중: 끊지 않고 동작이 끝난 뒤 이동 (마지막 입력 지점 예약)
+            // 기본 공격 동작 중: 동작을 끊고 바로 이동 (피해는 공격 순간 이미 적용됨)
             // 이동 잠금 기술(진격 돌진 등)은 IsActionLocked로 막힘
             if (IsActing)
             {
+                if (_isSkillAction)
+                {
+                    _pendingMove = point;
+                    _hasPendingMove = true;
+                    return;
+                }
+
                 _actionEndTime = Time.time;
             }
 
+            _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.MoveTo(point);
             State = PlayerState.Moving;
+        }
+
+        /// <summary>지도에서 고른 자동 이동 중 (다른 이동·공격·회피 입력이나 도착 시 해제)</summary>
+        public bool IsAutoMoving => _isAutoMoving && State == PlayerState.Moving;
+
+        /// <summary>지도 우클릭 [자동 이동]: 지점까지 길찾기 이동. 이동을 시작하지 못하면 false</summary>
+        public bool AutoMoveTo(Vector3 point)
+        {
+            if (IsDead || IsActionLocked)
+            {
+                return false;
+            }
+
+            MoveTo(point);
+            _isAutoMoving = State == PlayerState.Moving || _hasPendingMove;
+            return _isAutoMoving;
         }
 
         /// <summary>
@@ -181,6 +220,8 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            _hasPendingMove = false;
+            _isAutoMoving = false;
             _engageAction = action;
             _engageTarget = target;
             SelectTarget(target);
@@ -204,7 +245,7 @@ namespace BrokenSovereign.Player
         }
 
         /// <summary>
-        /// Shift + 좌클릭: 이동을 멈추고 커서 방향으로 기본 공격.
+        /// Shift + 좌클릭 + 적: 이동하지 않고 그 적 방향으로 기본 공격 (바닥 클릭은 공격하지 않음).
         /// </summary>
         public void AttackInPlace(Vector3 point)
         {
@@ -213,6 +254,8 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.Stop();
             _mover.FaceTowards(point);
@@ -250,7 +293,7 @@ namespace BrokenSovereign.Player
 
                 if (!moveWhileCasting)
                 {
-                    BeginAction(_skillCaster.GetCastTime(slot));
+                    BeginAction(_skillCaster.GetCastTime(slot), true);
                 }
             }
             else
@@ -419,6 +462,8 @@ namespace BrokenSovereign.Player
                 return;
             }
 
+            _hasPendingMove = false;
+            _isAutoMoving = false;
             ClearEngage();
             _mover.Stop();
             State = PlayerState.Idle;
@@ -436,6 +481,8 @@ namespace BrokenSovereign.Player
 
             if (_dodge.TryDodge(point - transform.position))
             {
+                _hasPendingMove = false;
+                _isAutoMoving = false;
                 ClearEngage();
                 State = PlayerState.Dodging;
                 Dodged?.Invoke(_dodge.Direction);
@@ -543,7 +590,7 @@ namespace BrokenSovereign.Player
                 return false;
             }
 
-            BeginAction(action.Duration);
+            BeginAction(action.Duration, action != _basicAttack);
 
             if (action == _basicAttack)
             {
@@ -558,8 +605,12 @@ namespace BrokenSovereign.Player
         }
 
         // 공격·시전 동작 시작: 멈추고 동작 시간 동안 Attacking 유지 (다른 공격 불가, 이동·회피 입력 시 즉시 해제)
-        private void BeginAction(float duration)
+        // isSkill: 기술 동작이면 이동 입력으로 끊지 않음 (끝난 뒤 이동)
+        private void BeginAction(float duration, bool isSkill)
         {
+            _isSkillAction = isSkill;
+            _hasPendingMove = false;
+            _isAutoMoving = false;
             _mover.Stop();
             State = PlayerState.Attacking;
             _actionEndTime = Time.time + Mathf.Max(0f, duration);

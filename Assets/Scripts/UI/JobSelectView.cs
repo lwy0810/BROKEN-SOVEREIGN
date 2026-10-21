@@ -33,17 +33,17 @@ namespace BrokenSovereign.UI
         private static readonly Vector2 CARD_SIZE = new Vector2(260f, 340f);
         private const float CARD_SPACING = 32f;
 
-        private static readonly Color DIM_COLOR = new Color(0f, 0f, 0f, 0.75f);
-        private static readonly Color CARD_COLOR = new Color(0.1f, 0.09f, 0.12f, 0.95f);
-        private static readonly Color CARD_HOVER_COLOR = new Color(0.22f, 0.18f, 0.1f, 0.98f);
-        private static readonly Color CARD_LOCKED_COLOR = new Color(0.06f, 0.06f, 0.07f, 0.95f);
-        private static readonly Color GOLD = new Color(0.95f, 0.8f, 0.45f);
-        private static readonly Color MUTED = new Color(0.5f, 0.5f, 0.5f);
+        private static Color DIM_COLOR => new Color(0f, 0f, 0f, 0.8f);
+        private static Color CARD_COLOR => Color.white;
+        private static Color CARD_HOVER_COLOR => new Color(1f, 0.93f, 0.82f);
+        private static Color CARD_LOCKED_COLOR => new Color(0.6f, 0.6f, 0.62f);
+        private static Color GOLD => UiTheme.P.Title;
+        private static Color MUTED => UiTheme.P.TextDisabled;
 
         private const float HOVER_SCALE = 1.06f;
         private const float CHOSEN_SCALE = 1.12f;
         private const float SCALE_SPEED = 12f;
-        private const float GLOW_PADDING = 14f;
+        private const float GLOW_PADDING = 48f;
         private const float CHOOSE_DELAY = 0.35f;
 
         private RectTransform[] _cardRects;
@@ -73,6 +73,7 @@ namespace BrokenSovereign.UI
 
             Text title = CreateText("Title", root, 44, GOLD, FontStyle.Bold);
             title.text = "격의 잔재가 길을 묻는다 — 직업 선택";
+            UiTheme.ApplyTitle(title);
             Place(title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, CARD_SIZE.y * 0.5f + 80f),
                 new Vector2(1200f, 60f));
 
@@ -162,7 +163,7 @@ namespace BrokenSovereign.UI
                 {
                     // 잠긴 카드: 올려도 살짝만 반응 (선택 불가 표시)
                     _cardImages[i].color = CARD_LOCKED_COLOR;
-                    _footers[i].color = hover ? new Color(0.8f, 0.35f, 0.35f) : MUTED;
+                    _footers[i].color = hover ? UiTheme.P.Danger : MUTED;
                     AnimateCard(i, 1f, step);
                     continue;
                 }
@@ -171,7 +172,7 @@ namespace BrokenSovereign.UI
                 float pulse = 0.5f + 0.5f * Mathf.Sin(now * 6f);
                 _cardImages[i].color = hover ? CARD_HOVER_COLOR : CARD_COLOR;
                 _outlines[i].effectDistance = hover ? new Vector2(4f, -4f) : new Vector2(2f, -2f);
-                _outlines[i].effectColor = hover ? Color.Lerp(GOLD, Color.white, pulse * 0.6f) : GOLD;
+                _outlines[i].effectColor = hover ? Color.Lerp(GOLD, Color.white, pulse * 0.6f) : Color.clear;
                 _glows[i].color = hover ? new Color(GOLD.r, GOLD.g, GOLD.b, 0.25f + pulse * 0.35f) : Color.clear;
                 _footers[i].color = hover ? Color.Lerp(GOLD, Color.white, pulse) : GOLD;
                 AnimateCard(i, hover ? HOVER_SCALE : 1f, step);
@@ -220,7 +221,7 @@ namespace BrokenSovereign.UI
             glow.offsetMin = new Vector2(-GLOW_PADDING, -GLOW_PADDING);
             glow.offsetMax = new Vector2(GLOW_PADDING, GLOW_PADDING);
             Image glowImage = glow.gameObject.AddComponent<Image>();
-            glowImage.sprite = HudGraphics.WhiteSprite;
+            glowImage.sprite = UiSprites.Glow;
             glowImage.color = Color.clear;
             glowImage.raycastTarget = false;
 
@@ -228,15 +229,17 @@ namespace BrokenSovereign.UI
             RectTransform face = HudGraphics.CreateRect("Face", card);
             HudGraphics.Stretch(face);
             Image image = face.gameObject.AddComponent<Image>();
-            image.sprite = HudGraphics.WhiteSprite;
+            image.sprite = UiSprites.Plate;
+            image.type = Image.Type.Sliced;
             image.raycastTarget = false;
             Outline outline = face.gameObject.AddComponent<Outline>();
-            outline.effectColor = info.Selectable ? GOLD : MUTED;
+            outline.effectColor = Color.clear;
             outline.effectDistance = new Vector2(2f, -2f);
 
             Color textColor = info.Selectable ? Color.white : MUTED;
             Text name = CreateText("Name", card, 40, info.Selectable ? GOLD : MUTED, FontStyle.Bold);
             name.text = info.Name;
+            UiTheme.ApplyTitle(name);
             Place(name.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(CARD_SIZE.x, 50f));
 
             Text resource = CreateText("Resource", card, 22, textColor, FontStyle.Normal);
@@ -266,6 +269,11 @@ namespace BrokenSovereign.UI
             text.fontSize = fontSize;
             text.color = color;
             text.fontStyle = style;
+
+            if (style == FontStyle.Bold)
+            {
+                UiTheme.ApplyBody(text, true);
+            }
             text.alignment = TextAnchor.MiddleCenter;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;

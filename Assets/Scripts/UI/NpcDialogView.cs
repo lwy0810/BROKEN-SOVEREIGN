@@ -17,12 +17,12 @@ namespace BrokenSovereign.UI
         private static readonly Vector2 BUTTON_SIZE = new Vector2(190f, 46f);
         private static readonly Vector2 PROMPT_SIZE = new Vector2(320f, 40f);
 
-        private static readonly Color PANEL_COLOR = new Color(0.07f, 0.07f, 0.1f, 0.92f);
-        private static readonly Color BUTTON_COLOR = new Color(0.16f, 0.14f, 0.12f, 0.95f);
-        private static readonly Color BUTTON_HOVER_COLOR = new Color(0.32f, 0.25f, 0.12f, 0.98f);
-        private static readonly Color PROMPT_COLOR = new Color(0f, 0f, 0f, 0.65f);
-        private static readonly Color GOLD = new Color(0.95f, 0.8f, 0.45f);
-        private static readonly Color BODY = new Color(0.92f, 0.9f, 0.85f);
+        private static Color PANEL_COLOR => Color.white;
+        private static Color BUTTON_COLOR => Color.white;
+        private static Color BUTTON_HOVER_COLOR => new Color(1f, 0.9f, 0.75f);
+        private static Color PROMPT_COLOR => Color.white;
+        private static Color GOLD => UiTheme.P.Title;
+        private static Color BODY => UiTheme.P.Text;
 
         private NpcInteractor _interactor;
         private RectTransform _root;
@@ -170,7 +170,8 @@ namespace BrokenSovereign.UI
             _prompt.pivot = new Vector2(0.5f, 0f);
             _prompt.sizeDelta = PROMPT_SIZE;
             Image background = _prompt.gameObject.AddComponent<Image>();
-            background.sprite = HudGraphics.WhiteSprite;
+            background.sprite = UiSprites.Button;
+            background.type = Image.Type.Sliced;
             background.color = PROMPT_COLOR;
             background.raycastTarget = false;
 
@@ -188,14 +189,13 @@ namespace BrokenSovereign.UI
             _panel.sizeDelta = PANEL_SIZE;
 
             Image background = _panel.gameObject.AddComponent<Image>();
-            background.sprite = HudGraphics.WhiteSprite;
+            background.sprite = UiSprites.Plate;
+            background.type = Image.Type.Sliced;
             background.color = PANEL_COLOR;
             background.raycastTarget = false;
-            Outline outline = _panel.gameObject.AddComponent<Outline>();
-            outline.effectColor = GOLD;
-            outline.effectDistance = new Vector2(2f, -2f);
 
-            _nameText = CreateText("Name", _panel, 28, GOLD, FontStyle.Bold, TextAnchor.UpperLeft);
+            _nameText = CreateText("Name", _panel, 28, GOLD, FontStyle.Normal, TextAnchor.UpperLeft);
+            UiTheme.ApplyTitle(_nameText);
             PlaceTopLeft(_nameText.rectTransform, new Vector2(28f, -20f), new Vector2(PANEL_SIZE.x - 56f, 36f));
 
             _lineText = CreateText("Line", _panel, 22, BODY, FontStyle.Normal, TextAnchor.UpperLeft);
@@ -218,11 +218,10 @@ namespace BrokenSovereign.UI
             button.sizeDelta = BUTTON_SIZE;
 
             image = button.gameObject.AddComponent<Image>();
-            image.sprite = HudGraphics.WhiteSprite;
+            image.sprite = UiSprites.Button;
+            image.type = Image.Type.Sliced;
             image.color = BUTTON_COLOR;
             image.raycastTarget = false;
-            Outline outline = button.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(GOLD.r, GOLD.g, GOLD.b, 0.6f);
 
             text = CreateText("Label", button, 22, GOLD, FontStyle.Bold, TextAnchor.MiddleCenter);
             HudGraphics.Stretch(text.rectTransform);
@@ -246,6 +245,12 @@ namespace BrokenSovereign.UI
             text.fontSize = fontSize;
             text.color = color;
             text.fontStyle = style;
+
+            if (style == FontStyle.Bold)
+            {
+                UiTheme.ApplyBody(text, true);
+            }
+
             text.alignment = alignment;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;

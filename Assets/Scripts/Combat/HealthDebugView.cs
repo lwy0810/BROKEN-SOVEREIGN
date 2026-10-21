@@ -113,10 +113,18 @@ namespace BrokenSovereign.Combat
             }
         }
 
+        /// <summary>HUD가 피해 숫자·상태 이름을 표시하면 true (이 디버그 표시의 피해 숫자·"기절" 글자 생략)</summary>
+        public static bool HudShowsPopups { get; set; }
+
         private void OnDamaged(DamageInfo info)
         {
             _lastDamagedTime = Time.time;
-            if (info.IsCritical)
+
+            if (HudShowsPopups)
+            {
+                // 피해 숫자는 HUD(DamageNumberView)가 표시
+            }
+            else if (info.IsCritical)
             {
                 AddPopup($"{info.Amount:0}!", new Color(1f, 0.85f, 0.2f), 1.5f);
             }
@@ -144,6 +152,11 @@ namespace BrokenSovereign.Combat
 
         private void OnStunned(float duration)
         {
+            if (HudShowsPopups)
+            {
+                return;
+            }
+
             AddPopup("기절", new Color(1f, 0.6f, 0.2f));
         }
 

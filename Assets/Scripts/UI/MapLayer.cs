@@ -17,6 +17,8 @@ namespace BrokenSovereign.UI
         private readonly RawImage _detail;
         private readonly RectTransform _icons;
         private readonly RectTransform _player;
+        private readonly RectTransform _pin;
+        private static Shader _styleShader;
         private readonly float _iconSize;
         private readonly Dictionary<MapMarker, RectTransform> _iconByMarker = new Dictionary<MapMarker, RectTransform>();
         private readonly List<MapMarker> _stale = new List<MapMarker>();
@@ -30,11 +32,40 @@ namespace BrokenSovereign.UI
 
             _base = HudGraphics.CreateRect("Map", _content).gameObject.AddComponent<RawImage>();
             _base.raycastTarget = false;
+            _base.material = CreateStyle(1.5f);
             _detail = HudGraphics.CreateRect("Detail", _content).gameObject.AddComponent<RawImage>();
             _detail.raycastTarget = false;
+            _detail.material = CreateStyle(5f);
             _icons = HudGraphics.CreateRect("Icons", _content);
             _icons.sizeDelta = Vector2.zero;
+
+            // 핀 포인트 (MapPin)
+            Image pin = HudGraphics.CreateRect("Pin", _content).gameObject.AddComponent<Image>();
+            pin.sprite = UiSprites.Pin;
+            pin.raycastTarget = false;
+            _pin = pin.rectTransform;
+            _pin.sizeDelta = new Vector2(iconSize * 0.9f, iconSize * 1.2f);
+            _pin.pivot = new Vector2(0.5f, 0.05f);
+
             _player = MapIcons.CreatePlayer(_content, iconSize * 0.95f);
+        }
+
+        // 지도 스타일 셰이더 (Resources/UI/MapStyle). 없으면 원래 그림 그대로
+        private static Material CreateStyle(float edgeWidth)
+        {
+            if (_styleShader == null)
+            {
+                _styleShader = Resources.Load<Shader>("UI/MapStyle");
+            }
+
+            if (_styleShader == null)
+            {
+                return null;
+            }
+
+            var material = new Material(_styleShader) { name = "MapStyle" };
+            material.SetFloat("_EdgeWidth", edgeWidth);
+            return material;
         }
 
         /// <summary>그림 투명도 (오버레이 표시용)</summary>
@@ -67,6 +98,15 @@ namespace BrokenSovereign.UI
             }
 
             var counter = Quaternion.Euler(0f, 0f, -yaw);
+
+            _pin.gameObject.SetActive(MapPin.Has);
+
+            if (MapPin.Has)
+            {
+                _pin.anchoredPosition = (MapPin.Position - viewCenter) * pixelsPerMeter;
+                _pin.localRotation = counter;
+                _pin.SetAsLastSibling();
+            }
 
             if (player != null)
             {

@@ -48,12 +48,6 @@ namespace BrokenSovereign.Combat
         {
             _stats = GetComponent<CharacterStats>();
             _health = GetComponent<Health>();
-
-            // 효과가 걸려 있는 동안 발밑 표시
-            if (!TryGetComponent(out StatusEffectIndicator _))
-            {
-                gameObject.AddComponent<StatusEffectIndicator>();
-            }
         }
 
         private void OnEnable()
@@ -111,6 +105,17 @@ namespace BrokenSovereign.Combat
         public bool Has(string id)
         {
             return _table.IsActive(id, Time.time);
+        }
+
+        /// <summary>걸려 있는 효과 이름 목록 (머리 위 표시용)</summary>
+        public void GetActiveNames(List<string> results)
+        {
+            results.Clear();
+
+            foreach (EffectSource source in _sources.Values)
+            {
+                results.Add(source.Name);
+            }
         }
 
         /// <summary>걸려 있는 효과 "이름 남은 초" 목록 (디버그 표시용)</summary>
