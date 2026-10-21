@@ -75,7 +75,7 @@ namespace BrokenSovereign.Item
         /// <summary>가방 칸의 장비를 장착. 원래 장비는 그 칸으로 돌아감</summary>
         public bool EquipFromInventory(int index)
         {
-            ItemStack stack = _inventory != null ? _inventory.Get(index) : null;
+            ItemStack stack = _inventory != null ? _inventory.Get(ItemKind.Equipment, index) : null;
 
             if (stack == null || !stack.Item.IsEquipment)
             {
@@ -84,7 +84,7 @@ namespace BrokenSovereign.Item
 
             EquipSlot slot = stack.Item.Slot;
             ItemDefinition previous = Get(slot);
-            _inventory.Take(index);
+            _inventory.Take(ItemKind.Equipment, index);
             _equipped[slot] = stack.Item;
 
             if (previous != null)
@@ -96,7 +96,7 @@ namespace BrokenSovereign.Item
             return true;
         }
 
-        /// <summary>장착 해제 → 가방(지정 칸이 비어 있으면 그 칸, 아니면 첫 빈 칸). 가방이 가득이면 실패</summary>
+        /// <summary>장착 해제 → 장비 가방(지정 칸이 비어 있으면 그 칸, 아니면 첫 빈 칸). 가방이 가득이면 실패</summary>
         public bool Unequip(EquipSlot slot, int targetIndex = -1)
         {
             ItemDefinition item = Get(slot);
@@ -106,14 +106,14 @@ namespace BrokenSovereign.Item
                 return false;
             }
 
-            if (targetIndex >= 0 && _inventory.Get(targetIndex) != null)
+            if (targetIndex >= 0 && _inventory.Get(ItemKind.Equipment, targetIndex) != null)
             {
                 // 지정 칸에 같은 부위 장비가 있으면 맞바꿈
-                return _inventory.Get(targetIndex).Item.IsEquipment && _inventory.Get(targetIndex).Item.Slot == slot &&
+                return _inventory.Get(ItemKind.Equipment, targetIndex).Item.IsEquipment && _inventory.Get(ItemKind.Equipment, targetIndex).Item.Slot == slot &&
                     EquipFromInventory(targetIndex);
             }
 
-            int index = targetIndex >= 0 ? targetIndex : _inventory.FirstEmpty();
+            int index = targetIndex >= 0 ? targetIndex : _inventory.FirstEmpty(ItemKind.Equipment);
 
             if (index < 0)
             {

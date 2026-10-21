@@ -12,7 +12,7 @@ namespace BrokenSovereign.UI
     /// <summary>
     /// 인벤토리 창 (I, 10/21 Figma 시안 v3).
     /// 왼쪽: 캐릭터 모델 + 장비 6칸 + 장비 효과 합계 + [상세 정보] 버튼 (창 왼쪽에 능력치 상세 정보창을 펼침)
-    /// 오른쪽: 분류 탭(전체·장비·소모품·재료)·정렬·가방 12×8 / 아래 골드·물약.
+    /// 오른쪽: 분류 탭(장비·소모품·재료, 분류마다 따로 가방)·정렬·가방 12×8 / 아래 골드·물약.
     /// 조작: 우클릭 = 장착·사용·해제, 끌어 놓기 = 칸 이동·장착·해제, 마우스 올림 = 툴팁(착용 장비 비교).
     /// 제목 탭 끌기로 창 이동, ×·I·Esc로 닫기. 열려 있는 동안 전투 입력 차단. HudView가 생성합니다.
     /// </summary>
@@ -26,11 +26,11 @@ namespace BrokenSovereign.UI
         private const float CELL = 52f;
         private const float GAP = 5f;
         private const int COLUMNS = 12;
-        private const float DETAIL_WIDTH = 300f;
+        private const float DETAIL_WIDTH = 380f;
         private const float DRAG_THRESHOLD = 6f;
         private const int SUMMARY_ROWS = 5;
 
-        private static readonly string[] TABS = { "전체", "장비", "소모품", "재료" };
+        private static readonly string[] TABS = { "장비", "소모품", "재료" };
 
         private static readonly StatType[] SUMMARY_ORDER =
         {
@@ -75,6 +75,9 @@ namespace BrokenSovereign.UI
         private bool _dragging;
 
         public bool IsOpen => _panel != null && _panel.gameObject.activeSelf;
+
+        // 탭 = 분류별 가방 (장비·소모품·재료)
+        private ItemKind Kind => (ItemKind)_tab;
 
         public void Initialize(GameObject player, RectTransform hudRoot)
         {
@@ -246,7 +249,7 @@ namespace BrokenSovereign.UI
             title.text = "상세 정보";
             Text sub = UiKit.Label("Sub", _detail, 12, p.TextDim, TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(sub.rectTransform, new Vector2(24f, 50f), new Vector2(240f, 18f));
-            sub.text = "장비 포함 최종 능력치  ·  초록 = 장비 보너스";
+            sub.text = "장비 포함 최종 능력치  ·  (괄호) = 장비 증감";
 
             _detailStats = new StatListView(_detail, new Vector2(24f, 84f), new Vector2(DETAIL_WIDTH - 24f - 30f, HEIGHT - 84f - 24f),
                 _player, stat => _equipment != null ? _equipment.GetBonus(stat) : 0f);
@@ -368,6 +371,7 @@ namespace BrokenSovereign.UI
                 {
                     _tab = i;
                     _dirty = true;
+                    CancelDrag();
                 }
 
                 bool on = _tab == i;
@@ -381,7 +385,7 @@ namespace BrokenSovereign.UI
 
             if (sortHover && UiKit.Clicked && _inventory != null)
             {
-                _inventory.Sort();
+                _inventory.Sort(Kind);
             }
 
             bool detailOn = _detail.gameObject.activeSelf;
@@ -462,7 +466,7 @@ namespace BrokenSovereign.UI
             // 끌기 시작
             if (mouse.leftButton.wasPressedThisFrame)
             {
-                if (hoverBag >= 0 && _inventory.Get(hoverBag) != null)
+                if (hoverBag >= 0 && _inventory.Get(Kind, hoverBag) != null)
                 {
                     _pressBag = hoverBag;
                     _pressPosition = UiKit.Pointer;
@@ -498,7 +502,7 @@ namespace BrokenSovereign.UI
             }
 
             // 툴팁
-            ItemDefinition hovered = hoverBag >= 0 ? _inventory.Get(hoverBag)?.Item
+            ItemDefinition hovered = hoverBag >= 0 ? _inventory.Get(Kind, hoverBag)?.Item
                 : hoverEquip.HasValue && _equipment != null ? _equipment.Get(hoverEquip.Value) : null;
 
             if (_dragging || hovered == null)
@@ -517,7 +521,7 @@ namespace BrokenSovereign.UI
 
         private void UseBagItem(int index)
         {
-            ItemStack stack = _inventory.Get(index);
+            ItemStack stack = _inventory.Get(Kind, index);
 
             if (stack == null)
             {
@@ -530,7 +534,7 @@ namespace BrokenSovereign.UI
             }
             else if (stack.Item.Id == ItemCatalog.POTION_ID && _potionUser != null && _potionUser.AddCharges(1) > 0)
             {
-                _inventory.Remove(index);
+                _inventory.Remove(Kind, index);
             }
         }
 
@@ -538,7 +542,7 @@ namespace BrokenSovereign.UI
         {
             if (_pressBag >= 0)
             {
-                return _inventory.Get(_pressBag)?.Item;
+                return _inventory.Get(Kind, _pressBag)?.Item;
             }
 
             return _pressEquip.HasValue && _equipment != null ? _equipment.Get(_pressEquip.Value) : null;
@@ -579,11 +583,11 @@ namespace BrokenSovereign.UI
             {
                 if (targetBag >= 0)
                 {
-                    _inventory.Move(_pressBag, targetBag);
+                    _inventory.Move(Kind, _pressBag, targetBag);
                 }
                 else if (targetEquip.HasValue && _equipment != null)
                 {
-                    ItemDefinition item = _inventory.Get(_pressBag)?.Item;
+                    ItemDefinition item = _inventory.Get(Kind, _pressBag)?.Item;
 
                     if (item != null && item.IsEquipment && item.Slot == targetEquip.Value)
                     {
@@ -593,7 +597,8 @@ namespace BrokenSovereign.UI
             }
             else if (_pressEquip.HasValue && targetBag >= 0 && _equipment != null)
             {
-                _equipment.Unequip(_pressEquip.Value, targetBag);
+                // 장비 가방이 보일 때만 놓은 칸에, 아니면 장비 가방 빈 칸에
+                _equipment.Unequip(_pressEquip.Value, Kind == ItemKind.Equipment ? targetBag : -1);
             }
         }
 
@@ -613,8 +618,8 @@ namespace BrokenSovereign.UI
         {
             for (int i = 0; i < _bag.Length; i++)
             {
-                ItemStack stack = _inventory != null ? _inventory.Get(i) : null;
-                _bag[i].Set(stack?.Item, stack?.Count ?? 0, stack != null && !MatchesTab(stack.Item));
+                ItemStack stack = _inventory != null ? _inventory.Get(Kind, i) : null;
+                _bag[i].Set(stack?.Item, stack?.Count ?? 0);
             }
 
             foreach (KeyValuePair<EquipSlot, ItemSlotView> pair in _equip)
@@ -623,17 +628,6 @@ namespace BrokenSovereign.UI
             }
 
             RefreshSummary();
-        }
-
-        private bool MatchesTab(ItemDefinition item)
-        {
-            switch (_tab)
-            {
-                case 1: return item.Kind == ItemKind.Equipment;
-                case 2: return item.Kind == ItemKind.Consumable;
-                case 3: return item.Kind == ItemKind.Material;
-                default: return true;
-            }
         }
 
         private void RefreshSummary()
@@ -667,7 +661,7 @@ namespace BrokenSovereign.UI
         {
             if (_inventory != null)
             {
-                _capacity.text = $"가방 {_inventory.UsedCount} / {Inventory.SIZE}";
+                _capacity.text = $"가방 {_inventory.UsedCount(Kind)} / {Inventory.SIZE}";
                 _gold.text = $"{_inventory.Gold:N0}";
             }
 
