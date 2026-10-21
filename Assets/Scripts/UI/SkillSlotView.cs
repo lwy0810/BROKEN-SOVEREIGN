@@ -69,6 +69,15 @@ namespace BrokenSovereign.UI
         }
 
         /// <summary>장착 기술 이름 표시. null·빈 문자열이면 숨김</summary>
+        /// <summary>기술 아이콘 (SkillIcons, 없으면 기본 문양)</summary>
+        public void SetIcon(Sprite icon)
+        {
+            if (_icon.sprite != icon)
+            {
+                _icon.sprite = icon;
+            }
+        }
+
         public void SetSkillName(string skillName)
         {
             skillName ??= string.Empty;

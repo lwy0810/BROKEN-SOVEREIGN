@@ -186,7 +186,7 @@ namespace BrokenSovereign.Ascension
         {
             foreach (SkillSlotCandidates slot in job.ResolveSkillSlots())
             {
-                if (slot.Default != null && loadout.GetEquipped(slot.Slot) != slot.Default)
+                if (slot.Default != null && loadout.GetEquipped(loadout.MapSlot(slot.Slot)) != slot.Default)
                 {
                     Debug.LogWarning($"{job.DisplayName}: {slot.Slot} 슬롯의 기본 기술 '{slot.Default.DisplayName}'이 " +
                         "다른 슬롯에도 기본 기술로 지정되어 이 슬롯이 비었습니다. JobDefinition의 Skill Slots를 확인하세요.", job);
