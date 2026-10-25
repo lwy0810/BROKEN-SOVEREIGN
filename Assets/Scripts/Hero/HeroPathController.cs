@@ -53,6 +53,16 @@ namespace BrokenSovereign.Hero
             }
 
             RefreshSkill();
+
+            // 성물 1단계 각성 (반신 = 영웅의 길 선택 시점)
+            HeroRelic relic = GetComponent<HeroRelic>();
+
+            if (relic == null)
+            {
+                relic = gameObject.AddComponent<HeroRelic>();
+            }
+
+            relic.Awaken(path);
             Debug.Log($"영웅의 길 선택: {path.DisplayName} ({path.Title})");
             PathSelected?.Invoke(path);
             return true;
