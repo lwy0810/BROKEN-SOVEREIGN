@@ -1270,8 +1270,11 @@ classDiagram
 | `SkillSlotView` | 기술 슬롯·재사용 대기 (금속 칸, 기술 이름은 칸 위, 구현 완료) | `PlayerController.GetSlotState` |
 | `MapPin` | 지도 핀 포인트 1개 (정적). 미니맵·지도 표시, 도착 시 삭제 | `MapLayer`, `HudView` |
 | `WorldMapView` | 지도 화면: 스타일 셰이더(`Resources/UI/MapStyle`), 우클릭 메뉴(자동 이동·핀), 조작 안내 | `PlayerController.AutoMoveTo`, `MapPin` |
-| `CharacterWindowView` | 캐릭터 창 (C). 왼쪽 직업·격·레벨·경험치·다음 격 돌파·영웅의 길 / 가운데 `CharacterPreview` 모델 / 오른쪽 능력치 5분류(휠 스크롤) | `PlayerProgression.NextAscensionHint`, `PlayerJob`, `HeroPathController`, `CharacterStats`, `CharacterPreview` |
-| `CharacterPreview` | 캐릭터 창 모델 미리보기. 플레이어 모델을 화면 밖 무대에 복제(스크립트·충돌체 제거)해 레이어 31 전용 카메라 → RenderTexture → RawImage. 끌어서 회전, 닫으면 복제본 삭제 | `PlayerAnimator.Animator` |
+| `CharacterWindowView` | 캐릭터 창 (C, Figma 10). [정보] 성장 정보·영웅 카드·성물 카드(봉인/개방)·능력치(핵심 4 + StatListView) / [성물] 성물 그림·단계 트랙·메커니즘 흐름·현재 상태 | `PlayerProgression`(Demigod/SuperhumanLevel), `PlayerJob`, `HeroPathController`, `HeroRelic`, `PlayerRecord`, `IJobGauge`, `PoiseReceiver`, `StaffReachMode` |
+| `HeroRelic` (Hero) | 성물. 영웅의 길 선택 시 1단계 각성(HeroPathController가 붙임). 야로미르 버팀 배율·무력화 추가 시간(CrushRule이 읽음), 석천 모드변환 후 피해 +15% 3초(StatSheet 출처 "성물") | `RelicCatalog`, `StaffReachMode.ModeChanged` |
+| `RelicCatalog` (Hero) | 영웅별 성물 이름·일화·한 줄 소개·1단계 효과·메커니즘 흐름 (정적) | - |
+| `PlayerRecord` (Player) | 누적 처치 수·플레이 시간 (HudView가 붙임) | `Health.AnyDied` |
+| `CharacterPreview` | 인벤토리 창 모델 미리보기 (10/21 캐릭터 창에서 이동). 플레이어 모델을 화면 밖 무대에 복제(스크립트·충돌체 제거)해 레이어 31 전용 카메라 → RenderTexture → RawImage. 끌어서 회전, 닫으면 복제본 삭제 | `PlayerAnimator.Animator` |
 | `InventoryWindowView` | 인벤토리 창 (I). 모델·장비 6칸·효과 합계·상세 정보창 / 탭·정렬·가방 12×8·골드·물약 / 우클릭·끌어 놓기·툴팁 | `Inventory.Changed`, `PlayerEquipment`, `PotionUser`, `StatListView`, `CharacterPreview` |
 | `StatListView` | 능력치 5분류 목록 + 휠 스크롤 (캐릭터 창·인벤토리 상세 정보 공용), 장비 보너스 표시 선택 | `CharacterStats`, `Health`, `IResourceGauge`, `IJobGauge` |
 | `ItemSlotView` / `ItemTooltipView` / `ItemVisuals` | 아이템 칸(희귀도 테두리·개수) / 툴팁(착용 비교) / 희귀도 색·이름·코드 생성 아이콘 | `ItemDefinition` |
