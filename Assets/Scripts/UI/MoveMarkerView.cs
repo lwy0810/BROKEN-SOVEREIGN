@@ -15,10 +15,10 @@ namespace BrokenSovereign.UI
         private const float DURATION = 1f;
         private const float START_RADIUS = 0.6f;
         private const float END_RADIUS = 0.3f;
-        private const float WIDTH = 0.06f;
+        private const float WIDTH = 0.1f;   // 10/22: 0.06 → 0.1 (원 테두리 두껍게)
         private const float GROUND_OFFSET = 0.05f;
 
-        private static Color COLOR => UiTheme.P.Accent;
+        private static readonly Color COLOR = Color.white;   // 10/22: 테마 강조색 → 흰색
         private static readonly string[] SHADER_NAMES = { "Sprites/Default", "Universal Render Pipeline/Unlit" };
 
         private LineRenderer _line;

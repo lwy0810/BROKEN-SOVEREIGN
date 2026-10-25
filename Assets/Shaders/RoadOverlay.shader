@@ -14,6 +14,7 @@ Shader "BrokenSovereign/Field/RoadOverlay"
         _StoneTint ("Stone Tint", Color) = (1, 1, 1, 1)
         _EdgeDarken ("Edge Darken", Range(0, 1)) = 0.3
         _EdgeNoise ("Edge Noise Scale", Float) = 0.35
+        _DirtAmount ("Dirt Amount", Range(0, 1)) = 1
     }
 
     SubShader
@@ -52,6 +53,7 @@ Shader "BrokenSovereign/Field/RoadOverlay"
                 half4 _StoneTint;
                 float _EdgeDarken;
                 float _EdgeNoise;
+                half _DirtAmount;
             CBUFFER_END
 
             struct Attributes
@@ -103,7 +105,7 @@ Shader "BrokenSovereign/Field/RoadOverlay"
             half4 Frag(Varyings input) : SV_Target
             {
                 float2 xz = input.positionWS.xz;
-                half dirt = input.color.r;
+                half dirt = input.color.r * _DirtAmount;   // 0 = 흙길은 지형 레이어가 표시 (지면 실사화)
                 half stone = input.color.g;
                 half weight = saturate(dirt + stone);
 

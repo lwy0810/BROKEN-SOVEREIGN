@@ -317,6 +317,12 @@ namespace BrokenSovereign.Editor
                 if (valley.UsesMacro)
                 {
                     ApplyMacroLook(spec, terrain);
+
+                    // 실사 반복 텍스처(Assets/Terrain/Ground)가 있으면 지면·풀·분위기 교체 (LevelTools.Ground)
+                    if (HasGroundTextures)
+                    {
+                        ApplyGroundLook(terrain);
+                    }
                 }
             }
 

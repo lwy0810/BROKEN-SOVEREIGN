@@ -88,7 +88,7 @@ namespace BrokenSovereign.UI
         public Color BarColor = new Color(0.72f, 0.07f, 0.09f);
         public Color BarBackgroundColor = new Color(0f, 0f, 0f, 0.7f);
         public Color FrameColor = new Color(0.78f, 0.6f, 0.28f, 0.9f);
-        public int NameFontSize = 20;
+        public int NameFontSize = 16;   // 10/22: 20 → 16
         public int PercentFontSize = 15;
     }
 
