@@ -33,6 +33,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _DirtAmount: 0
     - _DirtTile: 5
     - _EdgeDarken: 0.3
     - _EdgeNoise: 0.35

@@ -5,7 +5,8 @@ using UnityEngine.UI;
 namespace BrokenSovereign.UI
 {
     /// <summary>
-    /// 화면 상단 가운데 대상 체력 게이지: 금속판 위 이름, 알약형 막대, 남은 체력 비율(%).
+    /// 화면 상단 가운데 대상 체력 게이지: 이름, 알약형 막대, 남은 체력 비율(%).
+    /// 10/22: 바깥 검정 금속판 제거 (막대·이름만), 이름은 밝은 바닥 위에서도 읽히게 외곽선.
     /// 대상에 표시용 버팀 게이지(PoiseReceiver, 정예·보스)가 있으면 체력 막대 아래 버팀 막대, 무력화 중이면 "무력화" 표시.
     /// 대상이 없으면 숨깁니다. 10/21 B안 스타일 (UiTheme).
     /// </summary>
@@ -14,7 +15,6 @@ namespace BrokenSovereign.UI
         private const float POISE_BAR_HEIGHT = 7f;
         private const float POISE_BAR_GAP = 5f;
 
-        private Image _plate;
         private UiBar _bar;
         private UiBar _poise;
         private Text _nameText;
@@ -25,10 +25,6 @@ namespace BrokenSovereign.UI
 
         public void Initialize()
         {
-            // 바깥 금속판 (이름·버팀 막대 자리 포함, 막대보다 먼저 = 뒤에 그림)
-            _plate = UiKit.Plate("Plate", transform);
-            UiKit.Surround(_plate.rectTransform, 20f, 26f, 20f, 34f);
-
             _bar = UiKit.Bar("Bar", transform, UiTheme.P.Hp, UiTheme.P.HpDark);
             HudGraphics.Stretch(_bar.Rect);
             _percentText = _bar.EnableText(13);
@@ -38,6 +34,7 @@ namespace BrokenSovereign.UI
             nameRect.anchorMin = new Vector2(0f, 1f);
             nameRect.anchorMax = new Vector2(1f, 1f);
             nameRect.pivot = new Vector2(0.5f, 0f);
+            _nameText.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.6f);
 
             // 버팀 막대: 체력 막대 바로 아래 가운데 (야로미르 분쇄, 정예·보스만)
             _poise = UiKit.Bar("PoiseBar", transform, UiTheme.P.Poise, UiTheme.P.ResourceDark);
