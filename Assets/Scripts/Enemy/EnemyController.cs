@@ -59,6 +59,16 @@ namespace BrokenSovereign.Enemy
         public Transform Target => _target;
         public EnemyDefinition Definition => _definition;
 
+        /// <summary>
+        /// 보스 패턴 등 외부 행동이 이동·공격을 직접 맡는 동안 true (상태 전이·기본 공격 멈춤, 기절·사망은 그대로).
+        /// 켜는 쪽(ErlangBoss)이 끝나면 반드시 끔
+        /// </summary>
+        public bool ExternalControl { get; set; }
+
+        public NavMeshAgent Agent => _agent;
+        public CharacterStats Stats => _stats;
+        public Health TargetHealth => _targetHealth;
+
         private void Awake()
         {
             _health = GetComponent<Health>();
@@ -136,6 +146,12 @@ namespace BrokenSovereign.Enemy
             if (IsStunned && !_health.IsDead)
             {
                 StopAgent();
+                return;
+            }
+
+            if (ExternalControl && !_health.IsDead)
+            {
+                _wasDamaged = false;
                 return;
             }
 
@@ -389,6 +405,12 @@ namespace BrokenSovereign.Enemy
 
             _agent.isStopped = false;
             _agent.SetDestination(destination);
+        }
+
+        /// <summary>이동 정지 (외부 행동용)</summary>
+        public void StopMoving()
+        {
+            StopAgent();
         }
 
         private void StopAgent()

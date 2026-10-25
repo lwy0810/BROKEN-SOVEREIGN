@@ -57,6 +57,7 @@ namespace BrokenSovereign.Combat
         private void Awake()
         {
             _stats = GetComponent<CharacterStats>();
+            float serializedMax = _max;
 
             if (_stats != null)
             {
@@ -64,7 +65,10 @@ namespace BrokenSovereign.Combat
                 _stats.Sheet.Changed += OnStatsChanged;
             }
 
-            _current = _current <= 0f ? _max : Mathf.Min(_current, _max);
+            // 10/26: 프리팹에 저장된 현재 체력이 저장된 최대치 이상이면 (= 가득 찬 상태로 저장) 능력치 최대 체력으로 시작.
+            // 예) 보스 프리팹이 역사 틀의 300/300을 물려받아 능력치 6000에서 300(5%)으로 시작하던 문제
+            bool savedFull = _current >= serializedMax;
+            _current = _current <= 0f || savedFull ? _max : Mathf.Min(_current, _max);
             _invulnerabilitySources = GetComponents<IInvulnerabilitySource>();
         }
 

@@ -12,7 +12,7 @@ namespace BrokenSovereign.Enemy
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Health))]
-    public class BossStatus : MonoBehaviour
+    public class BossStatus : MonoBehaviour, IInvulnerabilitySource
     {
         private static readonly List<BossStatus> _active = new List<BossStatus>();
 
@@ -43,6 +43,12 @@ namespace BrokenSovereign.Enemy
 
         public bool IsDead => _health == null || _health.IsDead;
 
+        /// <summary>등장 연출 중 (10/25): 무적, 체력바 회색 (BossAppearTrigger가 켜고 끔)</summary>
+        public bool IsIntro { get; set; }
+
+        /// <summary>IInvulnerabilitySource: 등장 연출 중에는 피해 무시</summary>
+        public bool IsInvulnerable => IsIntro;
+
         public bool IsEngaged
         {
             get
@@ -50,6 +56,11 @@ namespace BrokenSovereign.Enemy
                 if (IsDead)
                 {
                     return false;
+                }
+
+                if (IsIntro)
+                {
+                    return true;   // 등장 연출 중에도 체력바 표시 (회색)
                 }
 
                 if (_enemy != null)
@@ -63,6 +74,15 @@ namespace BrokenSovereign.Enemy
 
         /// <summary>보스가 쓰러졌을 때</summary>
         public static event Action<BossStatus> AnyDefeated;
+
+        /// <summary>페이즈 전환 (10/26): 보스, 페이즈 번호(0부터), 페이즈 이름, 부제</summary>
+        public static event Action<BossStatus, int, string, string> AnyPhaseChanged;
+
+        /// <summary>현재 페이즈 (0부터)</summary>
+        public int Phase { get; private set; }
+
+        /// <summary>다음 페이즈가 시작되는 체력 비율들 (예: 0.7, 0.35) — HUD 체력바 위 빨간 역삼각형 (10/26)</summary>
+        public float[] PhaseRatios { get; private set; } = Array.Empty<float>();
 
         private void Awake()
         {
@@ -117,9 +137,22 @@ namespace BrokenSovereign.Enemy
             AnyDefeated?.Invoke(this);
         }
 
+        public void SetPhaseRatios(float[] ratios)
+        {
+            PhaseRatios = ratios ?? Array.Empty<float>();
+        }
+
+        /// <summary>ErlangBoss가 페이즈 전환 시 호출 → HUD 배너</summary>
+        public void NotifyPhase(int phase, string title, string subtitle)
+        {
+            Phase = phase;
+            AnyPhaseChanged?.Invoke(this, phase, title, subtitle);
+        }
+
         private void OnRestored()
         {
             _wasDamaged = false;
+            Phase = 0;
         }
     }
 }
