@@ -1,5 +1,7 @@
 using BrokenSovereign.Player;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -11,6 +13,8 @@ namespace BrokenSovereign.UI
     /// 전용 레이어만 찍는 카메라로 RenderTexture에 그리고 RawImage로 표시합니다.
     /// 복제본은 스크립트·충돌체를 떼어 내 게임에 영향이 없고, 닫으면 지웁니다. 끌어서 좌우 회전.
     /// 장비 시스템이 생기면 Open이 그때의 모델을 복제하므로 착용 모습이 그대로 보입니다.
+    /// 10/25: Resources/Animations/PaladinPreviewIdle(성기사로 Mixamo에서 받은 무기 내린 대기 동작)이 있으면 그 동작을 반복 재생,
+    /// 없으면 예전처럼 이동 블렌드의 대기 자세를 골라 멈춘 모습.
     /// </summary>
     public sealed class CharacterPreview
     {
@@ -22,6 +26,11 @@ namespace BrokenSovereign.UI
         private static readonly int LOCOMOTION_ID = Animator.StringToHash("Locomotion");
         private static readonly Vector3 STAGE = new Vector3(0f, -2000f, 0f);
         private static int _stageCount;
+        private const string PREVIEW_IDLE = "Animations/PaladinPreviewIdle";
+        private static AnimationClip _previewIdle;
+        private static bool _previewIdleLoaded;
+        private PlayableGraph _graph;
+        private bool _live;   // 대기 동작 반복 재생 중 (멈추지 않음)
 
         private readonly RawImage _image;
         private readonly Vector3 _stagePosition;
@@ -79,7 +88,9 @@ namespace BrokenSovereign.UI
             SetLayer(_clone.transform);
             _clone.SetActive(true);
 
-            _poseAnimator = StandIdle(_clone, animator.Animator);
+            AnimationClip idle = PreviewIdle();
+            _live = idle != null;
+            _poseAnimator = _live ? PlayLoop(_clone, animator.Animator, idle, out _graph) : StandIdle(_clone, animator.Animator);
             _freezeTime = Time.unscaledTime + FREEZE_DELAY;
             _image.color = new Color(1f, 1f, 1f, 0f);
 
@@ -120,16 +131,59 @@ namespace BrokenSovereign.UI
             return animator;
         }
 
-        // 대기 자세가 잡히면 Animator를 꺼 고정하고 그때 보여 줌
+        private static AnimationClip PreviewIdle()
+        {
+            if (!_previewIdleLoaded)
+            {
+                _previewIdleLoaded = true;
+                _previewIdle = Resources.Load<AnimationClip>(PREVIEW_IDLE);
+            }
+
+            return _previewIdle;
+        }
+
+        // 대기 동작 반복 재생: 복제본 Animator에 전용 PlayableGraph (필드 캐릭터 Animator와 독립, 시간 정지 무관)
+        private static Animator PlayLoop(GameObject clone, Animator source, AnimationClip clip, out PlayableGraph graph)
+        {
+            Animator animator = clone.GetComponent<Animator>();
+
+            if (animator == null)
+            {
+                animator = clone.AddComponent<Animator>();
+                animator.avatar = source.avatar;
+            }
+
+            animator.runtimeAnimatorController = null;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            animator.applyRootMotion = false;
+            animator.enabled = true;
+            animator.Rebind();
+
+            graph = PlayableGraph.Create("CharacterPreviewIdle");
+            graph.SetTimeUpdateMode(DirectorUpdateMode.UnscaledGameTime);
+            var playable = AnimationClipPlayable.Create(graph, clip);
+            AnimationPlayableOutput.Create(graph, "Preview", animator).SetSourcePlayable(playable);
+            graph.Play();
+            graph.Evaluate(0f);
+            return animator;
+        }
+
+        // 대기 자세가 잡히면 (멈춤 모드면 Animator를 꺼 고정하고) 카메라 쪽으로 돌려 보여 줌
         private void FreezeWhenReady()
         {
-            if (_poseAnimator == null || !_poseAnimator.enabled || Time.unscaledTime < _freezeTime)
+            if (_poseAnimator == null || !_poseAnimator.enabled || _freezeTime <= 0f || Time.unscaledTime < _freezeTime)
             {
                 return;
             }
 
-            PickLoweredPose(_poseAnimator);
-            _poseAnimator.enabled = false;
+            _freezeTime = 0f;
+
+            if (!_live)
+            {
+                PickLoweredPose(_poseAnimator);
+                _poseAnimator.enabled = false;
+            }
+
             FaceCamera(_poseAnimator);
             _reframeFrames = 2;
             _image.color = Color.white;
@@ -233,6 +287,11 @@ namespace BrokenSovereign.UI
 
         public void Close()
         {
+            if (_graph.IsValid())
+            {
+                _graph.Destroy();
+            }
+
             if (_clone != null)
             {
                 Object.Destroy(_clone);

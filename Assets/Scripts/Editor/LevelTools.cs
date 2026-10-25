@@ -64,13 +64,36 @@ namespace BrokenSovereign.Editor
             public readonly Vector2 Center;
             public readonly float Radius;
             public readonly RoomKind Kind;
+            public readonly bool Square;       // 정사각형 방 (Radius = 한 변의 절반). 10/25 보스방
+            public readonly int FloorFrom;     // 바닥 높이 기준 방 번호 (-1 = 지형 그대로)
+            public readonly float Lift;        // 기준 높이에서 더 올릴 높이 (m)
 
             public Room(string name, float x, float z, float radius, RoomKind kind)
+                : this(name, x, z, radius, kind, false, -1, 0f)
+            {
+            }
+
+            public Room(string name, float x, float z, float radius, RoomKind kind, bool square, int floorFrom, float lift)
             {
                 Name = name;
                 Center = new Vector2(x, z);
                 Radius = radius;
                 Kind = kind;
+                Square = square;
+                FloorFrom = floorFrom;
+                Lift = lift;
+            }
+
+            /// <summary>방 가장자리까지 거리 (안쪽 음수). 원형 = 중심 거리 - 반지름, 정사각형 = 축별 최대 - 절반</summary>
+            public float Distance(Vector2 p)
+            {
+                if (!Square)
+                {
+                    return Vector2.Distance(p, Center) - Radius;
+                }
+
+                Vector2 q = new Vector2(Mathf.Abs(p.x - Center.x), Mathf.Abs(p.y - Center.y)) - new Vector2(Radius, Radius);
+                return Mathf.Max(q.x, q.y) < 0f ? Mathf.Max(q.x, q.y) : new Vector2(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f)).magnitude;
             }
 
             public bool StoneFloor => Kind == RoomKind.Town || Kind == RoomKind.Combat || Kind == RoomKind.Trial ||
@@ -83,14 +106,23 @@ namespace BrokenSovereign.Editor
             public readonly int To;
             public readonly float Width;
             public readonly bool IsBridge;
+            public readonly LinkSlope Slope;   // 10/25: 두 방 바닥 높이를 잇는 경사길·계단
 
-            public Link(int from, int to, float width, bool isBridge = false)
+            public Link(int from, int to, float width, bool isBridge = false, LinkSlope slope = LinkSlope.None)
             {
                 From = from;
                 To = to;
                 Width = width;
                 IsBridge = isBridge;
+                Slope = slope;
             }
+        }
+
+        private enum LinkSlope
+        {
+            None,     // 바닥은 지형 그대로
+            Ramp,     // 양 끝 방 바닥 높이를 곧게 잇는 경사길
+            Stairs    // 경사길 + 계단 모형 (VARCO 모형이 없으면 임시 계단)
         }
 
         private sealed class LevelSpec
@@ -135,6 +167,15 @@ namespace BrokenSovereign.Editor
         // ------------------------------------------------------------------
 
         // 오픈 필드: 가운데 마을, 남서 구역 1(범인 시련까지), 북동 구역 2(반신 시련, 보스 제단)
+        // 오픈 필드 보스방 (10/25, A안: 제단 (330, 350) → 동쪽 경사길 → 북쪽 계단). BossSetupTools도 사용
+        public static readonly Vector2 BOSS_ROOM_CENTER = new Vector2(440f, 440f);
+        public const float BOSS_ROOM_HALF = 25f;                 // 정사각형 50 × 50m
+        public static readonly Vector2 BOSS_ROOM_ENTRY = Vector2.down;   // 입구 방향 (방 중심 기준, 남쪽 = 계단)
+        private static readonly Vector2 BOSS_PATH_BEND = new Vector2(440f, 345f);
+        private const float BOSS_PATH_LIFT = 5f;                 // 제단보다 5m 높게 (완만한 경사)
+        private const float BOSS_ROOM_LIFT = 17f;                // 제단보다 17m 높게 (계단 12m)
+        private const float BOSS_STAIRS_WIDTH = 8f;
+
         private static readonly LevelSpec WORLD = new LevelSpec
         {
             Name = "World",
@@ -176,6 +217,9 @@ namespace BrokenSovereign.Editor
                 // 동문·남문 (지름길)
                 new Room("Gate_E", 105f, 0f, 7f, RoomKind.Node),            // 23 동문 밖 → 구역 2
                 new Room("Gate_S", 0f, -105f, 7f, RoomKind.Node),           // 24 남문 밖 → 구역 1
+                // 보스방 (10/25): 제단에서 동쪽 경사길 → 북쪽 계단 → 정사각형 방 (약 200m)
+                new Room("BossPath", BOSS_PATH_BEND.x, BOSS_PATH_BEND.y, 6f, RoomKind.Node, false, 22, BOSS_PATH_LIFT),   // 25 경사길 끝
+                new Room("BossRoom", BOSS_ROOM_CENTER.x, BOSS_ROOM_CENTER.y, BOSS_ROOM_HALF, RoomKind.Arena, true, 22, BOSS_ROOM_LIFT), // 26 이랑진군
             },
             Links = new[]
             {
@@ -186,6 +230,7 @@ namespace BrokenSovereign.Editor
                 new Link(16, 17, 7f), new Link(16, 18, 2.6f, true), new Link(18, 19, 9f), new Link(19, 20, 9f),
                 new Link(20, 21, 9f), new Link(21, 22, 8f),
                 new Link(0, 23, 9f), new Link(23, 15, 8f), new Link(0, 24, 9f), new Link(24, 9, 8f),
+                new Link(22, 25, 9f, false, LinkSlope.Ramp), new Link(25, 26, BOSS_STAIRS_WIDTH, false, LinkSlope.Stairs),
             },
         };
 
@@ -503,6 +548,11 @@ namespace BrokenSovereign.Editor
                 Room to = spec.Rooms[link.To];
                 Vector2 dir = (to.Center - from.Center).normalized;
 
+                if (link.Slope == LinkSlope.Stairs)
+                {
+                    PlaceBossStairs(spec, link, ground, root);   // 10/25 보스방 계단
+                }
+
                 // 방 입구 양옆 석등 (들어오는 방향 기준)
                 if (to.Kind == RoomKind.Arena || to.Kind == RoomKind.Node || to.Kind == RoomKind.Gate)
                 {
@@ -525,6 +575,9 @@ namespace BrokenSovereign.Editor
                 {
                     case RoomKind.Trial:
                         Ring(pillar, root, ground, room, 6, room.Radius - 1.5f, $"Pillar_{room.Name}");
+                        break;
+                    case RoomKind.Arena when room.Square:
+                        PlaceBossRoom(spec, room, ground, root);   // 10/25 정사각형 보스방
                         break;
                     case RoomKind.Arena:
                         Ring(pillar, root, ground, room, 10, room.Radius - 1f, $"Pillar_{room.Name}");
@@ -581,11 +634,15 @@ namespace BrokenSovereign.Editor
                         Marker(group, ground, "EnemySpawn_1", room, Polar(room.Radius * 0.5f, 60f), 6);
                         Marker(group, ground, "EnemySpawn_2", room, Polar(room.Radius * 0.5f, 240f), 6);
                         break;
+                    case RoomKind.Arena when room.Square:
+                        // 10/25: 오픈 필드 보스방 = 지도 보스 표시 (제단에는 웨이포인트 표시만)
+                        AddMapMarker(Marker(group, ground, "BossSpawn", room, Vector3.zero, 7), MapMarkerKind.Boss);
+                        break;
                     case RoomKind.Arena:
                         Marker(group, ground, "BossSpawn", room, Vector3.zero, 7);
                         break;
                     case RoomKind.Gate:
-                        AddMapMarker(Marker(group, ground, "BossPortal", room, Vector3.zero, 7), MapMarkerKind.Boss);
+                        Marker(group, ground, "BossPortal", room, Vector3.zero, 7);
                         break;
                     case RoomKind.Event:
                         AddMapMarker(Marker(group, ground, "JobSelectEvent", room, Vector3.zero, 5), MapMarkerKind.Event);
@@ -741,7 +798,7 @@ namespace BrokenSovereign.Editor
 
                 foreach (Room room in _spec.Rooms)
                 {
-                    float d = Vector2.Distance(p, room.Center) - room.Radius;
+                    float d = room.Distance(p);
                     walk = Mathf.Max(walk, 1f - SmoothStep(-1f, 1f, d));
                     nearest = Mathf.Min(nearest, d);
                 }
@@ -814,7 +871,7 @@ namespace BrokenSovereign.Editor
 
                 foreach (Room room in _spec.Rooms)
                 {
-                    float d = Vector2.Distance(p, room.Center) - room.Radius + edge;
+                    float d = room.Distance(p) + edge;
 
                     if (room.StoneFloor)
                     {

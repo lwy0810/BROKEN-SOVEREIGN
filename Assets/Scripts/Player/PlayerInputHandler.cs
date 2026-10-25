@@ -179,7 +179,7 @@ namespace BrokenSovereign.Player
 
         private void OnPrimaryStarted(InputAction.CallbackContext context)
         {
-            if (GameplayInput.IsBlocked)
+            if (GameplayInput.IsBlocked || GameplayInput.PointerOverHud)
             {
                 return;
             }
@@ -248,7 +248,7 @@ namespace BrokenSovereign.Player
 
         private void OnSecondaryStarted(InputAction.CallbackContext context)
         {
-            if (GameplayInput.IsBlocked)
+            if (GameplayInput.IsBlocked || GameplayInput.PointerOverHud)
             {
                 return;
             }

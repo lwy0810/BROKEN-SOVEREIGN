@@ -1,6 +1,7 @@
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Enemy;
+using BrokenSovereign.Town;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
@@ -10,7 +11,8 @@ namespace BrokenSovereign.UI
 {
     /// <summary>
     /// 결과 화면 (10/21 연출): 플레이어 사망 시 "쓰러졌다" + R 부활, 보스 처치 시 "프로토타입 클리어".
-    /// 부활: 체력 전부 회복 후 PlayerStart(없으면 그 자리)로 이동.
+    /// 부활 (10/26): 쓰러진 위치에서 가장 가까운 '발견한' 웨이포인트에서 체력 전부 회복
+    /// (발견한 웨이포인트가 없으면 가장 가까운 웨이포인트 → PlayerStart → 그 자리 순).
     /// 사망 화면은 전투 입력 차단, 클리어 화면은 게임 일시정지. HudView가 생성합니다.
     /// </summary>
     public class OutcomeScreenView : MonoBehaviour
@@ -23,6 +25,8 @@ namespace BrokenSovereign.UI
         private Image _dim;
         private Text _title;
         private Text _sub;
+        private Image _reviveButton;     // 10/26: 사망 시 [가까운 웨이포인트에서 부활] 버튼 (R 키도 그대로)
+        private Image _reviveHighlight;
         private Image _lineTop;
         private Image _lineBottom;
         private Outline _titleGlow;
@@ -51,14 +55,17 @@ namespace BrokenSovereign.UI
             _lineBottom = UiKit.Box("LineBottom", root, UiTheme.P.CrackOuter);
             UiKit.Place(_lineBottom.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -12f), new Vector2(900f, 2f));
             HudGraphics.Stretch(_dim.rectTransform);
-            _title = UiKit.Title("Title", root, 88, UiKit.GOLD, TextAnchor.MiddleCenter);
+            // 10/26: 글자 크기 88 → 84, 위아래 빛줄(y 110 · -12)의 정가운데(49)에 맞춤.
+            // 세리프 서체는 글자가 줄 상자 안에서 아래로 치우쳐 보여 +8 보정
+            _title = UiKit.Title("Title", root, 84, UiKit.GOLD, TextAnchor.MiddleCenter);
             _titleGlow = _title.gameObject.AddComponent<Outline>();
             _titleGlow.effectDistance = new Vector2(2f, -2f);
-            UiKit.Place(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 40f),
-                new Vector2(1400f, 90f));
+            UiKit.Place(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 57f),
+                new Vector2(1400f, 100f));
             _sub = UiKit.Title("Sub", root, 24, UiKit.SUBTLE, TextAnchor.MiddleCenter);
             UiKit.Place(_sub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f),
                 new Vector2(1400f, 40f));
+            BuildReviveButton(root);
             _group.alpha = 0f;
 
             if (_health != null)
@@ -102,7 +109,8 @@ namespace BrokenSovereign.UI
             _title.text = "쓰러졌다";
             _title.color = UiTheme.P.Danger;
             SetAccent(UiTheme.P.Danger);
-            _sub.text = "R — 마을에서 다시 일어나기";
+            _sub.text = string.Empty;
+            _reviveButton.gameObject.SetActive(true);
             _showTime = Time.time + DEATH_DELAY;
         }
 
@@ -118,6 +126,7 @@ namespace BrokenSovereign.UI
             _title.color = UiKit.GOLD;
             SetAccent(UiTheme.P.CrackOuter);
             _sub.text = $"{boss.BossName}을(를) 쓰러뜨렸다 — 프로토타입 클리어 (Enter: 계속)";
+            _reviveButton.gameObject.SetActive(false);
             _showTime = Time.time + CLEAR_DELAY;
         }
 
@@ -149,7 +158,11 @@ namespace BrokenSovereign.UI
                 return;
             }
 
-            if (_isDeath && keyboard.rKey.wasPressedThisFrame)
+            bool hover = _isDeath && UiKit.IsHover(_reviveButton.rectTransform);
+            _reviveHighlight.enabled = hover;
+            _reviveButton.color = hover ? Color.white : new Color(0.85f, 0.85f, 0.88f);
+
+            if (_isDeath && (keyboard.rKey.wasPressedThisFrame || (hover && UiKit.Clicked)))
             {
                 Revive();
             }
@@ -160,6 +173,31 @@ namespace BrokenSovereign.UI
                 Unblock();
                 _group.alpha = 0f;
             }
+        }
+
+        // [가까운 웨이포인트에서 부활] 버튼: 빛줄 아래, 오른쪽에 R 키 칸. 오버 시 거래 선택지와 같은 금색 강조
+        private void BuildReviveButton(RectTransform root)
+        {
+            UiPalette p = UiTheme.P;
+            _reviveButton = UiKit.Sliced("Revive", root, UiSprites.Button);
+            UiKit.Place(_reviveButton.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -60f), new Vector2(380f, 54f));
+
+            _reviveHighlight = UiKit.Box("Highlight", _reviveButton.rectTransform, UiTheme.WithAlpha(p.Title, 0.28f));
+            HudGraphics.Stretch(_reviveHighlight.rectTransform);
+            _reviveHighlight.gameObject.AddComponent<Outline>().effectColor = UiTheme.WithAlpha(p.Title, 0.9f);
+            _reviveHighlight.GetComponent<Outline>().effectDistance = new Vector2(2f, -2f);
+            _reviveHighlight.enabled = false;
+
+            Text label = UiKit.Label("Label", _reviveButton.rectTransform, 19, p.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Place(label.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-16f, 0f), new Vector2(300f, 54f));
+            label.text = "가까운 웨이포인트에서 부활";
+
+            Image keyBox = UiKit.Box("Key", _reviveButton.rectTransform, p.Inset);
+            UiKit.Place(keyBox.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(28f, 26f));
+            Text keyText = UiKit.Label("KeyText", keyBox.rectTransform, 14, p.TextDim, TextAnchor.MiddleCenter, FontStyle.Bold);
+            HudGraphics.Stretch(keyText.rectTransform);
+            keyText.text = "R";
+            _reviveButton.gameObject.SetActive(false);
         }
 
         // 띠의 빛줄·제목 테두리 색 (사망 = 붉은빛, 클리어 = 금빛)
@@ -175,6 +213,26 @@ namespace BrokenSovereign.UI
             _isDeath = false;
             Unblock();
             _group.alpha = 0f;
+
+            // 10/26: 쓰러진 자리에서 가장 가까운 웨이포인트 (발견한 것 우선)
+            Waypoint waypoint = _player != null
+                ? Waypoint.Nearest(_player.position, true) ?? Waypoint.Nearest(_player.position, false)
+                : null;
+
+            if (waypoint != null)
+            {
+                if (_player.TryGetComponent(out WaypointTraveler traveler))
+                {
+                    traveler.ArriveAt(waypoint);
+                }
+                else
+                {
+                    PlayerWarp.Warp(_player, waypoint.transform.position, waypoint.transform.forward);
+                }
+
+                _health.RestoreFull();
+                return;
+            }
 
             GameObject start = GameObject.Find("PlayerStart");
 

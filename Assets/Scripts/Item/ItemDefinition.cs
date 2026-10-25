@@ -66,6 +66,16 @@ namespace BrokenSovereign.Item
 
         public bool IsEquipment => Kind == ItemKind.Equipment;
 
+        /// <summary>중요 아이템: 소모품이면 사용 전 확인 창 (10/25)</summary>
+        public bool IsImportant { get; private set; }
+
+        /// <summary>중요 아이템으로 표시 (카탈로그 등록 시 체인 호출)</summary>
+        public ItemDefinition MarkImportant()
+        {
+            IsImportant = true;
+            return this;
+        }
+
         public ItemDefinition(string id, string displayName, ItemKind kind, EquipSlot slot, ItemRarity rarity,
             ItemIcon icon, Color iconColor, int maxStack, string description, params StatModifier[] stats)
         {

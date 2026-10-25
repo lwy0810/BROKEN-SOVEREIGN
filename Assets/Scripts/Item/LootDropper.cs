@@ -52,6 +52,7 @@ namespace BrokenSovereign.Item
             }
 
             _inventory.Add(ItemCatalog.Get(ItemCatalog.POTION_ID), 3, false);
+            _inventory.Add(ItemCatalog.Get(ItemCatalog.ELIXIR_ID), 2, false);
             _inventory.AddGold(50, false);
         }
 

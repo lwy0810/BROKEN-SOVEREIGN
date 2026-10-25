@@ -241,6 +241,19 @@ namespace BrokenSovereign.Item
             Changed?.Invoke();
         }
 
+        /// <summary>금화 사용 (10/25 상점). 모자라면 false</summary>
+        public bool SpendGold(int amount)
+        {
+            if (amount < 0 || Gold < amount)
+            {
+                return false;
+            }
+
+            Gold -= amount;
+            Changed?.Invoke();
+            return true;
+        }
+
         public void AddGold(int amount, bool notify = true)
         {
             if (amount <= 0)

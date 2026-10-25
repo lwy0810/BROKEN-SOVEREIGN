@@ -23,6 +23,9 @@ namespace BrokenSovereign.UI
         private static Sprite _rune;
         private static Sprite _glow;
         private static Sprite _pin;
+        private static Sprite _markerDown;
+        private static Sprite _arrowLeft;
+        private static Sprite _phaseMarker;
         private static Sprite _mouseWheel;
         private static Sprite _mouseRight;
 
@@ -64,6 +67,15 @@ namespace BrokenSovereign.UI
 
         /// <summary>지도 핀 (물방울 모양, 아래 끝이 위치)</summary>
         public static Sprite Pin { get { Ensure(); return _pin; } }
+
+        /// <summary>역이등변삼각형 표식 (아래로 뾰족, 금색 + 진한 테두리) — 지도 웨이포인트 선택 (10/25)</summary>
+        public static Sprite MarkerDown { get { Ensure(); return _markerDown; } }
+
+        /// <summary>왼쪽 화살표 (흰색, Image.color로 색 지정) — 웨이포인트 목록 (10/25)</summary>
+        public static Sprite ArrowLeft { get { Ensure(); return _arrowLeft; } }
+
+        /// <summary>빨간 역삼각형 (어두운 테두리) — 보스 체력바 페이즈 표식 (10/26)</summary>
+        public static Sprite PhaseMarker { get { Ensure(); return _phaseMarker; } }
 
         /// <summary>마우스 아이콘: 휠 버튼 강조 (지도 안내)</summary>
         public static Sprite MouseWheel { get { Ensure(); return _mouseWheel; } }
@@ -166,6 +178,44 @@ namespace BrokenSovereign.UI
                 if (outer > 0f) return Color.clear;
                 if ((u - 0.5f) * (u - 0.5f) + (v - 0.66f) * (v - 0.66f) < 0.012f) return new Color(0.1f, 0.1f, 0.12f);
                 return PinShape(u, v, 0.06f) <= 0f ? p.Accent : new Color(0.1f, 0.1f, 0.12f);
+            });
+
+            // 역이등변삼각형: 위 변 v=0.88, 아래 꼭짓점 v=0.12
+            _markerDown = MakeSuper("UiMarkerDown", 64, (u, v) =>
+            {
+                float Inside(float shrink)
+                {
+                    float top = 0.88f - shrink, apex = 0.12f + shrink * 1.8f;
+                    if (v > top || v < apex) return 1f;
+                    float half = (0.4f - shrink) * (v - apex) / (top - apex);
+                    return Mathf.Abs(u - 0.5f) - half;
+                }
+
+                if (Inside(0f) > 0f) return Color.clear;
+                return Inside(0.08f) <= 0f ? Color.white : Color.black;   // 10/26: 흰색 + 검정 테두리 (지도 위에서 잘 보이게)
+            });
+
+            // 빨간 역삼각형 (보스 페이즈 표식)
+            _phaseMarker = MakeSuper("UiPhaseMarker", 64, (u, v) =>
+            {
+                float Inside(float shrink)
+                {
+                    float top = 0.9f - shrink, apex = 0.1f + shrink * 1.8f;
+                    if (v > top || v < apex) return 1f;
+                    float half = (0.45f - shrink) * (v - apex) / (top - apex);
+                    return Mathf.Abs(u - 0.5f) - half;
+                }
+
+                if (Inside(0f) > 0f) return Color.clear;
+                return Inside(0.09f) <= 0f ? new Color(0.88f, 0.16f, 0.13f) : new Color(0.12f, 0.04f, 0.04f);
+            });
+
+            // 왼쪽 화살표 (<--): 머리 삼각형 + 몸통
+            _arrowLeft = MakeSuper("UiArrowLeft", 64, (u, v) =>
+            {
+                bool shaft = u >= 0.36f && u <= 0.92f && Mathf.Abs(v - 0.5f) <= 0.07f;
+                bool head = u >= 0.08f && u <= 0.44f && Mathf.Abs(v - 0.5f) <= 0.28f * (u - 0.08f) / 0.36f;
+                return shaft || head ? Color.white : Color.clear;
             });
 
             _mouseWheel = MakeSuper("UiMouseWheel", 64, (u, v) => Mouse(u, v, p, true));

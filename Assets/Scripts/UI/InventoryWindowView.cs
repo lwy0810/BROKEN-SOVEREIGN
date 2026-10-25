@@ -10,15 +10,19 @@ using UnityEngine.UI;
 namespace BrokenSovereign.UI
 {
     /// <summary>
-    /// 인벤토리 창 (I, 10/21 Figma 시안 v3).
-    /// 왼쪽: 캐릭터 모델 + 장비 6칸 + 장비 효과 합계 + [상세 정보] 버튼 (창 왼쪽에 능력치 상세 정보창을 펼침)
-    /// 오른쪽: 분류 탭(장비·소모품·재료, 분류마다 따로 가방)·정렬·가방 12×8 / 아래 골드·물약.
+    /// 인벤토리 창 (I) + 장착 장비 창 (E) — 10/25: 한 창이던 것을 두 창으로 분리 (각자 제목 탭·끌기·닫기).
+    /// 장착 장비 창: 캐릭터 모델 + 장비 6칸 + 장비 효과 합계 + [상세 정보] 버튼 (창 왼쪽에 능력치 상세 정보창을 펼침)
+    /// 인벤토리 창: 분류 탭(장비·소모품·재료, 분류마다 따로 가방)·정렬·가방 12×8 / 아래 골드·물약.
+    /// 상점 거래 중(BeginTrade): 인벤토리 창이 화면 오른쪽에 열리고 가방 우클릭 = 판매.
     /// 조작: 우클릭 = 장착·사용·해제, 끌어 놓기 = 칸 이동·장착·해제, 마우스 올림 = 툴팁(착용 장비 비교).
     /// 제목 탭 끌기로 창 이동, ×·I·Esc로 닫기. 열려 있는 동안 전투 입력 차단. HudView가 생성합니다.
     /// </summary>
     public class InventoryWindowView : MonoBehaviour
     {
-        private const float WIDTH = 1124f;
+        private const float EQUIP_WIDTH = 400f;    // 장착 장비 창
+        private const float BAG_WIDTH = 735f;      // 인벤토리 창 (가방 격자 679 + 여백)
+        private const float WINDOW_GAP = 16f;
+        private const float TRADE_BAG_X = 470f;    // 거래 중 인벤토리 창 위치 (화면 가운데 기준 오른쪽)
         private const float HEIGHT = 720f;
         private const float TOP = 78f;
         private const float HEADER = 36f;
@@ -40,9 +44,17 @@ namespace BrokenSovereign.UI
             StatType.LifeRegen
         };
 
-        private RectTransform _panel;
-        private Image _close;
-        private WindowDrag _drag;
+        private RectTransform _equipPanel;
+        private RectTransform _bagPanel;
+        private Image _equipClose;
+        private Image _bagClose;
+        private WindowDrag _equipDrag;
+        private WindowDrag _bagDrag;
+        private bool _blocking;                 // 이 창이 전투 입력을 막았음 (거래 중에는 NpcInteractor가 막음)
+        private Vector2 _bagHome;               // 거래 전 인벤토리 창 위치
+        private System.Action<ItemKind, int> _tradeSell;   // 거래 중이면 가방 우클릭 = 판매
+        private System.Func<ItemDefinition, int> _tradePrice;
+        private bool _openedByTrade;
         private CharacterPreview _preview;
         private readonly ItemSlotView[] _bag = new ItemSlotView[Inventory.SIZE];
         private readonly Dictionary<EquipSlot, ItemSlotView> _equip = new Dictionary<EquipSlot, ItemSlotView>();
@@ -62,6 +74,12 @@ namespace BrokenSovereign.UI
         private Image _ghost;
 
         private GameObject _player;
+        private RectTransform _confirm;
+        private Text _confirmText;
+        private Image _confirmYes;
+        private Image _confirmNo;
+        private int _confirmIndex = -1;
+        private ItemKind _confirmKind;
         private Inventory _inventory;
         private PlayerEquipment _equipment;
         private PotionUser _potionUser;
@@ -74,7 +92,10 @@ namespace BrokenSovereign.UI
         private Vector2 _pressPosition;
         private bool _dragging;
 
-        public bool IsOpen => _panel != null && _panel.gameObject.activeSelf;
+        public bool IsOpen => IsBagOpen || IsEquipOpen;
+        public bool IsBagOpen => _bagPanel != null && _bagPanel.gameObject.activeSelf;
+        public bool IsEquipOpen => _equipPanel != null && _equipPanel.gameObject.activeSelf;
+        public bool IsTrading => _tradeSell != null;
 
         // 탭 = 분류별 가방 (장비·소모품·재료)
         private ItemKind Kind => (ItemKind)_tab;
@@ -90,15 +111,22 @@ namespace BrokenSovereign.UI
             RectTransform root = (RectTransform)transform;
             HudGraphics.Stretch(root);
 
-            _panel = UiKit.Plate("Panel", root).rectTransform;
-            UiKit.Place(_panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(DETAIL_WIDTH * 0.25f, 20f),
-                new Vector2(WIDTH, HEIGHT));
-            _drag = new WindowDrag(_panel, (RectTransform)UiKit.TitleTab(_panel, "인벤토리", 240f).transform.parent);
-            _close = UiKit.CloseButton(_panel);
+            // 두 창을 함께 열면 장비 창 왼쪽 · 인벤토리 창 오른쪽
+            float total = EQUIP_WIDTH + WINDOW_GAP + BAG_WIDTH;
+            _equipPanel = UiKit.Plate("EquipPanel", root).rectTransform;
+            UiKit.Place(_equipPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-total * 0.5f + EQUIP_WIDTH * 0.5f + DETAIL_WIDTH * 0.25f, 20f), new Vector2(EQUIP_WIDTH, HEIGHT));
+            _equipDrag = new WindowDrag(_equipPanel, (RectTransform)UiKit.TitleTab(_equipPanel, "장착 장비", 220f).transform.parent);
+            _equipClose = UiKit.CloseButton(_equipPanel);
+
+            _bagPanel = UiKit.Plate("BagPanel", root).rectTransform;
+            _bagHome = new Vector2(total * 0.5f - BAG_WIDTH * 0.5f + DETAIL_WIDTH * 0.25f, 20f);
+            UiKit.Place(_bagPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), _bagHome, new Vector2(BAG_WIDTH, HEIGHT));
+            _bagDrag = new WindowDrag(_bagPanel, (RectTransform)UiKit.TitleTab(_bagPanel, "인벤토리", 220f).transform.parent);
+            _bagClose = UiKit.CloseButton(_bagPanel);
 
             BuildEquipment(28f, 344f);
-            Divider(388f);
-            BuildBag(410f);
+            BuildBag(28f);
             BuildDetail();
 
             _tooltip = new ItemTooltipView(hudRoot);
@@ -117,7 +145,8 @@ namespace BrokenSovereign.UI
                 _equipment.Changed += MarkDirty;
             }
 
-            _panel.gameObject.SetActive(false);
+            _equipPanel.gameObject.SetActive(false);
+            _bagPanel.gameObject.SetActive(false);
         }
 
         private void MarkDirty()
@@ -129,12 +158,12 @@ namespace BrokenSovereign.UI
         private void BuildEquipment(float x, float width)
         {
             UiPalette p = UiTheme.P;
-            Header(_panel, "장착 장비", x, TOP, width);
+            Header(_equipPanel, "장착 장비", x, TOP, width);
 
             Vector2 modelSize = new Vector2(216f, 372f);
             float modelX = x + (width - modelSize.x) * 0.5f;
             float modelY = 122f;
-            Image frame = UiKit.Sliced("ModelFrame", _panel, UiSprites.Tile);
+            Image frame = UiKit.Sliced("ModelFrame", _equipPanel, UiSprites.Tile);
             UiKit.PlaceTopLeft(frame.rectTransform, new Vector2(modelX, modelY), modelSize);
             _preview = new CharacterPreview(frame.transform, modelSize - new Vector2(8f, 8f));
             HudGraphics.Stretch(_preview.Rect);
@@ -155,22 +184,22 @@ namespace BrokenSovereign.UI
                 AddEquipSlot(right[i], new Vector2(modelX + modelSize.x + 12f, y));
             }
 
-            Header(_panel, "장비 효과 합계", x, 504f, width);
+            Header(_equipPanel, "장비 효과 합계", x, 504f, width);
 
             for (int i = 0; i < SUMMARY_ROWS; i++)
             {
-                Text name = UiKit.Label("SumName", _panel, 14, p.TextDim, TextAnchor.MiddleLeft);
+                Text name = UiKit.Label("SumName", _equipPanel, 14, p.TextDim, TextAnchor.MiddleLeft);
                 UiKit.PlaceTopLeft(name.rectTransform, new Vector2(x + 8f, 540f + i * 23f), new Vector2(width - 140f, 23f));
-                Text value = UiKit.Label("SumValue", _panel, 15, p.Text, TextAnchor.MiddleRight, FontStyle.Bold);
+                Text value = UiKit.Label("SumValue", _equipPanel, 15, p.Text, TextAnchor.MiddleRight, FontStyle.Bold);
                 UiKit.PlaceTopLeft(value.rectTransform, new Vector2(x + width - 128f, 540f + i * 23f), new Vector2(120f, 23f));
                 _summary.Add(new[] { name, value });
             }
 
-            _summaryEmpty = UiKit.Label("SumEmpty", _panel, 14, UiTheme.WithAlpha(p.TextDim, 0.7f), TextAnchor.MiddleLeft);
+            _summaryEmpty = UiKit.Label("SumEmpty", _equipPanel, 14, UiTheme.WithAlpha(p.TextDim, 0.7f), TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(_summaryEmpty.rectTransform, new Vector2(x + 8f, 540f), new Vector2(width, 23f));
             _summaryEmpty.text = "장착한 장비 없음";
 
-            _detailButton = UiKit.Sliced("DetailButton", _panel, UiSprites.Button);
+            _detailButton = UiKit.Sliced("DetailButton", _equipPanel, UiSprites.Button);
             UiKit.PlaceTopLeft(_detailButton.rectTransform, new Vector2(x, HEIGHT - 24f - 38f), new Vector2(width, 38f));
             _detailButtonText = UiKit.Label("Text", _detailButton.transform, 15, p.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             HudGraphics.Stretch(_detailButtonText.rectTransform);
@@ -178,9 +207,9 @@ namespace BrokenSovereign.UI
 
         private void AddEquipSlot(EquipSlot slot, Vector2 position)
         {
-            var view = new ItemSlotView("Equip" + slot, _panel, ItemVisuals.SlotName(slot));
+            var view = new ItemSlotView("Equip" + slot, _equipPanel, ItemVisuals.SlotName(slot));
             UiKit.PlaceTopLeft(view.Rect, position, new Vector2(EQUIP, EQUIP));
-            Text label = UiKit.Label("EquipName", _panel, 11, UiTheme.P.TextDim, TextAnchor.MiddleCenter);
+            Text label = UiKit.Label("EquipName", _equipPanel, 11, UiTheme.P.TextDim, TextAnchor.MiddleCenter);
             UiKit.PlaceTopLeft(label.rectTransform, position + new Vector2(-8f, EQUIP + 2f), new Vector2(EQUIP + 16f, 16f));
             label.text = ItemVisuals.SlotName(slot);
             _equip[slot] = view;
@@ -194,20 +223,20 @@ namespace BrokenSovereign.UI
 
             for (int i = 0; i < TABS.Length; i++)
             {
-                _tabs[i] = UiKit.Sliced("Tab", _panel, UiSprites.Button);
+                _tabs[i] = UiKit.Sliced("Tab", _bagPanel, UiSprites.Button);
                 UiKit.PlaceTopLeft(_tabs[i].rectTransform, new Vector2(x + i * 92f, TOP), new Vector2(84f, 32f));
                 _tabTexts[i] = UiKit.Label("Text", _tabs[i].transform, 14, p.TextDim, TextAnchor.MiddleCenter, FontStyle.Bold);
                 HudGraphics.Stretch(_tabTexts[i].rectTransform);
                 _tabTexts[i].text = TABS[i];
             }
 
-            _sort = UiKit.Sliced("Sort", _panel, UiSprites.Button);
+            _sort = UiKit.Sliced("Sort", _bagPanel, UiSprites.Button);
             UiKit.PlaceTopLeft(_sort.rectTransform, new Vector2(x + gridWidth - 88f, TOP), new Vector2(88f, 32f));
             Text sortText = UiKit.Label("Text", _sort.transform, 14, p.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
             HudGraphics.Stretch(sortText.rectTransform);
             sortText.text = "정렬";
 
-            _capacity = UiKit.Label("Capacity", _panel, 13, p.TextDim, TextAnchor.MiddleRight);
+            _capacity = UiKit.Label("Capacity", _bagPanel, 13, p.TextDim, TextAnchor.MiddleRight);
             UiKit.PlaceTopLeft(_capacity.rectTransform, new Vector2(x + gridWidth - 88f - 14f - 140f, TOP), new Vector2(140f, 32f));
 
             float gridTop = 124f;
@@ -215,26 +244,26 @@ namespace BrokenSovereign.UI
             for (int i = 0; i < Inventory.SIZE; i++)
             {
                 int column = i % COLUMNS, row = i / COLUMNS;
-                _bag[i] = new ItemSlotView("Bag" + i, _panel);
+                _bag[i] = new ItemSlotView("Bag" + i, _bagPanel);
                 UiKit.PlaceTopLeft(_bag[i].Rect, new Vector2(x + column * (CELL + GAP), gridTop + row * (CELL + GAP)), new Vector2(CELL, CELL));
             }
 
             float bottom = gridTop + (Inventory.SIZE / COLUMNS) * (CELL + GAP) + 3f;
-            Image line = UiKit.Box("Line", _panel, UiTheme.WithAlpha(p.PlateStroke, 0.45f));
+            Image line = UiKit.Box("Line", _bagPanel, UiTheme.WithAlpha(p.PlateStroke, 0.45f));
             UiKit.PlaceTopLeft(line.rectTransform, new Vector2(x, bottom), new Vector2(gridWidth, 1f));
 
-            Image coin = UiKit.Sliced("Coin", _panel, UiSprites.Pill);
+            Image coin = UiKit.Sliced("Coin", _bagPanel, UiSprites.Pill);
             coin.color = p.Title;
             UiKit.PlaceTopLeft(coin.rectTransform, new Vector2(x, bottom + 22f), new Vector2(18f, 18f));
-            _gold = UiKit.Label("Gold", _panel, 18, p.Title, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _gold = UiKit.Label("Gold", _bagPanel, 18, p.Title, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.PlaceTopLeft(_gold.rectTransform, new Vector2(x + 26f, bottom + 17f), new Vector2(120f, 28f));
 
-            Image potion = HudGraphics.CreateRect("PotionIcon", _panel).gameObject.AddComponent<Image>();
+            Image potion = HudGraphics.CreateRect("PotionIcon", _bagPanel).gameObject.AddComponent<Image>();
             potion.raycastTarget = false;
             potion.sprite = ItemVisuals.Icon(ItemIcon.Potion);
             potion.color = new Color(0.85f, 0.25f, 0.2f);
             UiKit.PlaceTopLeft(potion.rectTransform, new Vector2(x + 150f, bottom + 18f), new Vector2(24f, 24f));
-            _potion = UiKit.Label("Potion", _panel, 15, p.Text, TextAnchor.MiddleLeft);
+            _potion = UiKit.Label("Potion", _bagPanel, 15, p.Text, TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(_potion.rectTransform, new Vector2(x + 180f, bottom + 17f), new Vector2(140f, 28f));
         }
 
@@ -242,7 +271,7 @@ namespace BrokenSovereign.UI
         private void BuildDetail()
         {
             UiPalette p = UiTheme.P;
-            _detail = UiKit.Plate("Detail", _panel).rectTransform;
+            _detail = UiKit.Plate("Detail", _equipPanel).rectTransform;
             UiKit.PlaceTopLeft(_detail, new Vector2(-DETAIL_WIDTH - 10f, 0f), new Vector2(DETAIL_WIDTH, HEIGHT));
             Text title = UiKit.Title("Title", _detail, 20, p.Title, TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(title.rectTransform, new Vector2(24f, 18f), new Vector2(240f, 30f));
@@ -265,15 +294,9 @@ namespace BrokenSovereign.UI
             UiKit.PlaceTopLeft(line.rectTransform, new Vector2(x, y + 29f), new Vector2(width, 1f));
         }
 
-        private void Divider(float x)
-        {
-            Image divider = UiKit.Box("Divider", _panel, UiTheme.WithAlpha(UiTheme.P.PlateStroke, 0.35f));
-            UiKit.PlaceTopLeft(divider.rectTransform, new Vector2(x, TOP), new Vector2(1f, HEIGHT - TOP - 36f));
-        }
-
         private void OnDestroy()
         {
-            if (IsOpen)
+            if (_blocking)
             {
                 GameplayInput.IsBlocked = false;
             }
@@ -291,43 +314,118 @@ namespace BrokenSovereign.UI
             _preview?.Release();
         }
 
+        /// <summary>인벤토리 창 (I) 열기·닫기</summary>
         public void Toggle()
         {
-            if (IsOpen)
-            {
-                Close();
-            }
-            else if (!GameplayInput.IsBlocked)
-            {
-                _panel.gameObject.SetActive(true);
-                GameplayInput.IsBlocked = true;
-                _dirty = true;
-                _detailStats.ResetScroll();
-                _preview.Open(_player);
-            }
+            SetOpen(_bagPanel, !IsBagOpen);
         }
 
+        /// <summary>장착 장비 창 (E) 열기·닫기</summary>
+        public void ToggleEquipment()
+        {
+            SetOpen(_equipPanel, !IsEquipOpen);
+        }
+
+        /// <summary>두 창 모두 닫기</summary>
         public void Close()
         {
-            if (!IsOpen)
+            SetOpen(_bagPanel, false);
+            SetOpen(_equipPanel, false);
+        }
+
+        private void SetOpen(RectTransform panel, bool open)
+        {
+            if (panel.gameObject.activeSelf == open)
             {
+                return;
+            }
+
+            if (open)
+            {
+                // 다른 전체 화면 창이 입력을 막고 있으면 열지 않음 (내가 막은 경우·거래 중은 예외)
+                if (GameplayInput.IsBlocked && !_blocking && !IsTrading)
+                {
+                    return;
+                }
+
+                panel.gameObject.SetActive(true);
+                panel.SetAsLastSibling();
+                _dirty = true;
+
+                if (!_blocking && !IsTrading)
+                {
+                    _blocking = true;
+                    GameplayInput.IsBlocked = true;
+                }
+
+                if (panel == _equipPanel)
+                {
+                    _detailStats.ResetScroll();
+                    _preview.Open(_player);
+                }
+
                 return;
             }
 
             CancelDrag();
             _tooltip.Hide();
-            _panel.gameObject.SetActive(false);
-            GameplayInput.IsBlocked = false;
-            _preview.Close();
+            panel.gameObject.SetActive(false);
+
+            if (panel == _equipPanel)
+            {
+                _preview.Close();
+            }
+
+            if (!IsOpen && _blocking)
+            {
+                _blocking = false;
+                GameplayInput.IsBlocked = false;
+            }
+        }
+
+        // ---------- 상점 거래 (10/25): 인벤토리 창을 화면 오른쪽에 열고 가방 우클릭 = 판매
+
+        public void BeginTrade(System.Action<ItemKind, int> sell, System.Func<ItemDefinition, int> price)
+        {
+            _tradeSell = sell;
+            _tradePrice = price;
+            _openedByTrade = !IsBagOpen;
+            _bagPanel.anchoredPosition = new Vector2(TRADE_BAG_X, _bagHome.y);
+            SetOpen(_bagPanel, true);
+        }
+
+        public void EndTrade()
+        {
+            if (!IsTrading)
+            {
+                return;
+            }
+
+            _tradeSell = null;
+            _tradePrice = null;
+
+            if (_openedByTrade)
+            {
+                SetOpen(_bagPanel, false);
+            }
+
+            _bagPanel.anchoredPosition = _bagHome;
+            _openedByTrade = false;
         }
 
         private void Update()
         {
             Keyboard keyboard = Keyboard.current;
 
-            if (keyboard != null && keyboard.iKey.wasPressedThisFrame)
+            if (keyboard != null && keyboard.iKey.wasPressedThisFrame && !IsTrading)
             {
                 Toggle();
+                return;
+            }
+
+            if (keyboard != null && keyboard.eKey.wasPressedThisFrame && !IsTrading)
+            {
+                ToggleEquipment();
                 return;
             }
 
@@ -336,14 +434,44 @@ namespace BrokenSovereign.UI
                 return;
             }
 
-            if ((keyboard != null && keyboard.escapeKey.wasPressedThisFrame) || UiKit.IsCloseClicked(_close))
+            if (_confirm != null && _confirm.gameObject.activeSelf)
+            {
+                HandleConfirm();
+                return;
+            }
+
+            // Esc: 거래 중에는 상점 창이 처리 (두 창 함께 닫힘)
+            if (!IsTrading && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 Close();
                 return;
             }
 
-            _drag.Tick();
-            _preview.Tick();
+            if (UiKit.IsCloseClicked(_bagClose))
+            {
+                if (IsTrading)
+                {
+                    EndTrade();
+                }
+
+                SetOpen(_bagPanel, false);
+                return;
+            }
+
+            if (UiKit.IsCloseClicked(_equipClose))
+            {
+                SetOpen(_equipPanel, false);
+                return;
+            }
+
+            _bagDrag.Tick();
+            _equipDrag.Tick();
+
+            if (IsEquipOpen)
+            {
+                _preview.Tick();
+            }
+
             HandleButtons();
             HandleSlots();
 
@@ -450,10 +578,17 @@ namespace BrokenSovereign.UI
                 pair.Value.SetHighlight(target);
             }
 
-            // 우클릭: 장착·사용·해제
+            // 우클릭: 장착·사용·해제 (거래 중에는 가방 우클릭 = 판매)
             if (!_dragging && mouse.rightButton.wasPressedThisFrame)
             {
-                if (hoverBag >= 0)
+                if (hoverBag >= 0 && IsTrading)
+                {
+                    if (_inventory.Get(Kind, hoverBag) != null)
+                    {
+                        _tradeSell(Kind, hoverBag);
+                    }
+                }
+                else if (hoverBag >= 0)
                 {
                     UseBagItem(hoverBag);
                 }
@@ -505,14 +640,15 @@ namespace BrokenSovereign.UI
             ItemDefinition hovered = hoverBag >= 0 ? _inventory.Get(Kind, hoverBag)?.Item
                 : hoverEquip.HasValue && _equipment != null ? _equipment.Get(hoverEquip.Value) : null;
 
-            if (_dragging || hovered == null)
+            if (_dragging || hovered == null || (_confirm != null && _confirm.gameObject.activeSelf))
             {
                 _tooltip.Hide();
             }
             else
             {
                 ItemDefinition compare = hovered.IsEquipment && hoverBag >= 0 && _equipment != null ? _equipment.Get(hovered.Slot) : null;
-                string footer = hoverEquip.HasValue ? "우클릭: 해제"
+                string footer = IsTrading && hoverBag >= 0 && _tradePrice != null ? $"우클릭: 판매 (금화 {_tradePrice(hovered):N0})"
+                    : hoverEquip.HasValue ? "우클릭: 해제"
                     : hovered.IsEquipment ? "우클릭: 장착"
                     : hovered.Kind == ItemKind.Consumable ? "우클릭: 사용" : string.Empty;
                 _tooltip.Show(hovered, compare, footer);
@@ -532,10 +668,94 @@ namespace BrokenSovereign.UI
             {
                 _equipment?.EquipFromInventory(index);
             }
-            else if (stack.Item.Id == ItemCatalog.POTION_ID && _potionUser != null && _potionUser.AddCharges(1) > 0)
+            else if (stack.Item.Kind == ItemKind.Consumable && stack.Item.IsImportant)
             {
-                _inventory.Remove(Kind, index);
+                ShowConfirm(index, stack.Item);   // 중요 소모품: [아이템을 사용하시겠습니까?]
             }
+            else
+            {
+                Consume(Kind, index);
+            }
+        }
+
+        // 소모품 효과. 사용했으면 1개 제거
+        private void Consume(ItemKind kind, int index)
+        {
+            ItemStack stack = _inventory.Get(kind, index);
+
+            if (stack == null)
+            {
+                return;
+            }
+
+            bool used = false;
+
+            if (stack.Item.Id == ItemCatalog.POTION_ID)
+            {
+                used = _potionUser != null && _potionUser.AddCharges(1) > 0;
+            }
+            else if (stack.Item.Id == ItemCatalog.ELIXIR_ID && _player != null
+                && _player.TryGetComponent(out BrokenSovereign.Combat.Health health) && !health.IsDead)
+            {
+                health.Heal(health.Max);
+                used = true;
+            }
+
+            if (used)
+            {
+                _inventory.Remove(kind, index);
+            }
+        }
+
+        // ---------- 사용 확인 창 (중요 아이템, 10/25)
+
+        private void ShowConfirm(int index, ItemDefinition item)
+        {
+            if (_confirm == null)
+            {
+                BuildConfirm();
+            }
+
+            _confirmIndex = index;
+            _confirmKind = Kind;
+            _confirmText.text = $"[{item.DisplayName}] 아이템을 사용하시겠습니까?";
+            _confirm.gameObject.SetActive(true);
+            _confirm.SetAsLastSibling();
+            _tooltip.Hide();
+        }
+
+        private void HandleConfirm()
+        {
+            _tooltip.Hide();   // 확인 창이 떠 있는 동안 아이템 상세 창은 숨김
+            Keyboard keyboard = Keyboard.current;
+            bool yes = UiKit.IsCloseClicked(_confirmYes) || (keyboard != null && keyboard.enterKey.wasPressedThisFrame);
+            bool no = UiKit.IsCloseClicked(_confirmNo) || (keyboard != null && keyboard.escapeKey.wasPressedThisFrame);
+
+            if (yes)
+            {
+                Consume(_confirmKind, _confirmIndex);
+            }
+
+            if (yes || no)
+            {
+                _confirm.gameObject.SetActive(false);
+                _confirmIndex = -1;
+                _dirty = true;
+            }
+        }
+
+        private void BuildConfirm()
+        {
+            _confirm = UiKit.Plate("ConfirmUse", _bagPanel).rectTransform;
+            // 10/25: 가로로 긴 한 줄 창, 글자 축소
+            UiKit.Place(_confirm, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 150f));
+            _confirmText = UiKit.Label("Text", _confirm, 18, UiTheme.P.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Place(_confirmText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -22f), new Vector2(560f, 44f));
+            _confirmYes = UiKit.Button("Yes", _confirm, "사용 (Enter)", 15);
+            UiKit.Place(_confirmYes.rectTransform, new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-8f, 22f), new Vector2(140f, 40f));
+            _confirmNo = UiKit.Button("No", _confirm, "취소 (Esc)", 15);
+            UiKit.Place(_confirmNo.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(8f, 22f), new Vector2(140f, 40f));
+            _confirm.gameObject.SetActive(false);
         }
 
         private ItemDefinition DraggedItem()

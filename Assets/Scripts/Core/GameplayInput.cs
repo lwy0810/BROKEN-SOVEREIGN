@@ -10,11 +10,15 @@ namespace BrokenSovereign.Core
     {
         public static bool IsBlocked { get; set; }
 
+        /// <summary>마우스가 HUD 버튼(미니맵 +/- 등) 위에 있음: 클릭 이동·공격 시작을 막음 (10/25)</summary>
+        public static bool PointerOverHud { get; set; }
+
         // 도메인 리로드를 끈 Play에서도 시작할 때 초기화
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetOnLoad()
         {
             IsBlocked = false;
+            PointerOverHud = false;
         }
     }
 }
