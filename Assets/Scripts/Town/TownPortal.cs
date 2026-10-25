@@ -1,4 +1,5 @@
 using System;
+using BrokenSovereign.Sound;
 using UnityEngine;
 
 namespace BrokenSovereign.Town
@@ -32,6 +33,7 @@ namespace BrokenSovereign.Town
             TownPortal portal = go.AddComponent<TownPortal>();
             portal._player = player;
             portal.BuildVisual();
+            SoundPlayer.PlayAt(SoundId.PORTAL, position);
             return portal;
         }
 

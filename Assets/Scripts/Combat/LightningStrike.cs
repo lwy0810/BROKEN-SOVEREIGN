@@ -1,4 +1,5 @@
 using System.Collections;
+using BrokenSovereign.Sound;
 using UnityEngine;
 
 namespace BrokenSovereign.Combat
@@ -17,6 +18,7 @@ namespace BrokenSovereign.Combat
             var go = new GameObject("LightningStrike");
             go.transform.position = ground;
             go.AddComponent<LightningStrike>().StartCoroutine(Run(go, ground, color, duration, jitter));
+            SoundPlayer.PlayAt(SoundId.THUNDER, ground);
         }
 
         private static IEnumerator Run(GameObject owner, Vector3 ground, Color color, float duration, float jitter)
