@@ -78,6 +78,19 @@ namespace BrokenSovereign.Player
             _target = target;
         }
 
+        /// <summary>대상 위치로 즉시 이동 (웨이포인트 순간 이동 후 따라오는 지연 없이)</summary>
+        public void Snap()
+        {
+            if (_target == null)
+            {
+                return;
+            }
+
+            _velocity = Vector3.zero;
+            transform.position = GetDesiredPosition();
+            transform.rotation = GetRotation();
+        }
+
         private Quaternion GetRotation()
         {
             return Quaternion.Euler(_pitch, _yaw, 0f);

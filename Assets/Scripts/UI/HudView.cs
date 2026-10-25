@@ -637,6 +637,10 @@ namespace BrokenSovereign.UI
                 _npcDialog.Initialize(interactor);
             }
 
+            // 웨이포인트 (씬에 웨이포인트가 있을 때만 안내·목록 창이 의미 있음, 없어도 무해)
+            WaypointTraveler traveler = EnsureComponent<WaypointTraveler>(_player.gameObject);
+            HudGraphics.CreateRect("WaypointWindow", transform).gameObject.AddComponent<WaypointWindowView>().Initialize(traveler);
+
             // 기술 창(K)·캐릭터 창(C)
             if (_caster != null)
             {

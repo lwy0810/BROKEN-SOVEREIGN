@@ -246,7 +246,7 @@ namespace BrokenSovereign.Editor
         }
 
         // 생성 결과 루트 (다시 생성할 때 이것만 지우고 새로 만듦)
-        private static readonly string[] GENERATED_ROOTS = { "Level", "Scenery", "GateEnemies" };
+        private static readonly string[] GENERATED_ROOTS = { "Level", "Scenery", "GateEnemies", "Waypoints" };
 
         /// <summary>
         /// 기존 씬이 있으면 열어서 생성 결과(GENERATED_ROOTS)만 지움 → 플레이어·HUD·카메라 등 직접 넣은 오브젝트 유지 (10/20).
@@ -324,6 +324,11 @@ namespace BrokenSovereign.Editor
                         ApplyGroundLook(terrain);
                     }
                 }
+            }
+
+            if (spec.Valley)
+            {
+                PlaceWaypoints(spec, ground);   // LevelTools.Waypoints
             }
 
             EditorUtility.DisplayProgressBar(spec.Title, "NavMesh 굽기", 0.95f);
@@ -559,7 +564,7 @@ namespace BrokenSovereign.Editor
                 {
                     case RoomKind.Town:
                         Marker(group, ground, "PlayerStart", room, Vector3.zero, 3);
-                        AddMapMarker(Marker(group, ground, "Waypoint", room, Polar(5f, 0f), 2), MapMarkerKind.Waypoint);
+                        // 웨이포인트는 LevelTools.Waypoints가 실제 모형으로 배치 (10/22)
                         break;
                     case RoomKind.Start:
                         Marker(group, ground, "PlayerStart", room, Vector3.zero, 3);
