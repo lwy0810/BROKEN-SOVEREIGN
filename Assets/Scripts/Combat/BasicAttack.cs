@@ -25,6 +25,13 @@ namespace BrokenSovereign.Combat
         [Tooltip("공격 동작 시간(초, 공격 속도 0% 기준). 이 시간 동안만 이동 불가. 공격 간격과 별개 (0 = 발동 즉시 이동 가능)")]
         [SerializeField, Min(0f)] private float _actionTime = 0f;
 
+        [Tooltip("타격 지연(초, 공격 속도 0% 기준): 공격 시작 후 이 시간 뒤 피해 적용. " +
+            "공격자에게 IAttackImpactTiming(PlayerAnimator)이 있으면 모션 기준 값을 우선 사용 (10/26)")]
+        [SerializeField, Min(0f)] private float _impactDelay = 0.35f;
+
+        [Tooltip("타격 순간 대상이 사거리 + 이 거리보다 멀어지면 빗나감")]
+        [SerializeField, Min(0f)] private float _impactRangeSlack = 1f;
+
         [Tooltip("공격자에게 CharacterStats가 없을 때 사용하는 공격력")]
         [SerializeField] private float _attackPower = 100f;
 
@@ -124,8 +131,40 @@ namespace BrokenSovereign.Combat
             _lastInterval = baseInterval / (1f + attackSpeed);
             _nextReadyTime = Time.time + _lastInterval;
             shared?.ConsumeAttack(_lastInterval);
-            _lastActionTime = Mathf.Min(_actionTime, baseInterval) / (1f + attackSpeed);
 
+            // 10/26: 피해는 모션의 타격 순간에 적용. 그 전까지는 제자리 (이동 입력 시 공격 취소 → 피해 없음)
+            float impact = GetImpactDelay(attacker, _lastInterval, attackSpeed);
+            _lastActionTime = Mathf.Max(Mathf.Min(_actionTime, baseInterval) / (1f + attackSpeed), impact);
+            AttackImpactRunner.For(attacker).Schedule(impact, () => Strike(attacker, target, point));
+            return true;
+        }
+
+        /// <summary>대기 중인 타격 취소 (공격 동작을 이동·회피로 끊었을 때)</summary>
+        public void CancelPending(Transform attacker)
+        {
+            if (attacker != null && attacker.TryGetComponent(out AttackImpactRunner runner))
+            {
+                runner.Cancel();
+            }
+        }
+
+        private float GetImpactDelay(Transform attacker, float interval, float attackSpeed)
+        {
+            float delay = attacker.TryGetComponent(out IAttackImpactTiming timing)
+                ? timing.GetImpactDelay(interval)
+                : _impactDelay / (1f + attackSpeed);
+            return Mathf.Clamp(delay, 0f, interval * 0.9f);
+        }
+
+        // 타격 순간: 공격자·대상 상태를 다시 확인하고 피해 적용
+        private void Strike(Transform attacker, Transform target, Vector3 point)
+        {
+            if (attacker == null || (attacker.TryGetComponent(out Health self) && self.IsDead))
+            {
+                return;
+            }
+
+            StatSheet stats = attacker.TryGetComponent(out CharacterStats characterStats) ? characterStats.Sheet : null;
             Vector3 origin = attacker.position;
             Vector3 forward = (target != null ? target.position : point) - origin;
             forward.y = 0f;
@@ -141,7 +180,7 @@ namespace BrokenSovereign.Combat
             if (profile.IsLine)
             {
                 ExecuteLine(attacker, target, origin, forward, range, profile, stats, point.y);
-                return true;
+                return;
             }
 
             IDamageable victim = null;
@@ -153,6 +192,17 @@ namespace BrokenSovereign.Combat
                 if (victim == null)
                 {
                     Debug.LogWarning($"BasicAttack: {target.name}에 Health(IDamageable)가 없어 피해를 줄 수 없습니다.", target);
+                }
+                else
+                {
+                    // 모션 중에 대상이 멀어졌으면 빗나감
+                    Vector3 offset = target.position - origin;
+                    offset.y = 0f;
+
+                    if (offset.magnitude > range + _impactRangeSlack)
+                    {
+                        victim = null;
+                    }
                 }
             }
             else
@@ -169,13 +219,12 @@ namespace BrokenSovereign.Combat
             if (victim == null || victim.IsDead)
             {
                 Debug.Log("BasicAttack: 기본 공격 → 빗나감");
-                return true;
+                return;
             }
 
             DamageInfo info = BuildDamage(attacker.gameObject, stats, profile);
             victim.ApplyDamage(info);
             Debug.Log($"BasicAttack: 기본 공격 → {(victim as Component)?.name} 피해 {info.Amount:0}{(info.IsCritical ? " (치명타)" : string.Empty)} (방어 측 감소 전)");
-            return true;
         }
 
         // 일직선 다중 타격: 대상(있으면) 방향 직사각형 안의 적을 가까운 순으로 최대 수까지
