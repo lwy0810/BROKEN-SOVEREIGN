@@ -649,6 +649,7 @@ namespace BrokenSovereign.UI
             EnsureComponent<PlayerEquipment>(_player.gameObject);
             EnsureComponent<LootDropper>(_player.gameObject);
             EnsureComponent<SkillPointGrant>(_player.gameObject);
+            EnsureComponent<PlayerRecord>(_player.gameObject);
 
             _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
             _characterWindow.Initialize(_player.gameObject, (RectTransform)transform);

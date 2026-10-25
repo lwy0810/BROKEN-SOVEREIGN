@@ -91,6 +91,9 @@ namespace BrokenSovereign.Ascension
         private bool _isRegistered;
 
         public int Level => Model.Level;
+        public int JobSelectLevel => _level.JobSelectLevel;
+        public int SuperhumanLevel => _ascension.SuperhumanLevel;
+        public int DemigodLevel => _ascension.DemigodLevel;
         public int Experience => Model.Experience;
         public int ExperienceToNext => Model.ExperienceToNext;
         public float Progress => Model.Progress;

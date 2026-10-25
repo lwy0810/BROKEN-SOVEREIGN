@@ -39,16 +39,21 @@ namespace BrokenSovereign.Hero
                 return;
             }
 
+            // 성물(무쇠 철퇴) 1단계: 버팀 피해·무력화 시간 증가
+            HeroRelic relic = Context.Player.GetComponent<HeroRelic>();
+            float poiseMultiplier = relic != null ? relic.PoiseMultiplier : 1f;
+            float staggerBonus = relic != null ? relic.StaggerBonus : 0f;
+
             if (!victim.TryGetComponent(out PoiseReceiver receiver))
             {
                 receiver = victim.gameObject.AddComponent<PoiseReceiver>();
                 EnemyRank rank = enemy.Definition != null ? enemy.Definition.Rank : EnemyRank.Normal;
-                receiver.Configure(_definition.MaxPoise(rank), _definition.StaggerDuration(rank),
+                receiver.Configure(_definition.MaxPoise(rank), _definition.StaggerDuration(rank) + staggerBonus,
                     _definition.DamageTakenBonus, rank != EnemyRank.Normal, _definition.RecoverDelay,
                     _definition.RecoverRatio, _definition.ImmunityDuration);
             }
 
-            receiver.Hit(info.Coefficient * _definition.PoisePerCoefficient);
+            receiver.Hit(info.Coefficient * _definition.PoisePerCoefficient * poiseMultiplier);
         }
     }
 }
