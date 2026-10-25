@@ -8,7 +8,7 @@ namespace BrokenSovereign.Editor
     /// 환경 소품 에셋 생성 도구 (에디터 전용).
     /// 메뉴: BrokenSovereign > Props > 소품 에셋 생성 (전체)
     ///
-    /// Assets/Models/Prop{이름}/ 폴더마다
+    /// Assets/Models/Prop{이름}/·Town{이름}/ 폴더마다 (Town = 마을 건물, 10/22)
     /// 1. FBX 임포트 설정 (리그 없음, 머티리얼 가져오지 않음)
     /// 2. 텍스처 설정, URP Lit 머티리얼 Materials/Props/M_Prop{이름}
     /// 3. 프리팹 Prefabs/Props/Prop{이름} (MeshCollider, Static)
@@ -23,7 +23,8 @@ namespace BrokenSovereign.Editor
         private static void BuildAll()
         {
             string[] folders = AssetDatabase.GetSubFolders(CharacterModelImporter.MODELS_ROOT.TrimEnd('/'))
-                .Where(f => System.IO.Path.GetFileName(f).StartsWith(CharacterModelImporter.PROP_PREFIX))
+                .Where(f => System.IO.Path.GetFileName(f).StartsWith(CharacterModelImporter.PROP_PREFIX)
+                    || System.IO.Path.GetFileName(f).StartsWith(CharacterModelImporter.TOWN_PREFIX))
                 .ToArray();
 
             int built = 0;

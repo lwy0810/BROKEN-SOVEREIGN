@@ -19,6 +19,7 @@ namespace BrokenSovereign.Editor
 
         public const string PROP_PREFIX = "Prop";
         public const string WEAPON_PREFIX = "Weapon";
+        public const string TOWN_PREFIX = "Town";   // 마을 건물 (10/22, 정적 소품과 같은 설정)
 
         private static readonly string[] LOOP_KEYWORDS = { "Idle", "Run", "Walk" };
 
@@ -81,7 +82,7 @@ namespace BrokenSovereign.Editor
 
         public static bool IsPropName(string fileName)
         {
-            return fileName.StartsWith(PROP_PREFIX) || fileName.StartsWith(WEAPON_PREFIX);
+            return fileName.StartsWith(PROP_PREFIX) || fileName.StartsWith(WEAPON_PREFIX) || fileName.StartsWith(TOWN_PREFIX);
         }
 
         /// <summary>애니메이션 FBX 설정 (클립 설정 제외).</summary>

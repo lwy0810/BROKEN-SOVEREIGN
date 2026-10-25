@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BrokenSovereign.Map;
 using BrokenSovereign.Player;
+using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -150,6 +151,7 @@ namespace BrokenSovereign.Editor
 
             PlaceTownShops(town, ground, root);
             PlaceTownWalls(town, ground, root);
+            PlaceTownLandmarks(town, ground, root);   // 종루·기원소·우물·객잔·저택 대문 (10/22, VARCO)
             PlaceTownHouses(spec, town, ground, root);
 
             GameObject pillar = AssetDatabase.LoadAssetAtPath<GameObject>($"{PROP_PREFABS}/PropStonePillar.prefab");
@@ -216,13 +218,67 @@ namespace BrokenSovereign.Editor
             }
         }
 
+        // ------------------------------------------------------------------
+        // 마을 확충 (10/22): VARCO 건물. 프리팹이 없으면 건너뜀 (집은 ProBuilder 상자로 대체)
+        // half = 바닥 반 크기 (x 폭, z 깊이), 앞면 = +z
+        // ------------------------------------------------------------------
+
+        private const string TOWN_HOUSE_TILE = "TownHouseTile";
+        private const string TOWN_COTTAGE = "TownCottage";
+        private const string TOWN_GRANARY = "TownGranary";
+
+        /// <summary>(프리팹, 마을 중심 기준 위치, 바닥 반 크기, 바라볼 방향: null = 가장 가까운 길)</summary>
+        private static readonly (string prefab, Vector2 local, Vector2 half, float? yaw)[] TOWN_LANDMARKS =
+        {
+            ("TownBellTower", new Vector2(-9.6f, -26.3f), new Vector2(3.4f, 3.4f), null),   // 광장 남쪽 (200°)
+            ("PropShrine", new Vector2(9.6f, 26.3f), new Vector2(2.5f, 2.3f), null),       // 광장 북쪽 (20°)
+            ("PropWell", new Vector2(21.8f, 10.1f), new Vector2(1.3f, 1.3f), 0f),          // 광장 둘레 우물 3곳
+            ("PropWell", new Vector2(-22.6f, -8.2f), new Vector2(1.3f, 1.3f), 0f),
+            ("PropWell", new Vector2(8.2f, -22.6f), new Vector2(1.3f, 1.3f), 0f),
+            ("TownInn", new Vector2(45f, 11f), new Vector2(5f, 5f), 180f),                 // 동쪽 큰길가
+            ("TownInn", new Vector2(-45f, -11f), new Vector2(5f, 5f), 0f),                 // 서쪽 큰길가
+            ("TownManorGate", new Vector2(45f, 45f), new Vector2(5f, 3.4f), 225f),         // 대각선 길 끝
+            ("TownManorGate", new Vector2(-45f, -45f), new Vector2(5f, 3.4f), 45f),
+        };
+
+        private static GameObject TownPrefab(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<GameObject>($"{PROP_PREFABS}/{name}.prefab");
+        }
+
+        private static void PlaceTownLandmarks(Room town, Ground ground, Transform root)
+        {
+            var group = new GameObject("Landmarks").transform;
+            group.SetParent(root, false);
+            int placed = 0;
+
+            foreach (var landmark in TOWN_LANDMARKS)
+            {
+                GameObject prefab = TownPrefab(landmark.prefab);
+
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                Vector2 world = town.Center + landmark.local;
+                float yaw = landmark.yaw ?? NearestStreetYaw(landmark.local);
+                Place(prefab, group, ground.At(world), Quaternion.Euler(0f, yaw, 0f), $"{landmark.prefab}_{++placed}");
+                s_footprints.Add(new Footprint { Center = world, Half = landmark.half, Yaw = yaw });
+            }
+        }
+
         // 집: 격자 칸마다 길·광장·상점과 겹치지 않으면 배치, 가장 가까운 길을 바라봄 (90° 단위)
+        // VARCO 민가(기와 55%·초가 35%)·창고(성벽 쪽만 10%), 없으면 ProBuilder 상자
         private static void PlaceTownHouses(LevelSpec spec, Room town, Ground ground, Transform root)
         {
+            GameObject tile = TownPrefab(TOWN_HOUSE_TILE);
+            GameObject cottage = TownPrefab(TOWN_COTTAGE);
+            GameObject granary = TownPrefab(TOWN_GRANARY);
             var houses = new[]
             {
-                (prefab: EnsureHouse("TownHouseA", new Vector3(8f, 4.5f, 6f)), half: new Vector2(4f, 3f)),
-                (prefab: EnsureHouse("TownHouseB", new Vector3(6f, 3.5f, 5f)), half: new Vector2(3f, 2.5f)),
+                (prefab: tile != null ? tile : EnsureHouse("TownHouseA", new Vector3(8f, 4.5f, 6f)), half: tile != null ? new Vector2(4f, 3.5f) : new Vector2(4f, 3f)),
+                (prefab: cottage != null ? cottage : EnsureHouse("TownHouseB", new Vector3(6f, 3.5f, 5f)), half: cottage != null ? new Vector2(3f, 2.6f) : new Vector2(3f, 2.5f)),
             };
             var group = new GameObject("Houses").transform;
             group.SetParent(root, false);
@@ -235,7 +291,15 @@ namespace BrokenSovereign.Editor
                 for (float x = -limit; x <= limit; x += HOUSE_CELL)
                 {
                     var local = new Vector2(x + ((float)rng.NextDouble() - 0.5f) * 1.5f, z + ((float)rng.NextDouble() - 0.5f) * 1.5f);
-                    var kind = houses[rng.NextDouble() < 0.55 ? 0 : 1];
+                    double roll = rng.NextDouble();
+                    var kind = houses[roll < 0.6 ? 0 : 1];
+                    bool outer = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > 40f;
+
+                    if (granary != null && outer && roll > 0.88)
+                    {
+                        kind = (granary, new Vector2(3.4f, 4f));
+                    }
+
                     float clearance = kind.half.magnitude + 0.8f;
 
                     if (TownStreetDistance(local) < clearance || local.magnitude < PLAZA_RADIUS + 10f)
@@ -245,7 +309,8 @@ namespace BrokenSovereign.Editor
 
                     Vector2 world = town.Center + local;
 
-                    if (s_footprints.Exists(f => Vector2.Distance(f.Center, world) < 9f))
+                    // 다른 건물 바닥 사각형과 간격 (객잔·대문 같은 큰 건물도 겹치지 않게, 10/22)
+                    if (s_footprints.Exists(f => f.Distance(world) < Mathf.Max(kind.half.x, kind.half.y) + 0.5f))
                     {
                         continue;
                     }
@@ -305,6 +370,61 @@ namespace BrokenSovereign.Editor
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        // ------------------------------------------------------------------
+        // 메뉴: 마을만 다시 배치 (오픈 필드 전체 재생성 없이, 10/22)
+        // ------------------------------------------------------------------
+
+        [MenuItem("BrokenSovereign/Levels/마을 건물 다시 배치 (현재 씬)")]
+        private static void RebuildTownMenu()
+        {
+            Terrain terrain = FindLevelTerrain();
+            GameObject level = GameObject.Find("Level");
+
+            if (terrain == null || level == null)
+            {
+                EditorUtility.DisplayDialog("마을 다시 배치", "현재 씬에 Level/Terrain이 없습니다. World 씬을 열고 실행하세요.", "확인");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog("마을 다시 배치",
+                    "Level/Town(성벽·상점·NPC·집·랜드마크)을 지우고 다시 만든 뒤 NavMesh를 다시 굽습니다.\n마을 안에서 손으로 옮긴 오브젝트는 사라집니다.",
+                    "진행", "취소"))
+            {
+                return;
+            }
+
+            try
+            {
+                Transform old = level.transform.Find("Town");
+
+                if (old != null)
+                {
+                    Object.DestroyImmediate(old.gameObject);
+                }
+
+                var ground = new Ground(terrain);
+                PlaceTown(WORLD, ground, level.transform);
+
+                EditorUtility.DisplayProgressBar("마을 다시 배치", "NavMesh 굽기", 0.6f);
+
+                foreach (NavMeshSurface surface in level.GetComponents<NavMeshSurface>())
+                {
+                    Object.DestroyImmediate(surface);
+                }
+
+                BakeNavMesh(WORLD, level);
+                PlaceWaypoints(WORLD, ground);   // 웨이포인트 모형도 최신 프리팹으로
+
+                EditorSceneManager.MarkSceneDirty(level.scene);
+                EditorSceneManager.SaveScene(level.scene);
+                Debug.Log($"LevelTools: 마을 다시 배치 (건물 자리 {s_footprints.Count}곳). 지도 그림의 건물 자리는 오픈 필드를 다시 생성할 때 갱신됩니다.");
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
         }
 
         // ------------------------------------------------------------------

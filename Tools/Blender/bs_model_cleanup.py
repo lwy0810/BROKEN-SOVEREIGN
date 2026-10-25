@@ -100,6 +100,16 @@ PRESETS = {
     "PropShopGoods":    dict(size=5.0, fit="length", max_tris=20000, dest="unity"),
     "PropShopForge":    dict(size=6.0, fit="length", max_tris=20000, dest="unity"),
     "PropShopClinic":   dict(size=5.0, fit="length", max_tris=20000, dest="unity"),
+    # 마을 확충 (10/22, 가로 최장 기준, 종루만 높이 기준)
+    "PropWell":         dict(size=2.5, fit="length", max_tris=8000, dest="unity"),
+    "PropWaypoint":     dict(size=4.0, fit="length", max_tris=10000, dest="unity"),
+    "PropShrine":       dict(size=5.0, fit="length", max_tris=15000, dest="unity"),
+    "TownHouseTile":    dict(size=8.0, fit="length", max_tris=20000, dest="unity"),
+    "TownCottage":      dict(size=6.0, fit="length", max_tris=20000, dest="unity"),
+    "TownInn":          dict(size=10.0, fit="length", max_tris=20000, dest="unity"),
+    "TownBellTower":    dict(size=10.0, fit="height", max_tris=20000, dest="unity"),
+    "TownGranary":      dict(size=8.0, fit="length", max_tris=20000, dest="unity"),
+    "TownManorGate":    dict(size=10.0, fit="length", max_tris=20000, dest="unity"),
     # 무기 (세워진 상태 기준, 원점 = 손잡이, 위쪽 = 무기 머리)
     "WeaponHolyMace":       dict(size=0.8, max_tris=3000, pivot_height=0.18, dest="unity"),
     "WeaponCelestialStaff": dict(size=1.8, max_tris=3000, pivot_height=0.35, dest="unity"),
