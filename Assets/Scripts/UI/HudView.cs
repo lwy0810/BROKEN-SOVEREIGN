@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BrokenSovereign.Achievement;
 using BrokenSovereign.Ascension;
 using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
@@ -8,6 +9,7 @@ using BrokenSovereign.Player;
 using BrokenSovereign.Skill;
 using BrokenSovereign.Town;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace BrokenSovereign.UI
@@ -77,6 +79,7 @@ namespace BrokenSovereign.UI
         private Text _warningText;
         private const string SKILL_NOT_READY_MESSAGE = "아직 사용할 수 없습니다";
         private const string NOT_ENOUGH_MANA_MESSAGE = "기력이 부족합니다.";
+        private const string SKILL_MISSING_MESSAGE = "스킬이 등록되지 않았습니다.";
         private float _warningEndTime = float.NegativeInfinity;
         private float _warningStartTime = float.NegativeInfinity;
         private Text _buffText;
@@ -98,6 +101,12 @@ namespace BrokenSovereign.UI
         private InventoryWindowView _inventoryWindow;
         private ShopWindowView _shopWindow;
         private OutcomeScreenView _outcome;
+        private AchievementTracker _achievements;
+        private GyeokWindowView _gyeokWindow;
+        private AchievementWindowView _achievementWindow;
+        private SettingsWindowView _settingsWindow;
+        private HudMenuView _menu;
+        private SkillTooltipView _skillTooltip;
         private Health _frameTarget;
         private float _noticeStartTime = float.NegativeInfinity;
         private bool _noticeEmphasis;
@@ -134,6 +143,7 @@ namespace BrokenSovereign.UI
             ApplyLayout();
 
             _player.SkillNotReady += OnSkillNotReady;
+            _player.SkillMissing += OnSkillMissing;
 
             if (_caster != null)
             {
@@ -158,7 +168,10 @@ namespace BrokenSovereign.UI
                 _progression.JobSelectionRequested += OnJobSelectionRequested;
                 _progression.HeroPathSelectionRequested += OnHeroPathSelectionRequested;
             }
-            else
+
+            // 10/26: 업적 달성은 화면 가운데 알림 대신 왼쪽 중하단 팝업 (AchievementToastView)
+
+            if (_progression == null)
             {
                 Debug.LogWarning("HudView: Player에 PlayerProgression이 없어 경험치·레벨·직업 선택을 표시하지 않습니다.", this);
             }
@@ -209,13 +222,142 @@ namespace BrokenSovereign.UI
             _jobGaugeView.SetGauge(FindActiveJobGauge());
             UpdateBuffs();
             UpdateProgression();
+            UpdateWindowKeys();
+            UpdateBarPointer();
+        }
+
+        // 10/26: 기술 바 위 클릭은 이동·공격으로 쓰지 않음. 등록되지 않은 칸을 누르면 안내
+        private void UpdateBarPointer()
+        {
+            bool over = _trayPlate != null && UiKit.IsHover(_trayPlate.rectTransform);
+            GameplayInput.PointerOverBar = over;
+            UpdateSkillTooltip(over);
+
+            if (!over || !UiKit.Clicked || GameplayInput.IsBlocked || _caster == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < SKILL_SLOTS.Length; i++)
+            {
+                if (SKILL_SLOTS[i] != SkillSlot.LeftClick && UiKit.IsHover(_skillSlots[i].Rect) && !_caster.HasSkill(SKILL_SLOTS[i]))
+                {
+                    ShowWarning(SKILL_MISSING_MESSAGE);
+                    return;
+                }
+            }
+        }
+
+        // 격(G) · 업적(J) 창 단축키 (10/26)
+        private void UpdateWindowKeys()
+        {
+            Keyboard keyboard = Keyboard.current;
+
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (keyboard.gKey.wasPressedThisFrame && _gyeokWindow != null)
+            {
+                _gyeokWindow.Toggle();
+            }
+            else if (keyboard.jKey.wasPressedThisFrame && _achievementWindow != null)
+            {
+                _achievementWindow.Toggle();
+            }
+        }
+
+        // 10/26: 등록된 기술 칸에 마우스를 올리면 툴팁 (다른 창이 열려 있으면 숨김)
+        private void UpdateSkillTooltip(bool overBar)
+        {
+            if (_skillTooltip == null)
+            {
+                return;
+            }
+
+            if (!overBar || GameplayInput.IsBlocked || _caster == null)
+            {
+                _skillTooltip.Hide();
+                return;
+            }
+
+            for (int i = 0; i < SKILL_SLOTS.Length; i++)
+            {
+                SkillSlot slot = SKILL_SLOTS[i];
+
+                if (!UiKit.IsHover(_skillSlots[i].Rect))
+                {
+                    continue;
+                }
+
+                SkillDefinition skill = _caster.HasSkill(slot) ? _caster.GetSkill(slot) : null;
+
+                if (skill == null)
+                {
+                    break;
+                }
+
+                bool grows = SkillGrowth.CanGrow(slot, skill);
+                int level = _caster.Loadout.GetSlotLevel(slot);
+                float cooldown = _player.GetSlotState(slot).CooldownRemaining;
+                _skillTooltip.Show(skill, SKILL_KEYS[i], level, grows, cooldown, _skillSlots[i].Rect);
+                return;
+            }
+
+            _skillTooltip.Hide();
+        }
+
+        // 메뉴 [설정]: HUD 위 설정 창, 열려 있는 동안 전투 입력 차단
+        private void OpenSettings()
+        {
+            if (_settingsWindow == null || _settingsWindow.IsOpen || GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
+            _settingsWindow.Open();
+            GameplayInput.IsBlocked = true;
+        }
+
+        // 격 창 [길 변경] → 영웅의 길 선택 화면 (변경 모드)
+        private void OpenHeroPathChange()
+        {
+            if (_heroSelect != null && _job != null && _job.Current != null)
+            {
+                _heroSelect.OpenChange(_job.Current.ResolveHeroPaths());
+            }
+        }
+
+        private void OnHeroPathChanged(HeroPathDefinition path)
+        {
+            ShowNotice($"영웅의 길 변경 — {path.DisplayName} ({path.Title})", true);
+        }
+
+        // 메뉴 Esc 판정용: 메뉴 외 다른 창이 열려 있음
+        private bool IsAnyWindowOpen()
+        {
+            return GameplayInput.IsBlocked ||
+                (_skillWindow != null && _skillWindow.IsOpen) ||
+                (_characterWindow != null && _characterWindow.IsOpen) ||
+                (_inventoryWindow != null && _inventoryWindow.IsOpen) ||
+                (_worldMap != null && _worldMap.IsOpen) ||
+                (_shopWindow != null && _shopWindow.IsOpen) ||
+                (_gyeokWindow != null && _gyeokWindow.IsOpen) ||
+                (_achievementWindow != null && _achievementWindow.IsOpen) ||
+                (_settingsWindow != null && _settingsWindow.IsOpen) ||
+                (_heroSelect != null && _heroSelect.IsOpen) ||
+                (_jobSelect != null && _jobSelect.IsOpen);
         }
 
         private void OnDestroy()
         {
+            GameplayInput.PointerOverBar = false;
+
             if (_player != null)
             {
                 _player.SkillNotReady -= OnSkillNotReady;
+                _player.SkillMissing -= OnSkillMissing;
             }
 
             if (_caster != null)
@@ -236,6 +378,7 @@ namespace BrokenSovereign.UI
                 _progression.JobSelectionRequested -= OnJobSelectionRequested;
                 _progression.HeroPathSelectionRequested -= OnHeroPathSelectionRequested;
             }
+
 
             if (_targetRing != null)
             {
@@ -350,6 +493,11 @@ namespace BrokenSovereign.UI
             _warningEndTime = Time.time + _jobDisplay.WarningDuration;
         }
 
+        private void OnSkillMissing(SkillSlot slot)
+        {
+            ShowWarning(SKILL_MISSING_MESSAGE);
+        }
+
         private void OnSkillNotReady(SkillSlot slot, SkillDefinition skill)
         {
             ShowWarning(SKILL_NOT_READY_MESSAGE);
@@ -361,6 +509,10 @@ namespace BrokenSovereign.UI
             if (reason == SkillCastFailReason.NotEnoughResource)
             {
                 ShowWarning(NOT_ENOUGH_MANA_MESSAGE);
+            }
+            else if (reason == SkillCastFailReason.NotLearned)
+            {
+                ShowWarning("기술 창(K)에서 포인트 1을 넣어야 사용할 수 있습니다.");
             }
         }
 
@@ -660,8 +812,13 @@ namespace BrokenSovereign.UI
             Inventory inventory = EnsureComponent<Inventory>(_player.gameObject);
             EnsureComponent<PlayerEquipment>(_player.gameObject);
             EnsureComponent<LootDropper>(_player.gameObject);
+            EnsureComponent<ItemPicker>(_player.gameObject);   // 10/26: 바닥 아이템 이름표 클릭 → 걸어가서 줍기
             EnsureComponent<SkillPointGrant>(_player.gameObject);
             EnsureComponent<PlayerRecord>(_player.gameObject);
+
+            // 업적 · 신격 트리 (10/26): 트리가 업적 포인트를 읽으므로 업적 먼저
+            _achievements = EnsureComponent<AchievementTracker>(_player.gameObject);
+            EnsureComponent<GyeokTree>(_player.gameObject);
 
             _characterWindow = HudGraphics.CreateRect("CharacterWindow", transform).gameObject.AddComponent<CharacterWindowView>();
             _characterWindow.Initialize(_player.gameObject, (RectTransform)transform);
@@ -671,6 +828,34 @@ namespace BrokenSovereign.UI
             _inventoryWindow.Initialize(_player.gameObject, (RectTransform)transform);
             _shopWindow?.SetInventoryWindow(_inventoryWindow);   // 거래 중 오른쪽에 인벤토리 (10/25)
             HudGraphics.CreateRect("LootFeed", transform).gameObject.AddComponent<LootFeedView>().Initialize(inventory);
+
+            // 바닥 아이템·테스트 상자 이름표 (10/26): HUD 맨 아래쪽(다른 창 뒤)에 그리도록 앞쪽 형제로
+            GroundItemLabelView itemLabels = HudGraphics.CreateRect("GroundItemLabels", transform).gameObject.AddComponent<GroundItemLabelView>();
+            itemLabels.Initialize(_player.gameObject);
+            itemLabels.transform.SetAsFirstSibling();
+
+            // 격(신격 트리) · 업적 · 설정 창 (10/26)
+            RectTransform hudRoot = (RectTransform)transform;
+            _gyeokWindow = GyeokWindowView.Create(hudRoot, _player.gameObject, () => _achievementWindow.Open(), OpenHeroPathChange);
+            _achievementWindow = AchievementWindowView.Create(hudRoot, _player.gameObject, () => _gyeokWindow.Open());
+            _settingsWindow = SettingsWindowView.Create(hudRoot);
+            _settingsWindow.Closed += () => GameplayInput.IsBlocked = false;
+
+            // HUD 메뉴 (Figma 16-B): 기술 바 오른쪽 위 ☰
+            var menuItems = new List<HudMenuView.Item>
+            {
+                new HudMenuView.Item("인벤토리", "I", () => _inventoryWindow.Toggle()),
+                new HudMenuView.Item("캐릭터", "C", () => _characterWindow.Toggle()),
+                new HudMenuView.Item("스킬", "K", _skillWindow != null ? (System.Action)(() => _skillWindow.Open()) : null),
+                new HudMenuView.Item("격", "G", () => _gyeokWindow.Open()),
+                new HudMenuView.Item("업적", "J", () => _achievementWindow.Open()),
+                new HudMenuView.Item("지도", "Tab", () => _worldMap.OpenFullscreen()),
+                new HudMenuView.Item("퀘스트", null, null, false),
+                new HudMenuView.Item("설정", null, OpenSettings),
+            };
+            _menu = HudMenuView.Create(hudRoot, menuItems, IsAnyWindowOpen);
+            _skillTooltip = new SkillTooltipView(hudRoot);   // 10/26: 기술 바 칸 툴팁
+            HudGraphics.CreateRect("AchievementToast", transform).gameObject.AddComponent<AchievementToastView>().Initialize(_achievements, () => _achievementWindow.Open());
 
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성
             _jobSelect = HudGraphics.CreateRect("JobSelect", transform).gameObject.AddComponent<JobSelectView>();
@@ -682,6 +867,7 @@ namespace BrokenSovereign.UI
                 _heroSelect = HudGraphics.CreateRect("HeroPathSelect", transform).gameObject.AddComponent<HeroPathSelectView>();
                 _heroSelect.Initialize(_hero);
                 _heroSelect.PathChosen += OnHeroPathChosen;
+                _heroSelect.PathChanged += OnHeroPathChanged;
             }
 
             // 사망·클리어 화면: 모든 UI 위
@@ -754,6 +940,12 @@ namespace BrokenSovereign.UI
             PlaceAt(_jobGaugeView.Rect, new Vector2(0.5f, 0f), new Vector2(0f, gaugeBottom),
                 new Vector2(trayWidth, _jobGauge.Height));
             _jobGaugeView.ApplyStyle(_jobGauge);
+
+            // HUD 메뉴 버튼: 기술 바 판 오른쪽 끝에 맞춰 직업 게이지 위
+            if (_menu != null)
+            {
+                _menu.SetPosition(trayWidth * 0.5f, gaugeBottom + _jobGauge.Height + 8f);
+            }
 
             // 직업 이름: 게이지 위 가운데 (게이지가 없어도 같은 자리)
             _jobLabel.fontSize = _jobDisplay.LabelFontSize;
