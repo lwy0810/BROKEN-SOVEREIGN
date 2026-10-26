@@ -72,7 +72,7 @@ namespace BrokenSovereign.Item
             return _modifiers;
         }
 
-        /// <summary>가방 칸의 장비를 장착. 원래 장비는 그 칸으로 돌아감</summary>
+        /// <summary>가방 칸의 장비를 장착. 같은 부위에 이미 장착한 장비는 해제되어 그 칸(안 되면 첫 빈 칸)으로 돌아감</summary>
         public bool EquipFromInventory(int index)
         {
             ItemStack stack = _inventory != null ? _inventory.Get(ItemKind.Equipment, index) : null;
@@ -87,9 +87,17 @@ namespace BrokenSovereign.Item
             _inventory.Take(ItemKind.Equipment, index);
             _equipped[slot] = stack.Item;
 
-            if (previous != null)
+            // 10/26: 기존 장비 해제 → 새 장비가 있던 칸으로. 실패하면 첫 빈 칸, 그래도 없으면 장착 취소
+            if (previous != null && !_inventory.Place(index, new ItemStack(previous, 1)))
             {
-                _inventory.Place(index, new ItemStack(previous, 1));
+                int empty = _inventory.FirstEmpty(ItemKind.Equipment);
+
+                if (empty < 0 || !_inventory.Place(empty, new ItemStack(previous, 1)))
+                {
+                    _equipped[slot] = previous;
+                    _inventory.Place(index, stack);
+                    return false;
+                }
             }
 
             Rebuild();

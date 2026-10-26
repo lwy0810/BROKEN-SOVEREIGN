@@ -45,6 +45,9 @@ namespace BrokenSovereign.UI
         };
 
         private RectTransform _equipPanel;
+        private const float DOUBLE_CLICK_TIME = 0.3f;
+        private int _lastClickBag = -1;
+        private float _lastClickTime = -1f;
         private RectTransform _bagPanel;
         private Image _equipClose;
         private Image _bagClose;
@@ -277,7 +280,7 @@ namespace BrokenSovereign.UI
             UiKit.PlaceTopLeft(title.rectTransform, new Vector2(24f, 18f), new Vector2(240f, 30f));
             title.text = "상세 정보";
             Text sub = UiKit.Label("Sub", _detail, 12, p.TextDim, TextAnchor.MiddleLeft);
-            UiKit.PlaceTopLeft(sub.rectTransform, new Vector2(24f, 50f), new Vector2(240f, 18f));
+            UiKit.PlaceTopLeft(sub.rectTransform, new Vector2(24f, 55f), new Vector2(240f, 18f));   // 10/26: 제목과 간격 +5
             sub.text = "장비 포함 최종 능력치  ·  (괄호) = 장비 증감";
 
             _detailStats = new StatListView(_detail, new Vector2(24f, 84f), new Vector2(DETAIL_WIDTH - 24f - 30f, HEIGHT - 84f - 24f),
@@ -598,6 +601,22 @@ namespace BrokenSovereign.UI
                 }
             }
 
+            // 10/26: 가방 장비 더블클릭 = 장착 (같은 부위 기존 장비는 해제)
+            if (!_dragging && mouse.leftButton.wasPressedThisFrame && hoverBag >= 0 && !IsTrading)
+            {
+                bool doubleClick = hoverBag == _lastClickBag && Time.unscaledTime - _lastClickTime <= DOUBLE_CLICK_TIME;
+                _lastClickBag = hoverBag;
+                _lastClickTime = Time.unscaledTime;
+                ItemDefinition clicked = _inventory.Get(Kind, hoverBag)?.Item;
+
+                if (doubleClick && clicked != null && clicked.IsEquipment && _equipment != null)
+                {
+                    _equipment.EquipFromInventory(hoverBag);
+                    _lastClickBag = -1;
+                    return;
+                }
+            }
+
             // 끌기 시작
             if (mouse.leftButton.wasPressedThisFrame)
             {
@@ -805,11 +824,12 @@ namespace BrokenSovereign.UI
                 {
                     _inventory.Move(Kind, _pressBag, targetBag);
                 }
-                else if (targetEquip.HasValue && _equipment != null)
+                else if (_equipment != null && (targetEquip.HasValue || (IsEquipOpen && UiKit.IsHover(_equipPanel))))
                 {
+                    // 10/26: 장비 창 어디에 놓아도 그 장비의 부위에 장착 (기존 장비는 해제되어 가방으로)
                     ItemDefinition item = _inventory.Get(Kind, _pressBag)?.Item;
 
-                    if (item != null && item.IsEquipment && item.Slot == targetEquip.Value)
+                    if (item != null && item.IsEquipment)
                     {
                         _equipment.EquipFromInventory(_pressBag);
                     }

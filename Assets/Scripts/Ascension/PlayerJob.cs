@@ -153,6 +153,22 @@ namespace BrokenSovereign.Ascension
             JobChanged?.Invoke(job);
         }
 
+        /// <summary>현재 직업 기술 구성을 다시 만듦 (영웅의 길 변경 시). 영웅 기술도 다시 장착</summary>
+        public void RebuildLoadout()
+        {
+            if (Current == null)
+            {
+                return;
+            }
+
+            BuildLoadout(Current);
+
+            if (_hero != null)
+            {
+                _hero.RefreshSkill();
+            }
+        }
+
         // 후보 지정 → 해금 → 기본 기술 장착. 전직은 전투 중에도 기본 기술로 바로 교체
         private void BuildLoadout(JobDefinition job)
         {

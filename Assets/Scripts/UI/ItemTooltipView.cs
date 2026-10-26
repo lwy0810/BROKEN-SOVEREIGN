@@ -43,9 +43,9 @@ namespace BrokenSovereign.UI
             HudGraphics.Stretch(_border.rectTransform);
 
             _name = UiKit.Title("Name", _panel, 19, p.Title, TextAnchor.MiddleLeft);
-            UiKit.PlaceTopLeft(_name.rectTransform, new Vector2(PAD, 8f), new Vector2(WIDTH - PAD * 2f, 28f));
+            UiKit.PlaceTopLeft(_name.rectTransform, new Vector2(PAD, 6f), new Vector2(WIDTH - PAD * 2f, 28f));
             _sub = UiKit.Label("Sub", _panel, 13, p.Accent, TextAnchor.MiddleLeft);
-            UiKit.PlaceTopLeft(_sub.rectTransform, new Vector2(PAD, 36f), new Vector2(WIDTH - PAD * 2f, 18f));
+            UiKit.PlaceTopLeft(_sub.rectTransform, new Vector2(PAD, 38f), new Vector2(WIDTH - PAD * 2f, 18f));   // 10/26: 이름과 간격 +4 (띠 안)
             _line = UiKit.Box("Line", _panel, UiTheme.WithAlpha(p.PlateStroke, 0.5f));
 
             for (int i = 0; i < MAX_ROWS; i++)

@@ -37,8 +37,14 @@ namespace BrokenSovereign.UI
         private readonly List<Text> _footers = new List<Text>();
         private readonly List<HeroPathDefinition> _paths = new List<HeroPathDefinition>();
 
+        private const string SELECT_TITLE = "반신의 격 — 걸어갈 영웅의 길을 고르라";
+        private const string CHANGE_TITLE = "영웅의 길 변경 — 새로 걸어갈 길을 고르라";
+
         private RectTransform _cardRoot;
         private HeroPathController _hero;
+        private Text _title;
+        private Text _cancelHint;
+        private bool _changeMode;
         private int _chosenIndex = -1;
         private float _chosenTime;
         private float _previousTimeScale = 1f;
@@ -47,6 +53,11 @@ namespace BrokenSovereign.UI
 
         /// <summary>영웅의 길을 선택했을 때</summary>
         public event Action<HeroPathDefinition> PathChosen;
+
+        /// <summary>변경 모드에서 길을 바꿨을 때 (10/26)</summary>
+        public event Action<HeroPathDefinition> PathChanged;
+
+        public bool IsChangeMode => _changeMode;
 
         public void Initialize(HeroPathController hero)
         {
@@ -58,11 +69,17 @@ namespace BrokenSovereign.UI
             dim.sprite = HudGraphics.WhiteSprite;
             dim.color = DIM_COLOR;
 
-            Text title = CreateText("Title", root, 44, GOLD, FontStyle.Bold);
-            title.text = "반신의 격 — 걸어갈 영웅의 길을 고르라";
-            UiTheme.ApplyTitle(title);
-            Place(title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, CARD_SIZE.y * 0.5f + 80f),
+            _title = CreateText("Title", root, 44, GOLD, FontStyle.Bold);
+            _title.text = SELECT_TITLE;
+            UiTheme.ApplyTitle(_title);
+            Place(_title.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, CARD_SIZE.y * 0.5f + 80f),
                 new Vector2(1200f, 60f));
+
+            // 변경 모드에서만: 취소 안내 (카드 아래)
+            _cancelHint = CreateText("CancelHint", root, 20, UiTheme.P.TextDim, FontStyle.Normal);
+            _cancelHint.text = "Esc · 우클릭  취소";
+            Place(_cancelHint.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, -CARD_SIZE.y * 0.5f - 70f),
+                new Vector2(600f, 30f));
 
             _cardRoot = HudGraphics.CreateRect("Cards", root);
             HudGraphics.Stretch(_cardRoot);
@@ -77,6 +94,47 @@ namespace BrokenSovereign.UI
                 return;
             }
 
+            Show(paths, false);
+        }
+
+        /// <summary>
+        /// 영웅의 길 변경 (10/26: 반신부터, 격 창 [길 변경]). 지금 길을 뺀 후보를 보여 주고, 고르면 ChangePath.
+        /// 길이 아직 없으면 일반 선택 화면. Esc·우클릭으로 취소
+        /// </summary>
+        public void OpenChange(IReadOnlyList<HeroPathDefinition> paths)
+        {
+            if (IsOpen || paths == null || _hero == null)
+            {
+                return;
+            }
+
+            if (!_hero.HasPath)
+            {
+                Open(paths);
+                return;
+            }
+
+            var others = new List<HeroPathDefinition>();
+
+            foreach (HeroPathDefinition path in paths)
+            {
+                if (path != null && path != _hero.Current)
+                {
+                    others.Add(path);
+                }
+            }
+
+            if (others.Count > 0)
+            {
+                Show(others, true);
+            }
+        }
+
+        private void Show(IReadOnlyList<HeroPathDefinition> paths, bool changeMode)
+        {
+            _changeMode = changeMode;
+            _title.text = changeMode ? CHANGE_TITLE : SELECT_TITLE;
+            _cancelHint.enabled = changeMode;
             BuildCards(paths);
             gameObject.SetActive(true);
             _chosenIndex = -1;
@@ -124,6 +182,15 @@ namespace BrokenSovereign.UI
             }
 
             Mouse mouse = Mouse.current;
+
+            // 변경 모드는 취소 가능 (지금 길 유지)
+            if (_changeMode && ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
+                (mouse != null && mouse.rightButton.wasPressedThisFrame)))
+            {
+                Close();
+                return;
+            }
+
             Vector2 pointer = mouse != null ? mouse.position.ReadValue() : new Vector2(-1f, -1f);
             float pulse = 0.5f + 0.5f * Mathf.Sin(now * 6f);
 
@@ -150,7 +217,14 @@ namespace BrokenSovereign.UI
         {
             Close();
 
-            if (_hero.SelectPath(path))
+            if (_changeMode)
+            {
+                if (_hero.ChangePath(path))
+                {
+                    PathChanged?.Invoke(path);
+                }
+            }
+            else if (_hero.SelectPath(path))
             {
                 PathChosen?.Invoke(path);
             }
