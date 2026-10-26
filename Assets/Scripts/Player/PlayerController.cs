@@ -163,7 +163,7 @@ namespace BrokenSovereign.Player
             }
 
             // 기술 시전 동작 중: 끊지 않고 동작이 끝난 뒤 이동 (마지막 입력 지점 예약)
-            // 기본 공격 동작 중: 동작을 끊고 바로 이동 (피해는 공격 순간 이미 적용됨)
+            // 기본 공격 동작 중: 동작을 끊고 바로 이동. 타격 순간 전이면 피해도 취소 (10/26: 피해는 모션의 타격 순간에 적용)
             // 이동 잠금 기술(진격 돌진 등)은 IsActionLocked로 막힘
             if (IsActing)
             {
@@ -175,12 +175,13 @@ namespace BrokenSovereign.Player
                 }
 
                 _actionEndTime = Time.time;
+                _basicAttack.CancelPending(transform);
             }
 
             _hasPendingMove = false;
             _isAutoMoving = false;
             ClearEngage();
-            _mover.MoveTo(point);
+            _mover.MoveTo(point, true);   // 10/26: 바닥 클릭 이동만 막힘 처리 (움찔 후 정지)
             State = PlayerState.Moving;
         }
 
@@ -481,6 +482,7 @@ namespace BrokenSovereign.Player
 
             if (_dodge.TryDodge(point - transform.position))
             {
+                _basicAttack.CancelPending(transform);   // 회피로 끊은 기본 공격은 피해 없음
                 _hasPendingMove = false;
                 _isAutoMoving = false;
                 ClearEngage();

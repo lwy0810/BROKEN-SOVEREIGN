@@ -1,3 +1,4 @@
+using BrokenSovereign.Combat;
 using BrokenSovereign.Core;
 using BrokenSovereign.Skill;
 using UnityEngine;
@@ -20,7 +21,7 @@ namespace BrokenSovereign.Player
     /// 지속 시전 기술(난천무)은 반복 상태를 시전이 끝날 때까지 유지한 뒤 Locomotion으로 돌아갑니다.
     /// </summary>
     [RequireComponent(typeof(PlayerController))]
-    public class PlayerAnimator : MonoBehaviour
+    public class PlayerAnimator : MonoBehaviour, IAttackImpactTiming
     {
         private static readonly int SPEED_ID = Animator.StringToHash("Speed");
         private static readonly int ATTACK_ID = Animator.StringToHash("Attack");
@@ -43,6 +44,10 @@ namespace BrokenSovereign.Player
 
         [Tooltip("공격 모션 재생 배율 상한")]
         [SerializeField] private float _maxAttackSpeed = 3f;
+
+        [Tooltip("공격 클립에서 무기가 닿는 지점 (0~1, 클립 길이 비율). 이 순간에 기본 공격 피해 적용 (10/26)")]
+        [Range(0.1f, 0.9f)]
+        [SerializeField] private float _attackImpactRatio = 0.45f;
 
         [Header("이동")]
         [Tooltip("Speed 값 변화 완화 시간(초)")]
@@ -181,6 +186,17 @@ namespace BrokenSovereign.Player
             _animator.SetFloat(ATTACK_SPEED_ID, GetAttackPlaybackSpeed(interval));
             _animator.ResetTrigger(ATTACK_ID);
             _animator.SetTrigger(ATTACK_ID);
+        }
+
+        /// <summary>IAttackImpactTiming: 공격 시작부터 무기가 닿는 순간까지 (재생 배율 반영)</summary>
+        public float GetImpactDelay(float interval)
+        {
+            if (_attackClipLength <= 0f)
+            {
+                return 0f;
+            }
+
+            return _attackClipLength * _attackImpactRatio / GetAttackPlaybackSpeed(interval);
         }
 
         /// <summary>
