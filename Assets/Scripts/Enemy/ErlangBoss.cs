@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using BrokenSovereign.Combat;
+using BrokenSovereign.Sound;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -341,6 +342,7 @@ namespace BrokenSovereign.Enemy
                     yield break;
                 }
 
+                SoundPlayer.PlayAt(SoundId.BOSS_SLASH, transform.position);
                 Transform target = _controller.Target;
 
                 if (target != null && AttackArea.IsInCone(transform.position, forward, _slashRange, _slashAngle, target.position))
@@ -369,6 +371,7 @@ namespace BrokenSovereign.Enemy
                 yield break;
             }
 
+            SoundPlayer.PlayAt(SoundId.BOSS_BEAM, origin);
             ShowStreak(origin + Vector3.up * _eyeHeight + forward * 0.4f, origin + forward * _beamLength + Vector3.up * 0.3f,
                 _beamWidth * 0.5f, _beamWidth * 0.8f, _beamColor, 0.35f);
             Transform target = _controller.Target;
@@ -437,6 +440,7 @@ namespace BrokenSovereign.Enemy
                 agent.Warp(landing);
             }
 
+            SoundPlayer.PlayAt(SoundId.BOSS_LEAP, landing);
             AttackAreaDebugDrawer.ShowCircle(landing, _leapRadius, landing.y, new Color(1f, 0.8f, 0.35f, 0.55f), 0.35f);
             target = _controller.Target;
 
@@ -473,6 +477,7 @@ namespace BrokenSovereign.Enemy
                 yield break;
             }
 
+            SoundPlayer.PlayAt(SoundId.BOSS_HOUND, origin);
             bool hitOnce = false;
 
             for (float t = 0f; t < 1f; t += Time.deltaTime / _houndRunTime)
