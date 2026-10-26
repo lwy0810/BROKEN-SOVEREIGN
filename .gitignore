@@ -123,3 +123,23 @@ __pycache__/
 # Asset Store 패키지 원본 (라이선스상 재배포 금지·대용량). 각 PC에서 Package Manager > My Assets로 임포트
 /[Aa]ssets/Bad_Raccoon/
 /[Aa]ssets/Bad_Raccoon.meta
+
+# VARCO Sound 에디터 플러그인 (각 PC에서 unitypackage로 설치, 소리 파일은 Assets/Resources/Audio에 커밋) — 10/26
+/[Aa]ssets/VARCOSound/
+/[Aa]ssets/VARCOSound.meta
+
+# 사용하지 않는 지면 텍스처·부가 파일 (Poly Haven·TextureCan 원본 중 미사용분) — 10/26
+/[Aa]ssets/Terrain/Ground/brown_mud_leaves_01/
+/[Aa]ssets/Terrain/Ground/brown_mud_leaves_01.meta
+/[Aa]ssets/Terrain/Ground/forrest_ground_01/
+/[Aa]ssets/Terrain/Ground/forrest_ground_01.meta
+/[Aa]ssets/Terrain/Ground/ground_0041/T_Ground_bs_mask.png*
+/[Aa]ssets/Terrain/Ground/ground_0041/ground_0041_description.txt*
+/[Aa]ssets/Terrain/Ground/ground_0041/ground_0041_keywords.txt*
+/[Aa]ssets/Terrain/Ground/ground_0041/ground_0041_normal_directx_2k.png*
+/[Aa]ssets/Terrain/Ground/ground_0041/ground_0041_preview.jpg*
+/[Aa]ssets/Terrain/Ground/rocky_trail/rocky_trail_rough_2k.exr*
+/[Aa]ssets/Terrain/Layers/TL_G_Mud.terrainlayer*
+
+# 장비창 대기 애니메이션 원본 (실사용: Assets/Resources/Animations/PaladinPreviewIdle.fbx) — 10/26
+/[Aa]ssets/Animations/Idle.fbx*
