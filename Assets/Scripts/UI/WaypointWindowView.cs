@@ -6,7 +6,8 @@ using UnityEngine.UI;
 namespace BrokenSovereign.UI
 {
     /// <summary>
-    /// 웨이포인트 UI: 웨이포인트 위 [F] 안내, 목록 창(발견한 곳만 이동 가능, 현재 위치 표시), 새 웨이포인트 발견 알림.
+    /// 웨이포인트 UI: 웨이포인트 위 [F] 안내, 목록(발견한 곳만 이동 가능, 현재 위치 표시), 새 웨이포인트 발견 알림.
+    /// 10/25: 지도가 있는 씬에서는 목록을 지도 창 왼쪽 위에 표시 (WorldMapView.ShowWaypoints).
     /// WaypointTraveler 이벤트를 받아 표시만 하고, 이동·닫기는 WaypointTraveler에 요청합니다. HudView가 생성합니다.
     /// </summary>
     public class WaypointWindowView : MonoBehaviour
@@ -38,9 +39,13 @@ namespace BrokenSovereign.UI
             public Waypoint Target;
         }
 
-        public void Initialize(WaypointTraveler traveler)
+        private WorldMapView _map;
+
+        /// <summary>map이 있으면 목록은 지도 창(전체 화면) 왼쪽 위에 표시 (10/25), 없으면 이 창의 가운데 목록</summary>
+        public void Initialize(WaypointTraveler traveler, WorldMapView map = null)
         {
             _traveler = traveler;
+            _map = map;
             _root = (RectTransform)transform;
             HudGraphics.Stretch(_root);
 
@@ -107,6 +112,12 @@ namespace BrokenSovereign.UI
 
         private void OnOpened(Waypoint current)
         {
+            if (_map != null && Map.LevelMap.Current != null)
+            {
+                _map.ShowWaypoints(_traveler, current);
+                return;
+            }
+
             Rebuild(current);
             _panel.gameObject.SetActive(true);
         }
@@ -114,6 +125,11 @@ namespace BrokenSovereign.UI
         private void OnClosed()
         {
             _panel.gameObject.SetActive(false);
+
+            if (_map != null)
+            {
+                _map.HideWaypoints();
+            }
         }
 
         private void OnDiscovered(Waypoint waypoint)
@@ -166,7 +182,7 @@ namespace BrokenSovereign.UI
                 bool discovered = waypoint.IsDiscovered;
                 row.Name = UiKit.Label("Name", row.Rect, 20, discovered ? UiTheme.P.Text : UiTheme.P.TextDisabled, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.Place(row.Name.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(260f, ROW_HEIGHT));
-                row.Name.text = discovered ? waypoint.DisplayName : "???";
+                row.Name.text = waypoint.DisplayName;   // 미발견도 이름은 보여 줌 (흐리게, 이동 불가)
 
                 string state = waypoint == current ? "현재 위치" : discovered ? "이동" : "미발견";
                 Color stateColor = waypoint == current ? UiTheme.P.Title : discovered ? UiTheme.P.Accent : UiTheme.P.TextDisabled;

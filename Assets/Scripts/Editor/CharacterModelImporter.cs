@@ -16,6 +16,7 @@ namespace BrokenSovereign.Editor
     {
         public const string MODELS_ROOT = "Assets/Models/";
         public const string ANIMATIONS_ROOT = "Assets/Animations/";
+        public const string RESOURCES_ANIMATIONS_ROOT = "Assets/Resources/Animations/";   // 10/25: 런타임에 불러오는 동작 (장비 창 대기 동작)
 
         public const string PROP_PREFIX = "Prop";
         public const string WEAPON_PREFIX = "Weapon";
@@ -40,7 +41,7 @@ namespace BrokenSovereign.Editor
             {
                 ApplyModelSettings(importer);
             }
-            else if (assetPath.StartsWith(ANIMATIONS_ROOT))
+            else if (IsAnimationPath(assetPath))
             {
                 ApplyAnimationSettings(importer);
             }
@@ -48,7 +49,7 @@ namespace BrokenSovereign.Editor
 
         private void OnPreprocessAnimation()
         {
-            if (!assetImporter.importSettingsMissing || !IsFbx(assetPath) || !assetPath.StartsWith(ANIMATIONS_ROOT))
+            if (!assetImporter.importSettingsMissing || !IsFbx(assetPath) || !IsAnimationPath(assetPath))
             {
                 return;
             }
@@ -143,6 +144,11 @@ namespace BrokenSovereign.Editor
             }
 
             importer.clipAnimations = clips;
+        }
+
+        public static bool IsAnimationPath(string path)
+        {
+            return path.StartsWith(ANIMATIONS_ROOT) || path.StartsWith(RESOURCES_ANIMATIONS_ROOT);
         }
 
         public static bool IsLoopName(string fileName)

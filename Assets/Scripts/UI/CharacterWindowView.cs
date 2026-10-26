@@ -150,7 +150,7 @@ namespace BrokenSovereign.UI
             _relicPage = Page("RelicPage");
             BuildGrowth();
             BuildHero();
-            BuildStats();
+            // BuildStats();   // 10/25: 능력치 영역 제거 (대체 예정)
             BuildRelicPage();
 
             _message = UiKit.Label("Message", _panel, 15, UiTheme.P.Title, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -343,6 +343,7 @@ namespace BrokenSovereign.UI
         }
 
         // ── [정보] 오른쪽: 능력치 ───────────────────────────
+        // 10/25: 능력치 영역 제거 (다른 내용으로 대체 예정). 코드는 대체 내용이 정해질 때까지 남겨 둠 (호출 안 함)
         private void BuildStats()
         {
             UiPalette p = UiTheme.P;
@@ -351,6 +352,7 @@ namespace BrokenSovereign.UI
             Header(box, "능력치", 16f, 10f, RIGHT_W - 32f);
 
             RectTransform core = Box("Core", box, new Vector2(10f, 46f), new Vector2(RIGHT_W - 20f, 132f), UiTheme.WithAlpha(p.Accent, 0.8f), 0.6f);
+            core.Find("Frame")?.gameObject.SetActive(false);   // 10/25: 핵심 영역 테두리 제거
             Label(core, "핵심", 11, p.Accent, new Vector2(10f, 6f), new Vector2(80f, 16f), TextAnchor.MiddleLeft, true);
             StatType[] coreStats = { StatType.AttackPower, StatType.Armor, StatType.MaxHealth, StatType.CritChance };
 
@@ -472,7 +474,7 @@ namespace BrokenSovereign.UI
             {
                 _panel.gameObject.SetActive(true);
                 GameplayInput.IsBlocked = true;
-                _stats.ResetScroll();
+                _stats?.ResetScroll();
                 SetTab(false);
             }
         }
@@ -538,7 +540,7 @@ namespace BrokenSovereign.UI
             }
             else
             {
-                _stats.Tick();
+                _stats?.Tick();
                 RefreshInfo();
             }
         }

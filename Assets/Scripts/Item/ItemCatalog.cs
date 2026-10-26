@@ -30,6 +30,8 @@ namespace BrokenSovereign.Item
             }
         }
 
+        public const string ELIXIR_ID = "elixir_heaven";
+
         public static ItemDefinition Get(string id)
         {
             Ensure();
@@ -135,6 +137,9 @@ namespace BrokenSovereign.Item
             // 소모품·재료
             Add(new ItemDefinition(POTION_ID, "치유 물약", ItemKind.Consumable, EquipSlot.Weapon, ItemRarity.Common,
                 ItemIcon.Potion, new Color(0.85f, 0.25f, 0.2f), 20, "우클릭: 물약 칸 1 충전"));
+            // 중요 소모품 (10/25): 사용 전 확인 창
+            Add(new ItemDefinition(ELIXIR_ID, "천계 영약", ItemKind.Consumable, EquipSlot.Weapon, ItemRarity.Epic,
+                ItemIcon.Potion, new Color(1f, 0.82f, 0.35f), 5, "우클릭: 체력을 모두 회복 (중요 아이템, 사용 전 확인)").MarkImportant());
             Add(new ItemDefinition("mat_shard", "천계 파편", ItemKind.Material, EquipSlot.Weapon, ItemRarity.Common,
                 ItemIcon.Gem, new Color(0.75f, 0.77f, 0.82f), 99, "천계 적이 남긴 빛바랜 조각"));
             Add(new ItemDefinition("mat_crystal", "빛나는 결정", ItemKind.Material, EquipSlot.Weapon, ItemRarity.Rare,

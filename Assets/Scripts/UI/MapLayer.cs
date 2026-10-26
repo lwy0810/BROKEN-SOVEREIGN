@@ -18,6 +18,8 @@ namespace BrokenSovereign.UI
         private readonly RectTransform _icons;
         private readonly RectTransform _player;
         private readonly RectTransform _pin;
+        private readonly RectTransform _focus;      // 역이등변삼각형 표식 (10/25, 웨이포인트 선택)
+        private Vector2? _focusWorld;
         private static Shader _styleShader;
         private readonly float _iconSize;
         private readonly Dictionary<MapMarker, RectTransform> _iconByMarker = new Dictionary<MapMarker, RectTransform>();
@@ -48,6 +50,21 @@ namespace BrokenSovereign.UI
             _pin.pivot = new Vector2(0.5f, 0.05f);
 
             _player = MapIcons.CreatePlayer(_content, iconSize * 0.95f);
+
+            // 선택 표식: 아이콘 바로 위에 역이등변삼각형 (아래 꼭짓점이 아이콘 위를 가리킴)
+            Image focus = HudGraphics.CreateRect("Focus", _content).gameObject.AddComponent<Image>();
+            focus.sprite = UiSprites.MarkerDown;
+            focus.raycastTarget = false;
+            _focus = focus.rectTransform;
+            _focus.sizeDelta = new Vector2(iconSize * 0.9f, iconSize * 0.8f);
+            _focus.pivot = new Vector2(0.5f, -0.55f);   // 위치 = 아이콘 중심, 그림은 아이콘 위로 띄움
+            _focus.gameObject.SetActive(false);
+        }
+
+        /// <summary>선택 표식 위치 (월드 x, z). null이면 숨김</summary>
+        public void SetFocus(Vector2? world)
+        {
+            _focusWorld = world;
         }
 
         // 지도 스타일 셰이더 (Resources/UI/MapStyle). 없으면 원래 그림 그대로
@@ -106,6 +123,15 @@ namespace BrokenSovereign.UI
                 _pin.anchoredPosition = (MapPin.Position - viewCenter) * pixelsPerMeter;
                 _pin.localRotation = counter;
                 _pin.SetAsLastSibling();
+            }
+
+            _focus.gameObject.SetActive(_focusWorld.HasValue);
+
+            if (_focusWorld.HasValue)
+            {
+                _focus.anchoredPosition = (_focusWorld.Value - viewCenter) * pixelsPerMeter;
+                _focus.localRotation = counter;
+                _focus.localScale = Vector3.one * (1f + Mathf.Sin(Time.unscaledTime * 6f) * 0.08f);
             }
 
             if (player != null)

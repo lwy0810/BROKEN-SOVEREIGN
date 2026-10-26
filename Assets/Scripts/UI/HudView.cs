@@ -96,6 +96,7 @@ namespace BrokenSovereign.UI
         private SkillWindowView _skillWindow;
         private CharacterWindowView _characterWindow;
         private InventoryWindowView _inventoryWindow;
+        private ShopWindowView _shopWindow;
         private OutcomeScreenView _outcome;
         private Health _frameTarget;
         private float _noticeStartTime = float.NegativeInfinity;
@@ -628,18 +629,25 @@ namespace BrokenSovereign.UI
                 gameObject.AddComponent<CursorController>().Initialize(_cursorSettings);
             }
 
-            // 마을 NPC 안내·대화 창 (NpcInteractor가 있을 때만)
-            NpcInteractor interactor = _player.GetComponent<NpcInteractor>();
+            // 마을 NPC 안내·대화 창 (10/25: 플레이어에 NpcInteractor가 없으면 붙임 — 씬·프리팹에 없어서 클릭·F 모두 무반응이던 문제)
+            NpcInteractor interactor = EnsureComponent<NpcInteractor>(_player.gameObject);
 
-            if (interactor != null)
             {
                 _npcDialog = HudGraphics.CreateRect("NpcDialog", transform).gameObject.AddComponent<NpcDialogView>();
                 _npcDialog.Initialize(interactor);
+
+                // 상점 창 (10/25): 대화창 [거래]
+                _shopWindow = HudGraphics.CreateRect("ShopWindow", transform).gameObject.AddComponent<ShopWindowView>();
+                _shopWindow.Initialize(interactor, _player.gameObject, (RectTransform)transform);
             }
 
             // 웨이포인트 (씬에 웨이포인트가 있을 때만 안내·목록 창이 의미 있음, 없어도 무해)
             WaypointTraveler traveler = EnsureComponent<WaypointTraveler>(_player.gameObject);
-            HudGraphics.CreateRect("WaypointWindow", transform).gameObject.AddComponent<WaypointWindowView>().Initialize(traveler);
+            HudGraphics.CreateRect("WaypointWindow", transform).gameObject.AddComponent<WaypointWindowView>().Initialize(traveler, _worldMap);
+
+            // 마을 귀환 포탈 (T, 10/25)
+            TownPortalCaster portal = EnsureComponent<TownPortalCaster>(_player.gameObject);
+            HudGraphics.CreateRect("TownPortal", transform).gameObject.AddComponent<TownPortalView>().Initialize(portal);
 
             // 기술 창(K)·캐릭터 창(C)
             if (_caster != null)
@@ -661,6 +669,7 @@ namespace BrokenSovereign.UI
             // 인벤토리 창(I)·획득 알림
             _inventoryWindow = HudGraphics.CreateRect("InventoryWindow", transform).gameObject.AddComponent<InventoryWindowView>();
             _inventoryWindow.Initialize(_player.gameObject, (RectTransform)transform);
+            _shopWindow?.SetInventoryWindow(_inventoryWindow);   // 거래 중 오른쪽에 인벤토리 (10/25)
             HudGraphics.CreateRect("LootFeed", transform).gameObject.AddComponent<LootFeedView>().Initialize(inventory);
 
             // 직업 선택 화면: 가장 위에 그리도록 마지막에 생성

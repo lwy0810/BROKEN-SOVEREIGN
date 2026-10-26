@@ -10,21 +10,23 @@ using Random = System.Random;
 namespace BrokenSovereign.Editor
 {
     /// <summary>
-    /// 마을 (2026-10-19 변경, 참고: 디아블로4 마을 지도). 성벽으로 둘러싼 124m 정사각형 마을.
-    /// 가운데 원형 광장(웨이포인트·석주) → 광장 둘레길 → 동서남북 큰길(성문 4개) → 안쪽 네모 길(±36) → 성벽 안쪽 길(±54),
+    /// 마을 (2026-10-19 변경, 참고: 디아블로4 마을 지도). 성벽으로 둘러싼 88m 정사각형 마을 (10/25: 124m → 88m 축소, 집을 길을 따라 붙여 배치).
+    /// 가운데 원형 광장(웨이포인트·석주) → 광장 둘레길 → 동서남북 큰길(성문 4개) → 안쪽 네모 길(±30),
     /// 북동·남서 대각선 길. 길 사이 구역은 집으로 채우고, 상점 3곳은 광장 둘레길을 바라봅니다.
     /// 길은 돌바닥, 구역은 다진 흙. 지도 그림에는 건물 자리를 어둡게 그립니다 (Footprints).
     /// </summary>
     public static partial class LevelTools
     {
-        public const float TOWN_HALF = 62f;          // 성벽 위치 (마을 중심 기준 ±)
+        // 성벽 위치 (마을 중심 기준 ±). 10/25: 62 → 44 (자동 배치). 배치도(TownLayout.json)를 쓰면 그 wallHalf (Figma 배치도 = 40)
+        private const float TOWN_HALF_AUTO = 44f;
+        public static float TOWN_HALF => TownLayout() is TownLayoutData layout && layout.wallHalf > 0f ? layout.wallHalf : TOWN_HALF_AUTO;
         private const float PLAZA_RADIUS = 14f;
         private const float MAIN_STREET = 9f;
         private const float SIDE_STREET = 6f;
         private const float GATE_HALF = 8f;          // 성문 열린 폭의 절반
         private const float WALL_SEGMENT = 6f;
-        private const float HOUSE_CELL = 9.5f;
-        private const float SHOP_DISTANCE = 28f;
+        private const float INNER_SQUARE = 30f;      // 안쪽 네모 길 (마을 중심 기준 ±)
+        private const float SHOP_DISTANCE = 23.5f;   // 광장 둘레길(17±3)과 안쪽 네모 길(30±3) 사이 띠
 
         // 상점 방향(도, 0 = 북쪽 +z): 잡화상·대장간·치유소. 큰길·대각선 길을 피한 구역
         private static readonly float[] SHOP_ANGLES = { 300f, 135f, 330f };
@@ -57,6 +59,24 @@ namespace BrokenSovereign.Editor
             public Vector2 A;
             public Vector2 B;
             public float HalfWidth;
+            public bool Box;   // 10/25 배치도 길: 끝이 둥근 막대 대신 회전된 사각형 (A~B 길이 × 폭)
+
+            /// <summary>길 가장자리까지 거리 (안쪽 음수)</summary>
+            public float Distance(Vector2 p)
+            {
+                if (!Box)
+                {
+                    return SegmentDistance(p, A, B) - HalfWidth;
+                }
+
+                Vector2 ab = B - A;
+                float length = ab.magnitude;
+                Vector2 axis = length > 0.0001f ? ab / length : Vector2.right;
+                Vector2 d = p - (A + B) * 0.5f;
+                Vector2 q = new Vector2(Mathf.Abs(Vector2.Dot(d, axis)) - length * 0.5f, Mathf.Abs(Vector2.Dot(d, new Vector2(-axis.y, axis.x))) - HalfWidth);
+                float outside = new Vector2(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f)).magnitude;
+                return outside > 0f ? outside : Mathf.Max(q.x, q.y);
+            }
         }
 
         private static List<Street> s_streets;
@@ -64,8 +84,16 @@ namespace BrokenSovereign.Editor
         /// <summary>마을 길 (마을 중심 기준 좌표)</summary>
         private static List<Street> TownStreets()
         {
+            TownLayoutData layout = TownLayout();   // 배치도가 바뀌었으면 s_streets 초기화
+
             if (s_streets != null)
             {
+                return s_streets;
+            }
+
+            if (layout != null)
+            {
+                s_streets = LayoutStreets(layout);   // 10/25: Figma 배치도의 길
                 return s_streets;
             }
 
@@ -95,7 +123,8 @@ namespace BrokenSovereign.Editor
             }
 
             // 안쪽 네모 길, 성벽 안쪽 길
-            foreach (float s in new[] { 36f, 54f })
+            // 10/25 축소: 안쪽 네모 길 하나(±30). 성벽 안쪽 길 제거 (성벽까지 11m 띠에 집을 붙여 배치)
+            foreach (float s in new[] { INNER_SQUARE })
             {
                 Add(-s, s, s, s, SIDE_STREET);
                 Add(s, s, s, -s, SIDE_STREET);
@@ -104,8 +133,8 @@ namespace BrokenSovereign.Editor
             }
 
             // 북동·남서 대각선 길
-            Add(12f, 12f, 36f, 36f, SIDE_STREET);
-            Add(-12f, -12f, -36f, -36f, SIDE_STREET);
+            Add(12f, 12f, INNER_SQUARE, INNER_SQUARE, SIDE_STREET);
+            Add(-12f, -12f, -INNER_SQUARE, -INNER_SQUARE, SIDE_STREET);
 
             s_streets = streets;
             return streets;
@@ -114,11 +143,24 @@ namespace BrokenSovereign.Editor
         /// <summary>마을 길·광장까지 거리 (안쪽 음수). local = 마을 중심 기준</summary>
         private static float TownStreetDistance(Vector2 local)
         {
-            float d = local.magnitude - PLAZA_RADIUS;
+            TownLayoutData layout = TownLayout();
+            float d = float.MaxValue;
+
+            if (layout != null)
+            {
+                foreach (LayoutPlaza plaza in layout.plazas)
+                {
+                    d = Mathf.Min(d, Vector2.Distance(local, plaza.center) - plaza.radius);
+                }
+            }
+            else
+            {
+                d = local.magnitude - PLAZA_RADIUS;
+            }
 
             foreach (Street street in TownStreets())
             {
-                d = Mathf.Min(d, SegmentDistance(local, street.A, street.B) - street.HalfWidth);
+                d = Mathf.Min(d, street.Distance(local));
             }
 
             return d;
@@ -149,8 +191,17 @@ namespace BrokenSovereign.Editor
             var root = new GameObject("Town").transform;
             root.SetParent(parent, false);
 
-            PlaceTownShops(town, ground, root);
             PlaceTownWalls(town, ground, root);
+            TownLayoutData layout = TownLayout();
+
+            if (layout != null)
+            {
+                // 10/25: Figma 배치도대로 (상점·랜드마크·집 모두, 광장 장식 포함)
+                PlaceLayoutBuildings(layout, town, ground, root);
+                return;
+            }
+
+            PlaceTownShops(town, ground, root);
             PlaceTownLandmarks(town, ground, root);   // 종루·기원소·우물·객잔·저택 대문 (10/22, VARCO)
             PlaceTownHouses(spec, town, ground, root);
 
@@ -188,11 +239,12 @@ namespace BrokenSovereign.Editor
             foreach (Vector2 dir in directions)
             {
                 var along = new Vector2(dir.y, -dir.x);
-                int count = Mathf.RoundToInt(TOWN_HALF * 2f / WALL_SEGMENT);
+                int count = Mathf.CeilToInt(TOWN_HALF * 2f / WALL_SEGMENT);   // 10/25: 올림 + 간격 맞춤 (모서리 틈 방지)
+                float spacing = TOWN_HALF * 2f / count;
 
                 for (int i = 0; i < count; i++)
                 {
-                    float t = -TOWN_HALF + (i + 0.5f) * WALL_SEGMENT;
+                    float t = -TOWN_HALF + (i + 0.5f) * spacing;
 
                     if (Mathf.Abs(t) < GATE_HALF)
                     {
@@ -230,15 +282,16 @@ namespace BrokenSovereign.Editor
         /// <summary>(프리팹, 마을 중심 기준 위치, 바닥 반 크기, 바라볼 방향: null = 가장 가까운 길)</summary>
         private static readonly (string prefab, Vector2 local, Vector2 half, float? yaw)[] TOWN_LANDMARKS =
         {
-            ("TownBellTower", new Vector2(-9.6f, -26.3f), new Vector2(3.4f, 3.4f), null),   // 광장 남쪽 (200°)
-            ("PropShrine", new Vector2(9.6f, 26.3f), new Vector2(2.5f, 2.3f), null),       // 광장 북쪽 (20°)
-            ("PropWell", new Vector2(21.8f, 10.1f), new Vector2(1.3f, 1.3f), 0f),          // 광장 둘레 우물 3곳
-            ("PropWell", new Vector2(-22.6f, -8.2f), new Vector2(1.3f, 1.3f), 0f),
-            ("PropWell", new Vector2(8.2f, -22.6f), new Vector2(1.3f, 1.3f), 0f),
-            ("TownInn", new Vector2(45f, 11f), new Vector2(5f, 5f), 180f),                 // 동쪽 큰길가
-            ("TownInn", new Vector2(-45f, -11f), new Vector2(5f, 5f), 0f),                 // 서쪽 큰길가
-            ("TownManorGate", new Vector2(45f, 45f), new Vector2(5f, 3.4f), 225f),         // 대각선 길 끝
-            ("TownManorGate", new Vector2(-45f, -45f), new Vector2(5f, 3.4f), 45f),
+            // 10/25 축소 배치: 광장 둘레 띠(반지름 20~27)·바깥 띠(33~43)
+            ("TownBellTower", new Vector2(-8.5f, -23.5f), new Vector2(3.4f, 3.4f), null),   // 광장 남쪽 (200°)
+            ("PropShrine", new Vector2(8.0f, 22.1f), new Vector2(2.5f, 2.3f), null),       // 광장 북쪽 (20°)
+            ("PropWell", new Vector2(21.3f, 9.9f), new Vector2(1.3f, 1.3f), 0f),           // 광장 둘레 우물 3곳
+            ("PropWell", new Vector2(-22.1f, -8.0f), new Vector2(1.3f, 1.3f), 0f),
+            ("PropWell", new Vector2(8.0f, -22.1f), new Vector2(1.3f, 1.3f), 0f),
+            ("TownInn", new Vector2(38.4f, 10.5f), new Vector2(5f, 5f), 180f),             // 동쪽 큰길가
+            ("TownInn", new Vector2(-38.4f, -10.5f), new Vector2(5f, 5f), 270f),           // 서쪽 큰길가 (10/25: Y -90° 회전 요청, TownInn_7)
+            ("TownManorGate", new Vector2(11f, 38.4f), new Vector2(5f, 3.4f), 270f),       // 북쪽 큰길가 (서쪽 = 큰길을 바라봄)
+            ("TownManorGate", new Vector2(-11f, -38.4f), new Vector2(5f, 3.4f), 90f),      // 남쪽 큰길가
         };
 
         private static GameObject TownPrefab(string name)
@@ -283,43 +336,163 @@ namespace BrokenSovereign.Editor
             var group = new GameObject("Houses").transform;
             group.SetParent(root, false);
             var rng = new Random(spec.Seed + 21);
-            float limit = TOWN_HALF - 5f;
+            float limit = TOWN_HALF - 2f;
             int placed = 0;
 
-            for (float z = -limit; z <= limit; z += HOUSE_CELL)
+            // 10/25: 9.5m 고정 격자는 길과 거의 다 겹쳐 집이 2채밖에 안 들어감 → 2.5m 촘촘한 후보를 무작위 순서로 보며
+            // 회전한 바닥 사각형(모서리 4개 + 중심)이 길·광장·성벽·다른 건물과 겹치지 않으면 배치 (먼저 놓인 것 우선)
+            var candidates = new List<Vector2>();
+
+            for (float z = -limit; z <= limit; z += 1f)
             {
-                for (float x = -limit; x <= limit; x += HOUSE_CELL)
+                for (float x = -limit; x <= limit; x += 1f)
                 {
-                    var local = new Vector2(x + ((float)rng.NextDouble() - 0.5f) * 1.5f, z + ((float)rng.NextDouble() - 0.5f) * 1.5f);
-                    double roll = rng.NextDouble();
-                    var kind = houses[roll < 0.6 ? 0 : 1];
-                    bool outer = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > 40f;
-
-                    if (granary != null && outer && roll > 0.88)
-                    {
-                        kind = (granary, new Vector2(3.4f, 4f));
-                    }
-
-                    float clearance = kind.half.magnitude + 0.8f;
-
-                    if (TownStreetDistance(local) < clearance || local.magnitude < PLAZA_RADIUS + 10f)
-                    {
-                        continue;
-                    }
-
-                    Vector2 world = town.Center + local;
-
-                    // 다른 건물 바닥 사각형과 간격 (객잔·대문 같은 큰 건물도 겹치지 않게, 10/22)
-                    if (s_footprints.Exists(f => f.Distance(world) < Mathf.Max(kind.half.x, kind.half.y) + 0.5f))
-                    {
-                        continue;
-                    }
-
-                    float yaw = NearestStreetYaw(local);
-                    Place(kind.prefab, group, ground.At(world), Quaternion.Euler(0f, yaw, 0f), $"House_{++placed}");
-                    s_footprints.Add(new Footprint { Center = world, Half = kind.half, Yaw = yaw });
+                    candidates.Add(new Vector2(x, z));
                 }
             }
+
+            // 길에 가까운 자리부터 채움 → 길을 따라 집이 줄지어 붙음 (약간의 무작위로 줄이 너무 반듯하지 않게)
+            var order = new Dictionary<Vector2, float>();
+
+            foreach (Vector2 c in candidates)
+            {
+                order[c] = TownStreetDistance(c) + (float)rng.NextDouble() * 1.5f;
+            }
+
+            candidates.Sort((a, b) => order[a].CompareTo(order[b]));
+
+            foreach (Vector2 local in candidates)
+            {
+                if (local.magnitude < PLAZA_RADIUS + 6f)
+                {
+                    continue;
+                }
+
+                double roll = rng.NextDouble();
+                var kind = houses[roll < 0.6 ? 0 : 1];
+                bool outer = Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.y)) > 40f;
+
+                if (granary != null && outer && roll > 0.88)
+                {
+                    kind = (granary, new Vector2(3.4f, 4f));
+                }
+
+                float yaw = NearestStreetYaw(local);
+                var footprint = new Footprint { Center = town.Center + local, Half = kind.half, Yaw = yaw };
+
+                if (!FitsTownLot(footprint, town.Center))
+                {
+                    continue;
+                }
+
+                Place(kind.prefab, group, ground.At(footprint.Center), Quaternion.Euler(0f, yaw, 0f), $"House_{++placed}");
+                AddLotBlocker(group, ground, footprint, placed);
+                s_footprints.Add(footprint);
+            }
+
+            // 손으로 더한 집 (10/25 요청): 자동 배치 뒤 빈자리. 다른 건물과 겹치면 건너뜀
+            foreach (var extra in TOWN_EXTRA_HOUSES)
+            {
+                GameObject prefab = extra.tile ? houses[0].prefab : houses[1].prefab;
+                Vector2 half = extra.tile ? houses[0].half : houses[1].half;
+                var footprint = new Footprint { Center = town.Center + extra.local, Half = half, Yaw = extra.yaw };
+
+                if (!FitsTownLot(footprint, town.Center))
+                {
+                    Debug.LogWarning($"LevelTools: 추가 집 자리가 막힘 ({extra.local}), 건너뜀");
+                    continue;
+                }
+
+                Place(prefab, group, ground.At(footprint.Center), Quaternion.Euler(0f, extra.yaw, 0f), $"House_Extra_{++placed}");
+                AddLotBlocker(group, ground, footprint, placed);
+                s_footprints.Add(footprint);
+            }
+        }
+
+        // 자동 배치 후 추가하는 집 (마을 중심 기준, tile = 기와집 / 아니면 초가집)
+        private static readonly (Vector2 local, float yaw, bool tile)[] TOWN_EXTRA_HOUSES =
+        {
+            (new Vector2(-36f, 23.5f), 90f, false),   // 10/25: House_2(-36, 30)와 House_3(-36, 17) 사이 빈자리, 같은 방향 초가집
+        };
+
+        // 집 자리 전체를 덮는 상자 콜라이더 (렌더러 없음). NavMesh 굽기(물리 콜라이더)에서 빠져 플레이어가 집 사이로 못 들어감
+        private static void AddLotBlocker(Transform parent, Ground ground, Footprint footprint, int index)
+        {
+            var blocker = new GameObject($"LotBlocker_{index}");
+            blocker.layer = 2;   // Ignore Raycast: 클릭 이동 레이캐스트는 통과, NavMesh 굽기에는 포함
+            blocker.transform.SetParent(parent, false);
+            blocker.transform.SetPositionAndRotation(ground.At(footprint.Center), Quaternion.Euler(0f, footprint.Yaw, 0f));
+            BoxCollider box = blocker.AddComponent<BoxCollider>();
+            box.size = new Vector3(footprint.Half.x * 2f + LOT_BLOCKER_MARGIN * 2f, 4f, footprint.Half.y * 2f + LOT_BLOCKER_MARGIN * 2f);
+            box.center = new Vector3(0f, 2f, 0f);
+            GameObjectUtility.SetStaticEditorFlags(blocker, StaticEditorFlags.BatchingStatic);
+        }
+
+        private const float LOT_STREET_GAP = 0.4f;    // 집 모서리와 길 가장자리 사이
+        private const float LOT_HOUSE_GAP = 0.05f;    // 집과 집 사이 (10/25: 진짜 마을처럼 붙임)
+        private const float LOT_BLOCKER_MARGIN = 0.5f; // 집 둘레 보이지 않는 벽 (집 사이 틈·뒤쪽으로 못 들어가게, NavMesh에서 빠짐)
+
+        /// <summary>바닥 사각형 모서리·중심이 길·광장 밖, 성벽 안, 다른 건물과 간격 유지</summary>
+        private static bool FitsTownLot(Footprint footprint, Vector2 townCenter)
+        {
+            Vector2[] points = FootprintPoints(footprint);
+
+            foreach (Vector2 p in points)
+            {
+                Vector2 local = p - townCenter;
+
+                if (TownStreetDistance(local) < LOT_STREET_GAP
+                    || Mathf.Max(Mathf.Abs(local.x), Mathf.Abs(local.y)) > TOWN_HALF - 2f)
+                {
+                    return false;
+                }
+            }
+
+            foreach (Footprint other in s_footprints)
+            {
+                if (Vector2.Distance(other.Center, footprint.Center) > other.Half.magnitude + footprint.Half.magnitude + LOT_HOUSE_GAP)
+                {
+                    continue;
+                }
+
+                foreach (Vector2 p in points)
+                {
+                    if (other.Distance(p) < LOT_HOUSE_GAP)
+                    {
+                        return false;
+                    }
+                }
+
+                foreach (Vector2 p in FootprintPoints(other))
+                {
+                    if (footprint.Distance(p) < LOT_HOUSE_GAP)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        // 모서리 4개 + 변 가운데 4개 + 중심 (회전 반영). Yaw = 유니티 y 회전 (도), 건물 기준 (오른쪽 x, 앞 z)
+        private static Vector2[] FootprintPoints(Footprint f)
+        {
+            float r = f.Yaw * Mathf.Deg2Rad;
+            var right = new Vector2(Mathf.Cos(r), -Mathf.Sin(r));
+            var forward = new Vector2(Mathf.Sin(r), Mathf.Cos(r));
+            var points = new Vector2[9];
+            int i = 0;
+
+            for (int sx = -1; sx <= 1; sx++)
+            {
+                for (int sz = -1; sz <= 1; sz++)
+                {
+                    points[i++] = f.Center + right * (f.Half.x * sx) + forward * (f.Half.y * sz);
+                }
+            }
+
+            return points;
         }
 
         // 가장 가까운 길 쪽을 바라보는 방향 (90° 단위로 맞춤)

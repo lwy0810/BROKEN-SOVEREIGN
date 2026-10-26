@@ -77,7 +77,9 @@ namespace BrokenSovereign.Editor
 
                 for (int i = 0; _macro != null && i < spec.Rooms.Length; i++)
                 {
-                    _roomFloor[i] = _macro.FloorAt(spec.Rooms[i].Center.x, spec.Rooms[i].Center.y);
+                    Room room = spec.Rooms[i];
+                    float baseFloor = room.FloorFrom >= 0 && room.FloorFrom < i ? _roomFloor[room.FloorFrom] : _macro.FloorAt(room.Center.x, room.Center.y);
+                    _roomFloor[i] = baseFloor + room.Lift;   // 10/25: 보스방 경사·계단용 높이
                 }
             }
 
@@ -110,7 +112,7 @@ namespace BrokenSovereign.Editor
                 for (int i = 0; i < _spec.Rooms.Length; i++)
                 {
                     Room room = _spec.Rooms[i];
-                    float d = Vector2.Distance(p, room.Center) - room.Radius;
+                    float d = room.Distance(p);
                     s.Walk = Mathf.Max(s.Walk, 1f - SmoothStep(-1f, 1f, d));
                     s.Nearest = Mathf.Min(s.Nearest, d);
 
@@ -126,6 +128,18 @@ namespace BrokenSovereign.Editor
                 foreach (Link link in _spec.Links)
                 {
                     float d = SegmentDistance(p, _spec.Rooms[link.From].Center, _spec.Rooms[link.To].Center) - link.Width * 0.5f;
+
+                    // 경사길·계단: 양 끝 방 바닥 높이를 길 따라 곧게 이음 (방과 같은 가중 평균, 길 위가 가장 강함)
+                    if (link.Slope != LinkSlope.None && _macro != null && d < MACRO_ROOM_BLEND)
+                    {
+                        Vector2 a = _spec.Rooms[link.From].Center;
+                        Vector2 b = _spec.Rooms[link.To].Center;
+                        float t = Mathf.Clamp01(Vector2.Dot(p - a, b - a) / (b - a).sqrMagnitude);
+                        float w = 1f - SmoothStep(0f, MACRO_ROOM_BLEND, Mathf.Max(0f, d));
+                        w = w * w * 1000f * 4f;
+                        roomSum += w * Mathf.Lerp(_roomFloor[link.From], _roomFloor[link.To], t);
+                        roomWeight += w;
+                    }
 
                     if (link.IsBridge)
                     {
@@ -408,7 +422,7 @@ namespace BrokenSovereign.Editor
                     continue;
                 }
 
-                float d = Vector2.Distance(p, room.Center) - room.Radius + edge;
+                float d = room.Distance(p) + edge;
 
                 if (room.StoneFloor)
                 {
@@ -1042,9 +1056,10 @@ namespace BrokenSovereign.Editor
         private static readonly Color MAP_INK = new Color(0.2f, 0.16f, 0.11f);
         private static readonly Color MAP_WATER = new Color(0.33f, 0.42f, 0.44f);
         private static readonly Color MAP_STREET = new Color(0.93f, 0.86f, 0.7f);
-        private static readonly Color MAP_YARD = new Color(0.62f, 0.52f, 0.38f);
         private static readonly Color MAP_BUILDING = new Color(0.34f, 0.27f, 0.2f);
         private static readonly Color MAP_WALL = new Color(0.17f, 0.13f, 0.1f);
+        private static readonly Color MAP_WALKABLE = new Color(0.95f, 0.88f, 0.72f);
+        private static readonly Color MAP_TOWN_BLOCKED = new Color(0.45f, 0.38f, 0.28f);   // 10/25 배치도: 마을 안 이동 불가 땅   // 10/25: 이동 가능 영역 밝은 베이지 (어두운 오버레이에서도 보이게)
 
         // 레이어별 밝기 (풀·돌바닥·흙길·바위·자갈·마른 풀·패키지 지형)
         private static readonly float[] MAP_TONE = { 0.5f, 0.95f, 0.85f, 0.32f, 0.72f, 0.58f, 0.55f };
@@ -1089,6 +1104,10 @@ namespace BrokenSovereign.Editor
                 {
                     c = Color.Lerp(c * 0.5f, MAP_INK, 0.25f);
                 }
+                else
+                {
+                    c = Color.Lerp(c, MAP_WALKABLE, 0.8f);
+                }
 
                 if (HasTown)
                 {
@@ -1099,7 +1118,7 @@ namespace BrokenSovereign.Editor
                 return c;
             }
 
-            // 마을: 길·광장(밝게), 구역(마당 색), 건물 자리(어둡게 + 테두리), 성벽
+            // 마을: 길·광장(밝게), 마당(이동 가능 색), 건물 자리(어둡게 + 테두리), 성벽
             private void TownColor(Vector2 world, ref Color c)
             {
                 Vector2 local = world - TownCenter;
@@ -1118,7 +1137,8 @@ namespace BrokenSovereign.Editor
                 }
                 else if (edge <= TOWN_HALF)
                 {
-                    c = Color.Lerp(c, MAP_YARD, 0.75f);
+                    // 10/25: 배치도가 있으면 길·광장 밖은 실제로 막혀 있으므로 이동 불가 색, 없으면(자동 배치) 마당은 이동 가능 색
+                    c = TownLayout() != null ? MAP_TOWN_BLOCKED : MAP_WALKABLE;
                 }
 
                 foreach (Footprint f in s_footprints)

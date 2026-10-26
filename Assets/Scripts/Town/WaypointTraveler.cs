@@ -8,20 +8,19 @@ using UnityEngine.InputSystem;
 namespace BrokenSovereign.Town
 {
     /// <summary>
-    /// 플레이어 쪽 웨이포인트 사용: 가까이 간 웨이포인트를 발견하고, 상호작용 거리 안에서 F 키로 목록 창을 엽니다.
-    /// 목록에서 고른 웨이포인트 앞으로 순간 이동(NavMeshAgent.Warp)하고 카메라를 바로 옮깁니다.
+    /// 플레이어 쪽 웨이포인트 사용: 가까이 간 웨이포인트를 발견하고, 석단 위(Waypoint.TriggerRadius)에 올라서면 목록 창(지도)을 엽니다.
+    /// (10/25: F 키 대신 트리거 진입. 순간 이동으로 도착했거나 창을 닫은 뒤에는 거리 밖으로 나갔다 와야 다시 열림)
+    /// 목록에서 고른 웨이포인트 정중앙으로 순간 이동(NavMeshAgent.Warp)하고 카메라를 바로 옮깁니다.
     /// 창이 열려 있는 동안 전투 입력을 막습니다 (GameplayInput). HudView가 플레이어에 붙입니다.
     /// </summary>
     public class WaypointTraveler : MonoBehaviour
     {
-        private const float NAVMESH_SAMPLE = 4f;
-
-        private InputAction _interact;
-        private Waypoint _focus;
         private Waypoint _current;
+        private Waypoint _inside;   // 지금 상호작용 거리 안에 있는 웨이포인트 (진입 순간에만 창을 엶)
+        private bool _started;
 
-        /// <summary>F 키로 열 수 있는 웨이포인트 (없으면 null)</summary>
-        public Waypoint Focus => _focus;
+        /// <summary>안내 문구용 (트리거 방식이라 항상 null)</summary>
+        public Waypoint Focus => null;
 
         /// <summary>목록 창을 연 웨이포인트 (닫혀 있으면 null)</summary>
         public Waypoint Current => _current;
@@ -32,25 +31,9 @@ namespace BrokenSovereign.Town
         public event Action Closed;
         public event Action<Waypoint> Traveled;
 
-        private void Awake()
-        {
-            _interact = new InputAction("WaypointInteract", InputActionType.Button, "<Keyboard>/f");
-        }
-
-        private void OnEnable()
-        {
-            _interact.Enable();
-        }
-
         private void OnDisable()
         {
             Close();
-            _interact.Disable();
-        }
-
-        private void OnDestroy()
-        {
-            _interact.Dispose();
         }
 
         private void Update()
@@ -61,7 +44,7 @@ namespace BrokenSovereign.Town
             {
                 Keyboard keyboard = Keyboard.current;
 
-                if (_interact.WasPressedThisFrame() || (keyboard != null && keyboard.escapeKey.wasPressedThisFrame))
+                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
                 {
                     Close();
                 }
@@ -69,17 +52,26 @@ namespace BrokenSovereign.Town
                 return;
             }
 
-            if (GameplayInput.IsBlocked)
+            Waypoint nearest = FindNearest(true);
+
+            // 시작할 때 이미 서 있던 웨이포인트는 열지 않음
+            if (!_started)
             {
-                _focus = null;
+                _started = true;
+                _inside = nearest;
                 return;
             }
 
-            _focus = FindNearest(true);
-
-            if (_focus != null && _interact.WasPressedThisFrame())
+            if (nearest != null && nearest != _inside && !GameplayInput.IsBlocked)
             {
-                Open(_focus);
+                _inside = nearest;
+                Open(nearest);
+                return;
+            }
+
+            if (nearest != _inside && !GameplayInput.IsBlocked)
+            {
+                _inside = nearest;
             }
         }
 
@@ -91,7 +83,7 @@ namespace BrokenSovereign.Town
             }
 
             _current = waypoint;
-            _focus = null;
+            _inside = waypoint;
 
             if (TryGetComponent(out PlayerController player))
             {
@@ -114,6 +106,21 @@ namespace BrokenSovereign.Town
             Closed?.Invoke();
         }
 
+        /// <summary>
+        /// 부활 도착 (10/26): 웨이포인트 정중앙으로 옮기되 목록 창은 열지 않음 (밖으로 나갔다 다시 들어오면 열림)
+        /// </summary>
+        public void ArriveAt(Waypoint target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            Close();
+            PlayerWarp.Warp(transform, target.transform.position, target.transform.forward);
+            _inside = target;
+        }
+
         /// <summary>발견한 웨이포인트로 이동. 성공하면 창을 닫음</summary>
         public bool TravelTo(Waypoint target)
         {
@@ -122,32 +129,10 @@ namespace BrokenSovereign.Town
                 return false;
             }
 
-            Vector3 destination = target.ArrivePosition;
-
-            if (NavMesh.SamplePosition(destination, out NavMeshHit hit, NAVMESH_SAMPLE, NavMesh.AllAreas))
-            {
-                destination = hit.position;
-            }
-
-            if (TryGetComponent(out NavMeshAgent agent) && agent.isOnNavMesh)
-            {
-                agent.ResetPath();
-                agent.Warp(destination);
-            }
-            else
-            {
-                transform.position = destination;
-            }
-
-            transform.rotation = Quaternion.LookRotation(target.transform.forward);
+            // 10/25: 웨이포인트 정중앙에 도착. 도착한 웨이포인트는 밖으로 나갔다 다시 들어오기 전까지 열리지 않음
+            PlayerWarp.Warp(transform, target.transform.position, target.transform.forward);
             Close();
-
-            Camera camera = Camera.main;
-
-            if (camera != null && camera.TryGetComponent(out QuarterViewCamera follow))
-            {
-                follow.Snap();
-            }
+            _inside = target;
 
             Traveled?.Invoke(target);
             return true;
@@ -185,7 +170,7 @@ namespace BrokenSovereign.Town
                 Vector3 offset = waypoint.transform.position - position;
                 offset.y = 0f;
                 float distance = offset.sqrMagnitude;
-                float radius = interactRange ? waypoint.InteractRadius : waypoint.DiscoverRadius;
+                float radius = interactRange ? waypoint.TriggerRadius : waypoint.DiscoverRadius;   // 10/25: 석단 위에 섰을 때
 
                 if (distance <= radius * radius && distance < best)
                 {

@@ -34,6 +34,16 @@ namespace BrokenSovereign.Town
         /// <summary>NPC 기능 실행 결과 대사</summary>
         public event Action<string> ServiceUsed;
 
+        /// <summary>상점 창 열기·닫기 (10/25)</summary>
+        public event Action<TownNpc, ShopType> ShopOpened;
+        public event Action ShopClosed;
+
+        /// <summary>상점 창이 열려 있음 (Esc·F는 상점 창이 처리)</summary>
+        public bool IsShopping { get; private set; }
+
+        private TownNpc _pending;           // 클릭한 NPC: 다가가면 대화 시작 (10/25)
+        private int _shopClosedFrame = -1;
+
         private void Awake()
         {
             if (_inputActions != null)
@@ -63,6 +73,11 @@ namespace BrokenSovereign.Town
         {
             if (_talking != null)
             {
+                if (IsShopping || Time.frameCount == _shopClosedFrame)
+                {
+                    return;   // 상점 창이 Esc를 먼저 씀
+                }
+
                 if (_interact.WasPressedThisFrame() || IsCancelPressed())
                 {
                     EndTalk();
@@ -83,7 +98,10 @@ namespace BrokenSovereign.Town
             if (_focus != null && _interact.WasPressedThisFrame())
             {
                 BeginTalk(_focus);
+                return;
             }
+
+            HandleClick();
         }
 
         public void BeginTalk(TownNpc npc)
@@ -108,6 +126,9 @@ namespace BrokenSovereign.Town
 
         public void EndTalk()
         {
+            CloseShop();
+            _pending = null;
+
             if (_talking == null)
             {
                 return;
@@ -128,6 +149,82 @@ namespace BrokenSovereign.Town
             }
 
             ServiceUsed?.Invoke(_talking.Service.Use(gameObject));
+        }
+
+        /// <summary>다음 대사 ("이야기를 듣는다")</summary>
+        public void Talk()
+        {
+            if (_talking != null)
+            {
+                ServiceUsed?.Invoke(_talking.NextLine());
+            }
+        }
+
+        public void OpenShop()
+        {
+            ShopType type = ShopCatalog.TypeOf(_talking);
+
+            if (_talking == null || type == ShopType.None || IsShopping)
+            {
+                return;
+            }
+
+            IsShopping = true;
+            ShopOpened?.Invoke(_talking, type);
+        }
+
+        public void CloseShop()
+        {
+            if (!IsShopping)
+            {
+                return;
+            }
+
+            IsShopping = false;
+            _shopClosedFrame = Time.frameCount;
+            ShopClosed?.Invoke();
+        }
+
+        // 10/25: NPC를 클릭하면 상호작용 거리까지 걸어가서 대화 시작. 다른 곳을 클릭하면 취소
+        private void HandleClick()
+        {
+            Mouse mouse = Mouse.current;
+            Camera camera = Camera.main;
+
+            if (mouse != null && camera != null && mouse.leftButton.wasPressedThisFrame && !GameplayInput.PointerOverHud)
+            {
+                _pending = null;
+                Ray ray = camera.ScreenPointToRay(mouse.position.ReadValue());
+
+                // NPC 레이어만 검사 (보이지 않는 건물 차단 상자 등이 가로막지 않게). 레이어가 없으면 기본 레이어
+                int mask = LayerMask.GetMask("NPC");
+
+                if (Physics.Raycast(ray, out RaycastHit hit, 300f, mask != 0 ? mask : Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
+                {
+                    TownNpc npc = hit.collider.GetComponentInParent<TownNpc>();
+
+                    if (npc != null && TryGetComponent(out PlayerController player))
+                    {
+                        _pending = npc;
+                        player.MoveTo(npc.transform.position);
+                    }
+                }
+            }
+
+            if (_pending == null)
+            {
+                return;
+            }
+
+            Vector3 offset = _pending.transform.position - transform.position;
+            offset.y = 0f;
+
+            if (offset.sqrMagnitude <= _pending.InteractRadius * _pending.InteractRadius)
+            {
+                TownNpc npc = _pending;
+                _pending = null;
+                BeginTalk(npc);
+            }
         }
 
         private TownNpc FindNearest()

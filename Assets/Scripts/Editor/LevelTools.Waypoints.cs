@@ -19,6 +19,8 @@ namespace BrokenSovereign.Editor
     {
         private const string WAYPOINT_ROOT = "Waypoints";
         private const string WAYPOINT_PREFAB = PROP_PREFABS + "/PropWaypoint.prefab";
+        /// <summary>시연용: 4곳 모두 처음부터 발견 (10/25, 발표 시연 동선 단축). false면 마을 광장만</summary>
+        private const bool WAYPOINTS_DISCOVERED_AT_START = true;
         private const string WAYPOINT_PLACEHOLDER_MATERIAL = "Assets/Materials/Field/M_WaypointPlaceholder.mat";
 
         /// <summary>(id, 이름, 방 이름, 방 중심에서 들어오는 쪽으로 당길 비율 0~1)</summary>
@@ -80,6 +82,11 @@ namespace BrokenSovereign.Editor
                 Room room = spec.Rooms[index];
                 Vector2 incoming = IncomingDirection(spec, room);
                 Vector2 p = room.Center - incoming * room.Radius * info.pullBack;
+
+                if (info.id == "town" && TryLayoutWaypoint(out Vector2 layoutLocal))
+                {
+                    p = room.Center + layoutLocal;   // 10/25: 마을 배치도의 웨이포인트 위치
+                }
                 // 들어오는 길 쪽을 바라봄 (도착 위치 = 앞쪽)
                 Quaternion facing = info.id == "town" ? Quaternion.Euler(0f, 180f, 0f) : Yaw(-incoming);
 
@@ -93,7 +100,7 @@ namespace BrokenSovereign.Editor
                     waypoint = go.AddComponent<Waypoint>();
                 }
 
-                waypoint.Configure(info.id, info.name, i, info.id == "town");
+                waypoint.Configure(info.id, info.name, i, WAYPOINTS_DISCOVERED_AT_START || info.id == "town");
 
                 if (!go.TryGetComponent(out MapMarker marker))
                 {
