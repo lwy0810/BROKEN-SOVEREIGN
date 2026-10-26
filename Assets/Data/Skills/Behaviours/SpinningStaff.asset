@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SpinningStaffBehaviour
   _holdGrace: 0.25
   _spinSpeed: 900
-  _showArea: 1
+  _showArea: 0
   _areaColor: {r: 1, g: 0.82, b: 0.3, a: 0.35}
   _finishColor: {r: 1, g: 0.6, b: 0.1, a: 0.5}
   _areaDuration: 0.15

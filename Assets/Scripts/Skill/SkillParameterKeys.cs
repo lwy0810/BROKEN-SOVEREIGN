@@ -82,5 +82,14 @@ namespace BrokenSovereign.Skill
 
         /// <summary>적중 시 버팀 게이지 즉시 감소 비율 (0.5 = 50%, 분쇄 일격 충만)</summary>
         public const string POISE_BREAK_RATIO = "poiseBreakRatio";
+
+        /// <summary>확산(강화 분기 A, 10/26): 대상 주변에서 함께 맞힐 적 수</summary>
+        public const string SPREAD_COUNT = "spreadCount";
+
+        /// <summary>확산: 대상 주변 탐색 반경 (m)</summary>
+        public const string SPREAD_RADIUS = "spreadRadius";
+
+        /// <summary>확산: 맞은 적들이 나눠 받는 총 피해 배율 (1.6 = 160%를 맞은 수로 나눔, 한 명당 최대 100%)</summary>
+        public const string SPREAD_TOTAL = "spreadTotal";
     }
 }

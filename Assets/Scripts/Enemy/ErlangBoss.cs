@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using BrokenSovereign.Combat;
+using BrokenSovereign.Effects;
 using BrokenSovereign.Sound;
 using UnityEngine;
 using UnityEngine.AI;
@@ -14,6 +15,8 @@ namespace BrokenSovereign.Enemy
     /// - 패턴 선택: 현재 페이즈 후보 중 재사용 대기 끝 + 거리 조건 + 직전 패턴 제외, 가중치 무작위. 3페이즈는 2개 연속
     /// 패턴: 1 삼첨양인도 3연 베기 / 2 제3의 눈 광선 / 3 도약 내려찍기(2페이즈~) / 4 효천견 돌진(3페이즈~)
     /// 패턴 중 기절(분쇄 무력화)하면 즉시 중단.
+    /// 10/26 이펙트: 광선 = 눈빛 모임 → 출렁이는 겹 빛줄기 (ErlangVfx.Beam).
+    ///   내려찍기 = 착지 후 원 표시 → 1초 뒤 번개가 떨어지고 충격파가 원 끝까지 퍼짐 (파동이 닿을 때 피해)
     /// </summary>
     [RequireComponent(typeof(EnemyController))]
     [RequireComponent(typeof(Health))]
@@ -45,6 +48,10 @@ namespace BrokenSovereign.Enemy
         [SerializeField, Min(0f)] private float _leapHeight = 5f;
         [SerializeField, Min(0.5f)] private float _leapRadius = 4.5f;
         [SerializeField, Min(0f)] private float _leapCoefficient = 2f;
+        [Tooltip("착지 후 원 표시 → 번개까지 (초)")]
+        [SerializeField, Min(0f)] private float _leapStrikeDelay = 1f;
+        [Tooltip("번개 뒤 충격파가 원 끝까지 퍼지는 시간 (초)")]
+        [SerializeField, Min(0.05f)] private float _leapWaveTime = 0.4f;
 
         [Header("4. 효천견 돌진")]
         [SerializeField, Min(1)] private int _houndCount = 3;
@@ -343,6 +350,7 @@ namespace BrokenSovereign.Enemy
                 }
 
                 SoundPlayer.PlayAt(SoundId.BOSS_SLASH, transform.position);
+                PlayEffect(EffectLibrary.Instance?.BossSlash, transform.position + forward * (_slashRange * 0.5f) + Vector3.up, 1.6f, forward);
                 Transform target = _controller.Target;
 
                 if (target != null && AttackArea.IsInCone(transform.position, forward, _slashRange, _slashAngle, target.position))
@@ -363,6 +371,7 @@ namespace BrokenSovereign.Enemy
             Vector3 forward = FaceTarget();
             Vector3 origin = transform.position;
             AttackAreaDebugDrawer.ShowLine(origin, forward, _beamLength, _beamWidth, origin.y, _warningColor, windup);
+            ErlangVfx.EyeCharge(transform, _eyeHeight, _beamColor, windup);
             PlayAttack(windup + 0.3f);
             yield return new WaitForSeconds(windup);
 
@@ -372,8 +381,10 @@ namespace BrokenSovereign.Enemy
             }
 
             SoundPlayer.PlayAt(SoundId.BOSS_BEAM, origin);
-            ShowStreak(origin + Vector3.up * _eyeHeight + forward * 0.4f, origin + forward * _beamLength + Vector3.up * 0.3f,
-                _beamWidth * 0.5f, _beamWidth * 0.8f, _beamColor, 0.35f);
+            PlayEffect(EffectLibrary.Instance?.BossBeam, origin + Vector3.up * _eyeHeight + forward * 0.6f, 1.4f, forward);
+            PlayEffect(EffectLibrary.Instance?.BossBeam, origin + forward * _beamLength + Vector3.up * 0.5f, 1.2f, forward);
+            ErlangVfx.Beam(origin + Vector3.up * _eyeHeight + forward * 0.4f, origin + forward * _beamLength + Vector3.up * 0.3f,
+                _beamWidth * 0.7f, _beamColor, 0.55f);
             Transform target = _controller.Target;
 
             if (target != null && InLine(origin, forward, _beamLength, _beamWidth, target.position))
@@ -384,7 +395,8 @@ namespace BrokenSovereign.Enemy
             yield return new WaitForSeconds(_recovery + 0.3f);
         }
 
-        // 3. 도약 내려찍기: 대상 자리에 원 표시 → 뛰어올라 포물선으로 내려앉음 → 원 안 피해
+        // 3. 도약 내려찍기: 대상 자리에 원 표시 → 뛰어올라 포물선으로 내려앉음
+        //    → 착지 자리에 원 표시 → 1초 뒤 번개 + 원 끝까지 퍼지는 충격파 (파동이 닿으면 피해)
         private IEnumerator LeapSlam()
         {
             BeginPattern();
@@ -441,12 +453,35 @@ namespace BrokenSovereign.Enemy
             }
 
             SoundPlayer.PlayAt(SoundId.BOSS_LEAP, landing);
-            AttackAreaDebugDrawer.ShowCircle(landing, _leapRadius, landing.y, new Color(1f, 0.8f, 0.35f, 0.55f), 0.35f);
-            target = _controller.Target;
+            PlayEffect(EffectLibrary.Instance?.BossLeap, landing, EffectLibrary.Instance != null ? EffectLibrary.Instance.BossLeapScale : 2f, transform.forward);
 
-            if (target != null && FlatDistance(landing, target.position) <= _leapRadius)
+            // 착지 → 원 표시 → 1초 뒤 번개
+            AttackAreaDebugDrawer.ShowCircle(landing, _leapRadius, landing.y, _warningColor, _leapStrikeDelay);
+            PlayAttack(_leapStrikeDelay + 0.3f);
+            yield return new WaitForSeconds(_leapStrikeDelay);
+
+            if (Interrupted())
             {
-                Hit(_leapCoefficient);
+                yield break;
+            }
+
+            LightningStrike.Spawn(landing, _lightningColor, 0.35f, 1.2f);
+            ErlangVfx.Shockwave(landing, _leapRadius, _lightningColor, _leapWaveTime);
+            bool struck = false;
+
+            // 충격파가 퍼지며 닿는 순간 피해 (한 번만)
+            for (float t = 0f; t < 1f && !struck; t += Time.deltaTime / _leapWaveTime)
+            {
+                target = _controller.Target;
+                float front = _leapRadius * (1f - (1f - t) * (1f - t));
+
+                if (target != null && FlatDistance(landing, target.position) <= Mathf.Min(_leapRadius, front + 0.3f))
+                {
+                    struck = true;
+                    Hit(_leapCoefficient);
+                }
+
+                yield return null;
             }
 
             yield return new WaitForSeconds(_recovery + 0.2f);
@@ -478,6 +513,12 @@ namespace BrokenSovereign.Enemy
             }
 
             SoundPlayer.PlayAt(SoundId.BOSS_HOUND, origin);
+
+            foreach (Vector3 dir in directions)
+            {
+                PlayEffect(EffectLibrary.Instance?.BossHound, origin + dir * 2f + Vector3.up * 0.6f, 1.3f, dir);
+            }
+
             bool hitOnce = false;
 
             for (float t = 0f; t < 1f; t += Time.deltaTime / _houndRunTime)
@@ -555,6 +596,13 @@ namespace BrokenSovereign.Enemy
         private bool AgentReady()
         {
             return _controller.Agent != null && _controller.Agent.enabled && _controller.Agent.isOnNavMesh;
+        }
+
+        // 10/26: 패턴 이펙트 (EffectLibrary 칸이 비어 있으면 없음)
+        private static void PlayEffect(GameObject prefab, Vector3 position, float scale, Vector3 forward)
+        {
+            forward.y = 0f;
+            EffectPlayer.Play(prefab, position, scale, forward.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(forward) : (Quaternion?)null);
         }
 
         private void PlayAttack(float duration)

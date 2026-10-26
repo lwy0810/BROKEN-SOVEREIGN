@@ -15,6 +15,7 @@ MonoBehaviour:
   _skillId: unyielding_aegis
   _displayName: "\uBD88\uAD74\uC758 \uAC11\uC8FC"
   _cooldown: 20
+  _attackInterval: 0
   _resourceCost: 30
   _parameters:
   - Key: duration
@@ -24,8 +25,20 @@ MonoBehaviour:
   - Key: gaugeGainOnDamaged
     Value: 1
   _locksMovement: 0
+  _castMovement: 0
+  _castTime: 0.4
+  _channeled: 0
+  _animationState: 
   _empoweredModifiers:
   - Key: damageReduction
     Type: 0
     Value: 0.15
   _behaviour: {fileID: 11400000, guid: ab30a139f7cb44018aeab9ee089a5aa4, type: 2}
+  _castEffect: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}
+  _castEffectAnchor: 2
+  _castEffectScale: 1.4
+  _castEffectLifetime: 1
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 0}
+  _hitEffectScale: 1
+  _hitEffectExtra: {fileID: 0}

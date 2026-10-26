@@ -15,6 +15,7 @@ MonoBehaviour:
   _skillId: radiant_smite
   _displayName: "\uACA9\uAD11 \uAC15\uD0C0"
   _cooldown: 0
+  _attackInterval: 0
   _resourceCost: 35
   _parameters:
   - Key: coefficient
@@ -26,8 +27,18 @@ MonoBehaviour:
   _locksMovement: 0
   _castMovement: 2
   _castTime: 0.4
+  _channeled: 0
+  _animationState: 
   _empoweredModifiers:
   - Key: radius
     Type: 1
     Value: 0.5
   _behaviour: {fileID: 11400000, guid: a5397770804b4ece95025b33b67f55b0, type: 2}
+  _castEffect: {fileID: 7177991128484655659, guid: 59a35ab9f68edff40b6e5332bed330f5, type: 3}
+  _castEffectAnchor: 0
+  _castEffectScale: 1
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 8771972552311404799, guid: bbf9e36a48d6c5648a13889afab076fd, type: 3}
+  _hitEffectScale: 1.4
+  _hitEffectExtra: {fileID: 0}

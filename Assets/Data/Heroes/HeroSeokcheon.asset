@@ -22,8 +22,8 @@ MonoBehaviour:
     \uD68C\uC804\uD558\uBA70 \uC801\uC744 \uC4F8\uC5B4 \uB2F4\uB294\uB2E4.\n\n\uD718\uC800\uC73C\uBA70
     \uC4F8\uC5B4 \uB2F4\uB294 \uC704\uCE58 \uC6B4\uC601\uD615"
   _heroSkill: {fileID: 11400000, guid: 673d336b721bbe34490cdd113f494e45, type: 2}
-  _heroSkillSlot: 5
+  _heroSkillSlot: 6
   _extraSkills:
-  - Slot: 6
+  - Slot: 7
     Skill: {fileID: 11400000, guid: d52850f927f6d914caadf003453fb9bd, type: 2}
   _rule: {fileID: 11400000, guid: ef4862eac9613654d93a71f4c7304d4d, type: 2}

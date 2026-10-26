@@ -66,8 +66,9 @@ namespace BrokenSovereign.UI
                     return (x, y) => Arc(x, y, 16f, 16f, 11f, 2f, 140f, 0f) || Arc(x, y, 16f, 16f, 11f, 2f, 140f, 180f) ||
                         Arc(x, y, 16f, 16f, 5.5f, 1.8f, 120f, 90f) || Arc(x, y, 16f, 16f, 5.5f, 1.8f, 120f, 270f);
                 case "reach_shift":
-                    // 양방향 화살표
-                    return (x, y) => (y > 14.5f && y < 17.5f && x > 7f && x < 25f) || Poly(x, y, 3f, 16f, 10f, 10f, 10f, 22f) || Poly(x, y, 29f, 16f, 22f, 10f, 22f, 22f);
+                    // 순환 화살표 (재활용 표시처럼 원을 따라 도는 두 화살표, 10/26)
+                    return (x, y) => Arc(x, y, 16f, 16f, 10f, 1.8f, 130f, -95f) || Arc(x, y, 16f, 16f, 10f, 1.8f, 130f, 85f) ||
+                        Poly(x, y, 26.9f, 14.9f, 27.6f, 8.1f, 20.7f, 12.1f) || Poly(x, y, 5.1f, 17.1f, 4.4f, 23.9f, 11.3f, 19.9f);
                 case "sovereign_quake":
                     // 진동: 동심원 3겹
                     return (x, y) => Dist(x, y, 16f, 16f) < 3.5f || Mathf.Abs(Dist(x, y, 16f, 16f) - 8.5f) < 1.5f || Mathf.Abs(Dist(x, y, 16f, 16f) - 13.5f) < 1.5f;

@@ -11,6 +11,8 @@ namespace BrokenSovereign.Skill
     /// 키를 떼거나(IsReleased) 유지 비용을 낼 수 없으면 종료. 충만이면 시작 후 일정 시간 비용 없음 + 종료 시 내려찍기.
     /// 수치 키: coefficient, radius, tickInterval, moveSpeedMultiplier, costPerSecond, freeDuration,
     /// finishCoefficient, finishRadius
+    /// 최소 유지 (10/26): 키를 짧게 눌러도 최소 _minDuration(1초)은 회전. 자원은 초당 소모(costPerSecond)만 쓰며,
+    ///   시작하려면 최소 유지 시간만큼의 자원이 있어야 함 (GetStartReserve)
     /// 사용 기술: 난천무 (석천 4번)
     /// </summary>
     [CreateAssetMenu(fileName = "SpinningStaffBehaviour", menuName = "BrokenSovereign/Skill Behaviour/Spinning Staff")]
@@ -20,6 +22,9 @@ namespace BrokenSovereign.Skill
 
         [Tooltip("키 유지 확인이 이 시간(초) 끊기면 종료 (키 떼기 이벤트를 놓쳤을 때 안전장치)")]
         [SerializeField, Min(0.05f)] private float _holdGrace = 0.25f;
+
+        [Tooltip("키를 바로 떼도 이 시간(초)만큼은 회전")]
+        [SerializeField, Min(0f)] private float _minDuration = 1f;
 
         [Tooltip("모델 회전 속도 (도/초)")]
         [SerializeField] private float _spinSpeed = 900f;
@@ -70,7 +75,9 @@ namespace BrokenSovereign.Skill
             var state = (SpinState)context.State;
             SkillParameterSet parameters = context.Parameters;
 
-            if (context.IsReleased || Time.time - context.LastHeldTime > _holdGrace)
+            bool released = context.IsReleased || Time.time - context.LastHeldTime > _holdGrace;
+
+            if (released && context.Elapsed >= _minDuration)
             {
                 return false;
             }
@@ -103,6 +110,12 @@ namespace BrokenSovereign.Skill
             }
 
             return true;
+        }
+
+        public override float GetStartReserve(SkillParameterSet parameters)
+        {
+            float paid = Mathf.Max(0f, _minDuration - parameters.Get(SkillParameterKeys.FREE_DURATION));
+            return parameters.Get(SkillParameterKeys.COST_PER_SECOND) * paid;
         }
 
         public override void End(SkillContext context)

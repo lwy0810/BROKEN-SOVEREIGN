@@ -19,9 +19,10 @@ namespace BrokenSovereign.Sound
         private const float NEAR = 12f;
         private const float FAR = 45f;
 
-        public static float MasterVolume = 1f;
-        public static float SfxVolume = 0.9f;
-        public static float MusicVolume = 0.55f;
+        // 10/26: 음량은 설정 창(GameSettings, PlayerPrefs)에서 읽음
+        public static float MasterVolume => Core.GameSettings.MasterVolume;
+        public static float SfxVolume => Core.GameSettings.SfxVolume;
+        public static float MusicVolume => Core.GameSettings.MusicVolume;
 
         private static readonly Dictionary<string, AudioClip[]> _clips = new Dictionary<string, AudioClip[]>();
         private static readonly Dictionary<string, float> _lastPlayed = new Dictionary<string, float>();

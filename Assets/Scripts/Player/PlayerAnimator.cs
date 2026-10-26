@@ -49,6 +49,17 @@ namespace BrokenSovereign.Player
         [Range(0.1f, 0.9f)]
         [SerializeField] private float _attackImpactRatio = 0.45f;
 
+        [Header("팔 펴기 (10/26: 난천무가 팔로 몸을 감싸는 모션 → 팔을 옆으로 펴고 회전)")]
+        [Tooltip("지속 시전 중 팔을 옆으로 펼 기술 ID")]
+        [SerializeField] private string[] _armSpreadSkills = { "heavenly_whirl" };
+
+        [Tooltip("편 팔의 아래 기울기 (0 = 수평, 0.3 ≈ 17도 아래)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float _armSpreadDown = 0.15f;
+
+        [Tooltip("팔 펴기 전환 시간(초)")]
+        [SerializeField] private float _armSpreadBlend = 0.12f;
+
         [Header("이동")]
         [Tooltip("Speed 값 변화 완화 시간(초)")]
         [SerializeField] private float _speedDampTime = 0.08f;
@@ -60,6 +71,7 @@ namespace BrokenSovereign.Player
         private NavMeshAgent _agent;
         private SkillCaster _caster;
         private SkillSlot? _channelSlot;
+        private float _armSpread;
         private readonly System.Collections.Generic.Dictionary<string, float> _clipLengths =
             new System.Collections.Generic.Dictionary<string, float>();
 
@@ -110,6 +122,68 @@ namespace BrokenSovereign.Player
                 _channelSlot = null;
                 _animator.CrossFadeInFixedTime(LOCOMOTION_ID, 0.15f, 0);
             }
+        }
+
+        // 지속 시전 중 팔을 옆으로 펴기: 애니메이션이 적용된 뒤(LateUpdate) 위팔·아래팔 뼈를 바깥쪽으로 돌림 (Humanoid)
+        private void LateUpdate()
+        {
+            if (_animator == null || !_animator.isHuman)
+            {
+                return;
+            }
+
+            bool spread = _channelSlot.HasValue && IsArmSpreadSkill(_caster != null ? _caster.GetSkill(_channelSlot.Value) : null);
+            float step = _armSpreadBlend > 0f ? Time.deltaTime / _armSpreadBlend : 1f;
+            _armSpread = Mathf.MoveTowards(_armSpread, spread ? 1f : 0f, step);
+
+            if (_armSpread <= 0.001f)
+            {
+                return;
+            }
+
+            Transform root = _animator.transform;
+            SpreadArm(HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand, -root.right, root.up);
+            SpreadArm(HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand, root.right, root.up);
+        }
+
+        private void SpreadArm(HumanBodyBones upperBone, HumanBodyBones lowerBone, HumanBodyBones handBone, Vector3 side, Vector3 up)
+        {
+            Transform upper = _animator.GetBoneTransform(upperBone);
+            Transform lower = _animator.GetBoneTransform(lowerBone);
+            Transform hand = _animator.GetBoneTransform(handBone);
+
+            if (upper == null || lower == null || hand == null)
+            {
+                return;
+            }
+
+            Vector3 target = (side - up * _armSpreadDown).normalized;
+
+            // 위팔: 어깨 → 팔꿈치 방향을 옆으로
+            Quaternion toSide = Quaternion.FromToRotation(lower.position - upper.position, target);
+            upper.rotation = Quaternion.Slerp(Quaternion.identity, toSide, _armSpread) * upper.rotation;
+
+            // 아래팔: 팔꿈치 → 손 방향도 같은 쪽으로 (팔을 곧게)
+            Quaternion straighten = Quaternion.FromToRotation(hand.position - lower.position, target);
+            lower.rotation = Quaternion.Slerp(Quaternion.identity, straighten, _armSpread) * lower.rotation;
+        }
+
+        private bool IsArmSpreadSkill(SkillDefinition skill)
+        {
+            if (skill == null || _armSpreadSkills == null)
+            {
+                return false;
+            }
+
+            foreach (string id in _armSpreadSkills)
+            {
+                if (id == skill.SkillId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>기술 모션 재생. 상태가 없으면 false (공격 모션으로 대체)</summary>
@@ -186,6 +260,16 @@ namespace BrokenSovereign.Player
             _animator.SetFloat(ATTACK_SPEED_ID, GetAttackPlaybackSpeed(interval));
             _animator.ResetTrigger(ATTACK_ID);
             _animator.SetTrigger(ATTACK_ID);
+        }
+
+        /// <summary>IAttackImpactTiming: 기술(강타 등)이 공격 모션으로 재생될 때의 타격 순간</summary>
+        public float SkillImpactDelay
+        {
+            get
+            {
+                float interval = _controller != null ? _controller.BasicAttackInterval : 0f;
+                return interval > 0f ? Mathf.Min(GetImpactDelay(interval), interval * 0.9f) : 0f;
+            }
         }
 
         /// <summary>IAttackImpactTiming: 공격 시작부터 무기가 닿는 순간까지 (재생 배율 반영)</summary>

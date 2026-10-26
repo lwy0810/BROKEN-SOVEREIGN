@@ -16,7 +16,7 @@ MonoBehaviour:
   _displayName: "\uB09C\uCC9C\uBB34"
   _cooldown: 0
   _attackInterval: 0
-  _resourceCost: 10
+  _resourceCost: 0
   _parameters:
   - Key: coefficient
     Value: 0.6
@@ -47,3 +47,11 @@ MonoBehaviour:
     Type: 0
     Value: 1.5
   _behaviour: {fileID: 11400000, guid: edca247a5cbf9c3478739141a43d8b9c, type: 2}
+  _castEffect: {fileID: 6710139492206580332, guid: 95b8d3d65b5d7f1409c4ed1723887826, type: 3}
+  _castEffectAnchor: 2
+  _castEffectScale: 1.5
+  _castEffectLifetime: 2
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
+  _hitEffectScale: 0.9
+  _hitEffectExtra: {fileID: 0}

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using BrokenSovereign.Combat;
+using BrokenSovereign.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -63,7 +64,7 @@ namespace BrokenSovereign.UI
 
         private void OnAnyDamaged(Health victim, DamageInfo info)
         {
-            if (victim == null || info.Amount <= 0f || _player == null)
+            if (victim == null || info.Amount <= 0f || _player == null || !GameSettings.ShowDamageNumbers)   // 10/26 설정: 피해 숫자 표시
             {
                 return;
             }

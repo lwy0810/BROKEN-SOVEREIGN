@@ -68,6 +68,9 @@ namespace BrokenSovereign.Player
         /// <summary>재사용 대기 중인 기술 키를 눌렀을 때 (슬롯, 기술). 재사용 대기가 있는 기술만</summary>
         public event Action<SkillSlot, SkillDefinition> SkillNotReady;
 
+        /// <summary>기술이 등록되지 않은 키를 눌렀을 때 (10/26: HUD "스킬이 등록되지 않았습니다.")</summary>
+        public event Action<SkillSlot> SkillMissing;
+
         /// <summary>회피를 시작했을 때 (회피 방향)</summary>
         public event Action<Vector3> Dodged;
 
@@ -299,7 +302,9 @@ namespace BrokenSovereign.Player
             }
             else
             {
-                Debug.Log($"PlayerController: 기술 시전 {slot} → {point} (연결된 기술 없음)");
+                // 10/26: 등록되지 않은 기술 키 → 모션 없이 안내만 (기본 공격 모션이 나와 움찔하던 문제)
+                SkillMissing?.Invoke(slot);
+                return;
             }
 
             SkillUsed?.Invoke(slot, point);

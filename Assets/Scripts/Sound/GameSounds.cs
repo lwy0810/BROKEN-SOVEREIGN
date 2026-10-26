@@ -11,7 +11,7 @@ namespace BrokenSovereign.Sound
 {
     /// <summary>
     /// 게임 사건 → 소리 연결 (10/26). 게임 시작 시 자동 생성되어 씬이 바뀌어도 유지됩니다.
-    /// - 전역 이벤트: 피해(플레이어 피격·적 타격·치명타), 사망, 보스 페이즈·격파, 웨이포인트 발견
+    /// - 전역 이벤트: 사망 (10/26 몬스터·플레이어 피격 효과음 제거), 보스 페이즈·격파, 웨이포인트 발견
     /// - 플레이어 이벤트: 기본 공격, 기술 시전(기술별 파일 없으면 공용), 회피, 물약
     /// - 음악: 필드 = bgm_field, 보스 교전 중 = bgm_boss (타이틀 씬 bgm_title은 TitleScreen이 재생)
     /// 보스 패턴·번개·포털·타이틀 UI 소리는 각 코드에서 SoundPlayer를 직접 호출합니다.
@@ -45,6 +45,7 @@ namespace BrokenSovereign.Sound
             BossStatus.AnyPhaseChanged += OnBossPhase;
             BossStatus.AnyDefeated += OnBossDefeated;
             Waypoint.AnyDiscovered += OnWaypointDiscovered;
+            SkillBehaviour.ImpactLanded += OnSkillImpact;
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
@@ -55,6 +56,7 @@ namespace BrokenSovereign.Sound
             BossStatus.AnyPhaseChanged -= OnBossPhase;
             BossStatus.AnyDefeated -= OnBossDefeated;
             Waypoint.AnyDiscovered -= OnWaypointDiscovered;
+            SkillBehaviour.ImpactLanded -= OnSkillImpact;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             Unhook();
         }
@@ -153,13 +155,29 @@ namespace BrokenSovereign.Sound
 
         private void OnSkillCast(SkillSlot slot, SkillDefinition skill)
         {
+            // 강타 등 타격 순간에 피해를 주는 기술은 그 순간에 소리 (OnSkillImpact)
+            if (skill != null && skill.Behaviour != null && skill.Behaviour.DelaysImpact)
+            {
+                return;
+            }
+
+            PlaySkillSound(skill);
+        }
+
+        private void OnSkillImpact(SkillDefinition skill, Vector3 point)
+        {
+            PlaySkillSound(skill);
+        }
+
+        private static void PlaySkillSound(SkillDefinition skill)
+        {
             string id = skill != null ? SoundId.Skill(skill.SkillId) : null;
             SoundPlayer.Play(id != null && SoundPlayer.Has(id) ? id : SoundId.SKILL_CAST);
         }
 
         private void OnDodged(Vector3 direction)
         {
-            SoundPlayer.Play(SoundId.DODGE, 0.8f);
+            // 10/26: 회피 효과음 제거 (이펙트로 대체: GameEffects)
         }
 
         private void OnPotionUsed(int remaining)
@@ -178,17 +196,7 @@ namespace BrokenSovereign.Sound
                 return;
             }
 
-            if (health == _playerHealth)
-            {
-                SoundPlayer.Play(SoundId.PLAYER_HURT, 0.9f, 0.08f);
-                return;
-            }
-
-            // 플레이어가 준 피해만 (적끼리·환경 피해 제외)
-            if (_player != null && info.Attacker == _player.gameObject)
-            {
-                SoundPlayer.PlayAt(info.IsCritical ? SoundId.HIT_CRIT : SoundId.HIT_ENEMY, health.transform.position, 0.85f, 0.1f);
-            }
+            // 10/26: 몬스터 피격(일반·치명타)·플레이어 피격 효과음 모두 제거. 다시 쓰려면 여기서 재생
         }
 
         private void OnAnyDied(Health health)
@@ -202,9 +210,10 @@ namespace BrokenSovereign.Sound
             {
                 SoundPlayer.Play(SoundId.PLAYER_DEATH);
             }
-            else if (health.GetComponent<BossStatus>() == null)
+            else if (health.GetComponent<BossStatus>() != null)
             {
-                SoundPlayer.PlayAt(SoundId.ENEMY_DEATH, health.transform.position, 0.8f, 0.1f);
+                // 10/26: 적 사망음은 보스만 (일반 적은 이펙트만, GameEffects)
+                SoundPlayer.PlayAt(SoundId.ENEMY_DEATH, health.transform.position, 1f, 0.05f);
             }
         }
 
