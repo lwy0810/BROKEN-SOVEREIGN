@@ -41,6 +41,14 @@ namespace BrokenSovereign.Editor
             Debug.Log($"PropSetupTools: 소품 {built}/{folders.Length}개 생성 ({PREFAB_ROOT})");
         }
 
+        /// <summary>소품 하나만 생성 (10/26 보스 계단 등). folder = Assets/Models/{name}</summary>
+        public static bool BuildOne(string name)
+        {
+            bool ok = Build(name, $"{CharacterModelImporter.MODELS_ROOT.TrimEnd('/')}/{name}");
+            AssetDatabase.SaveAssets();
+            return ok;
+        }
+
         private static bool Build(string name, string folder)
         {
             string modelPath = $"{folder}/{name}.fbx";

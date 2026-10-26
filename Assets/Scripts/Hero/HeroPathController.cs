@@ -68,6 +68,38 @@ namespace BrokenSovereign.Hero
             return true;
         }
 
+        /// <summary>
+        /// 영웅의 길 변경 (10/26: 반신부터 격 창 [길 변경]). 이전 규칙을 끄고 직업 기술 구성을 다시 만든 뒤 새 길을 선택합니다.
+        /// 성물은 새 길 기준으로 다시 각성, PathSelected가 다시 발생합니다 (신격 트리는 영웅 가지 포인트 반환).
+        /// 아직 길이 없으면 일반 선택과 같음. 바꾸면 true
+        /// </summary>
+        public bool ChangePath(HeroPathDefinition path)
+        {
+            if (path == null || path == Current)
+            {
+                return false;
+            }
+
+            if (!HasPath)
+            {
+                return SelectPath(path);
+            }
+
+            _rule?.Deactivate();
+            _rule = null;
+            Current = null;
+
+            // 영웅 기술이 차지했던 슬롯을 직업 기본 구성으로 되돌림
+            BrokenSovereign.Ascension.PlayerJob job = GetComponent<BrokenSovereign.Ascension.PlayerJob>();
+
+            if (job != null)
+            {
+                job.RebuildLoadout();
+            }
+
+            return SelectPath(path);
+        }
+
         /// <summary>영웅 기술을 지정 슬롯에 다시 장착 (직업 전환으로 기술 구성이 초기화된 뒤 호출)</summary>
         public void RefreshSkill()
         {

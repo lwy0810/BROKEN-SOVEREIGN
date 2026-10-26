@@ -42,7 +42,7 @@ namespace BrokenSovereign.Hero
         [Tooltip("영웅 기술. 비우면 슬롯을 열지 않음 (기술 구현 전)")]
         [SerializeField] private SkillDefinition _heroSkill;
 
-        [SerializeField] private SkillSlot _heroSkillSlot = SkillSlot.Key4;
+        [SerializeField] private SkillSlot _heroSkillSlot = SkillSlot.Key5;
 
         [Tooltip("함께 장착하는 기술 (예: 석천 5번 모드변환)")]
         [SerializeField] private ExtraSkill[] _extraSkills = new ExtraSkill[0];

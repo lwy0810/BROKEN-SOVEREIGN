@@ -66,7 +66,7 @@ namespace BrokenSovereign.UI
             _titleText = UiKit.Title("Title", _plate, 14, Color.white, TextAnchor.MiddleCenter);   // 10/25: 흰색
             UiKit.Place(_titleText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(BAR_WIDTH, 20f));
             _nameText = UiKit.Title("Name", _plate, 28, p.Title, TextAnchor.MiddleCenter);
-            UiKit.Place(_nameText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(BAR_WIDTH, 38f));
+            UiKit.Place(_nameText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -31f), new Vector2(BAR_WIDTH, 36f));   // 10/26: 칭호와 간격 +5
 
             _bar = UiKit.Bar("Health", _plate, p.Hp, p.HpDark);
             UiKit.Place(_bar.Rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(BAR_WIDTH, BAR_HEIGHT));
@@ -108,7 +108,7 @@ namespace BrokenSovereign.UI
             UiKit.Place(_bannerTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 16f), new Vector2(1400f, 96f));
             _bannerTitle.gameObject.AddComponent<Outline>().effectColor = UiTheme.WithAlpha(p.CrackOuter, 0.45f);
             _bannerSub = UiKit.Title("Sub", banner, 24, p.Text, TextAnchor.MiddleCenter);
-            UiKit.Place(_bannerSub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -52f), new Vector2(1400f, 34f));
+            UiKit.Place(_bannerSub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -62f), new Vector2(1400f, 34f));   // 10/26: 제목과 간격 +10
             _bannerGroup.alpha = 0f;
 
             _plate.gameObject.SetActive(false);

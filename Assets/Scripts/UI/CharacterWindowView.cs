@@ -302,8 +302,8 @@ namespace BrokenSovereign.UI
             HudGraphics.Stretch(_lockedCard);
             _lockedTitle = UiKit.Title("Title", _lockedCard, 20, p.TextDim, TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(_lockedTitle.rectTransform, new Vector2(128f, 16f), new Vector2(300f, 30f));
-            _lockedLine = Label(_lockedCard, string.Empty, 13, p.Text, new Vector2(128f, 50f), new Vector2(300f, 20f), TextAnchor.MiddleLeft, true);
-            _lockedDesc = Label(_lockedCard, string.Empty, 12, p.TextDim, new Vector2(128f, 74f), new Vector2(300f, 36f), TextAnchor.UpperLeft);
+            _lockedLine = Label(_lockedCard, string.Empty, 13, p.Text, new Vector2(128f, 54f), new Vector2(300f, 20f), TextAnchor.MiddleLeft, true);
+            _lockedDesc = Label(_lockedCard, string.Empty, 12, p.TextDim, new Vector2(128f, 79f), new Vector2(300f, 36f), TextAnchor.UpperLeft);
             _lockedDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
             Divider(_lockedCard, 16f, 128f, MID_W - 32f);
             Label(_lockedCard, "반신까지", 13, p.Text, new Vector2(16f, 140f), new Vector2(200f, 20f), TextAnchor.MiddleLeft, true);
@@ -413,11 +413,11 @@ namespace BrokenSovereign.UI
                 Text title = UiKit.Title("StageTitle", mid, 16, open ? p.Title : p.TextDim, TextAnchor.MiddleLeft);
                 UiKit.PlaceTopLeft(title.rectTransform, new Vector2(tx, y), new Vector2(260f, 26f));
                 title.text = titles[i];
-                Label(mid, subs[i], 12, open ? p.Text : UiTheme.WithAlpha(p.TextDim, 0.7f), new Vector2(tx, y + 26f), new Vector2(300f, 18f));
+                Label(mid, subs[i], 12, open ? p.Text : UiTheme.WithAlpha(p.TextDim, 0.7f), new Vector2(tx, y + 31f), new Vector2(300f, 18f));   // 10/26: 제목과 보조 글 간격 +5
 
                 if (open)
                 {
-                    _stageEffect[0] = Label(mid, string.Empty, 12, p.TextDim, new Vector2(tx, y + 46f), new Vector2(340f, 18f));
+                    _stageEffect[0] = Label(mid, string.Empty, 12, p.TextDim, new Vector2(tx, y + 52f), new Vector2(340f, 18f));
                     Image now = UiKit.Sliced("Now", mid, UiSprites.ButtonEquip);
                     UiKit.PlaceTopLeft(now.rectTransform, new Vector2(MID_W - 16f - 64f, y + 2f), new Vector2(56f, 22f));
                     Label(now.transform, "현재", 11, p.EquipText, Vector2.zero, new Vector2(56f, 22f), TextAnchor.MiddleCenter, true);

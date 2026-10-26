@@ -25,3 +25,11 @@ MonoBehaviour:
   _animationState: 
   _empoweredModifiers: []
   _behaviour: {fileID: 11400000, guid: d54d3160388ad394b921f923b47e63a2, type: 2}
+  _castEffect: {fileID: 9157105887711914197, guid: c4f829cb7dd4b864caf8832ec5b1ee55, type: 3}
+  _castEffectAnchor: 0
+  _castEffectScale: 1
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 0}
+  _hitEffectScale: 1
+  _hitEffectExtra: {fileID: 0}

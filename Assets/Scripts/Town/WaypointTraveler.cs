@@ -124,17 +124,23 @@ namespace BrokenSovereign.Town
         /// <summary>발견한 웨이포인트로 이동. 성공하면 창을 닫음</summary>
         public bool TravelTo(Waypoint target)
         {
-            if (target == null || !target.IsDiscovered || target == _current)
+            if (target == null || !target.IsDiscovered || target == _current || UI.WaypointTransitionView.IsPlaying)
             {
                 return false;
             }
 
+            // 10/26: 이동 연출(Figma 15-A) — 화면이 구름으로 가려진 순간 순간 이동
             // 10/25: 웨이포인트 정중앙에 도착. 도착한 웨이포인트는 밖으로 나갔다 다시 들어오기 전까지 열리지 않음
-            PlayerWarp.Warp(transform, target.transform.position, target.transform.forward);
+            string from = _current != null ? _current.DisplayName : null;
             Close();
-            _inside = target;
 
-            Traveled?.Invoke(target);
+            UI.WaypointTransitionView.Play(from, target.DisplayName, () =>
+            {
+                PlayerWarp.Warp(transform, target.transform.position, target.transform.forward);
+                _inside = target;
+                Traveled?.Invoke(target);
+            });
+
             return true;
         }
 

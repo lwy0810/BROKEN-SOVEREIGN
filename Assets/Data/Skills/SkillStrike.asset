@@ -15,6 +15,7 @@ MonoBehaviour:
   _skillId: strike
   _displayName: "\uAC15\uD0C0"
   _cooldown: 0
+  _attackInterval: 0
   _resourceCost: 25
   _parameters:
   - Key: coefficient
@@ -26,5 +27,15 @@ MonoBehaviour:
   _locksMovement: 0
   _castMovement: 0
   _castTime: 0.4
+  _channeled: 0
+  _animationState: 
   _empoweredModifiers: []
   _behaviour: {fileID: 11400000, guid: bf2e950786c04761b9629a20d67925c2, type: 2}
+  _castEffect: {fileID: 0}
+  _castEffectAnchor: 0
+  _castEffectScale: 1
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 8525990746615576120, guid: b85d21f3b8fed714bacf0c4fd50fa512, type: 3}
+  _hitEffectScale: 1.2
+  _hitEffectExtra: {fileID: 0}

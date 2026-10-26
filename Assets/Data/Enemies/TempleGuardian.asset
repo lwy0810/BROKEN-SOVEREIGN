@@ -26,5 +26,5 @@ MonoBehaviour:
   _attackCoefficient: 1.6
   _fallbackAttackPower: 40
   _experienceReward: 35
-  _showAttackArea: 1
+  _showAttackArea: 0
   _attackAreaColor: {r: 1, g: 0.1, b: 0.1, a: 0.35}

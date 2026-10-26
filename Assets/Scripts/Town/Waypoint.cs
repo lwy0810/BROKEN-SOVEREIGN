@@ -66,6 +66,9 @@ namespace BrokenSovereign.Town
         public float DiscoverRadius => _discoverRadius;
         public float InteractRadius => _interactRadius;
         public bool IsDiscovered => _discovered.Contains(_id);
+
+        /// <summary>처음부터 열린 웨이포인트 (마을 등). 업적의 발견 수에서 제외 (10/26)</summary>
+        public bool DiscoveredAtStart => _discoveredAtStart;
         public Vector3 PromptPosition => transform.position + Vector3.up * _promptHeight;
 
         /// <summary>목록 창이 열리는 거리 = 석단 반경 (모형 렌더러 크기 기준, 1.2~3m)</summary>

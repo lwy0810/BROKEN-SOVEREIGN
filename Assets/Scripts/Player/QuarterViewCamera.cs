@@ -57,7 +57,8 @@ namespace BrokenSovereign.Player
             if (Mathf.Abs(wheel) > 0.01f)
             {
                 // 휠 위 = 가까이 (줌 인)
-                _targetDistance = Mathf.Clamp(_targetDistance - Mathf.Sign(wheel) * _zoomStep, _minDistance, _maxDistance);
+                // 10/26: 마우스 감도(설정) 배율
+                _targetDistance = Mathf.Clamp(_targetDistance - Mathf.Sign(wheel) * _zoomStep * GameSettings.MouseSensitivity, _minDistance, _maxDistance);
             }
         }
 

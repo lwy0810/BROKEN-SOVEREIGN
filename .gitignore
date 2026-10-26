@@ -143,3 +143,7 @@ __pycache__/
 
 # 장비창 대기 애니메이션 원본 (실사용: Assets/Resources/Animations/PaladinPreviewIdle.fbx) — 10/26
 /[Aa]ssets/Animations/Idle.fbx*
+
+# Cartoon FX Remaster (Asset Store, 이펙트 원본) — 각 PC에서 Package Manager > My Assets로 임포트. 연결은 Assets/Resources/Effects/EffectLibrary.asset — 10/26
+/[Aa]ssets/JMO Assets/
+/[Aa]ssets/JMO Assets.meta

@@ -8,5 +8,8 @@ namespace BrokenSovereign.Combat
     {
         /// <summary>공격 간격(공격 속도 반영)으로 재생할 때, 공격 시작부터 타격 순간까지의 시간(초)</summary>
         float GetImpactDelay(float interval);
+
+        /// <summary>기술이 공격 모션으로 재생될 때 (기본 공격 간격), 시작부터 타격 순간까지의 시간(초) (10/26)</summary>
+        float SkillImpactDelay { get; }
     }
 }

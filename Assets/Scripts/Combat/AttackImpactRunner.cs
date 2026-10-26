@@ -12,6 +12,7 @@ namespace BrokenSovereign.Combat
     public class AttackImpactRunner : MonoBehaviour
     {
         private Coroutine _pending;
+        private Coroutine _pendingSkill;
 
         /// <summary>대기 중인 타격이 있음</summary>
         public bool IsPending => _pending != null;
@@ -36,6 +37,40 @@ namespace BrokenSovereign.Combat
             _pending = StartCoroutine(Run(delay, strike));
         }
 
+        /// <summary>
+        /// 기술 타격 예약 (10/26, 강타 등). 기본 공격 대기와 따로 관리 (서로 취소하지 않음).
+        /// 새 기술 타격이 들어오면 이전 기술 대기는 바로 적용하고 교체
+        /// </summary>
+        public void ScheduleSkill(float delay, Action strike)
+        {
+            if (delay <= 0f || !isActiveAndEnabled)
+            {
+                strike();
+                return;
+            }
+
+            if (_pendingSkill != null)
+            {
+                StopCoroutine(_pendingSkill);
+                _pendingSkill = null;
+                _skillStrike?.Invoke();
+            }
+
+            _skillStrike = strike;
+            _pendingSkill = StartCoroutine(RunSkill(delay));
+        }
+
+        private Action _skillStrike;
+
+        private IEnumerator RunSkill(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            _pendingSkill = null;
+            Action strike = _skillStrike;
+            _skillStrike = null;
+            strike?.Invoke();
+        }
+
         public void Cancel()
         {
             if (_pending != null)
@@ -55,6 +90,13 @@ namespace BrokenSovereign.Combat
         private void OnDisable()
         {
             Cancel();
+
+            if (_pendingSkill != null)
+            {
+                StopCoroutine(_pendingSkill);
+                _pendingSkill = null;
+                _skillStrike = null;
+            }
         }
     }
 }

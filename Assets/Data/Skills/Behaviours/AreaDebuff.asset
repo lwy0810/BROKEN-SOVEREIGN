@@ -17,6 +17,6 @@ MonoBehaviour:
     Stat: 3
   - Key: armorReduction
     Stat: 12
-  _showArea: 1
+  _showArea: 0
   _areaColor: {r: 0.6, g: 0.3, b: 1, a: 0.3}
   _areaDuration: 0.35

@@ -160,6 +160,12 @@ namespace BrokenSovereign.Skill
             }
 
             // 지속 시전 중인 기술: 새로 시전하지 않고 유지만 갱신 (false → 시전 이벤트·동작 없음)
+            if (!Loadout.IsLearned(skill))
+            {
+                CastFailed?.Invoke(slot, skill, SkillCastFailReason.NotLearned);
+                return false;
+            }
+
             if (skill.IsChanneled && FindActiveCast(skill) is SkillContext channel)
             {
                 channel.LastHeldTime = Time.time;
@@ -187,6 +193,21 @@ namespace BrokenSovereign.Skill
 
             ISkillResource resource = FindActiveResource();
 
+            bool empowered = IsEmpowered();
+
+            StatSheet stats = _stats != null ? _stats.Sheet : null;
+            SkillParameterSet parameters = skill.CreateParameters(empowered);
+            SkillGrowth.Apply(parameters, Loadout.DesignatedOf(slot), Loadout.GetSlotLevel(slot), Loadout.GetBranch(skill));
+
+            // 지속 시전: 최소 유지 시간분 자원이 있어야 시작 (10/26, 난천무 1초)
+            float reserve = skill.Behaviour.GetStartReserve(parameters);
+
+            if (reserve > 0f && (resource == null || !resource.CanSpend(reserve + skill.ResourceCost)))
+            {
+                CastFailed?.Invoke(slot, skill, SkillCastFailReason.NotEnoughResource);
+                return false;
+            }
+
             if (skill.ResourceCost > 0f)
             {
                 if (resource == null || !resource.TrySpend(skill.ResourceCost))
@@ -196,11 +217,6 @@ namespace BrokenSovereign.Skill
                 }
             }
 
-            bool empowered = IsEmpowered();
-
-            StatSheet stats = _stats != null ? _stats.Sheet : null;
-            SkillParameterSet parameters = skill.CreateParameters(empowered);
-            SkillGrowth.Apply(parameters, Loadout.DesignatedOf(slot), Loadout.GetSlotLevel(slot), Loadout.GetBranch(skill));
             var context = new SkillContext(skill, transform, cursorPoint, parameters, stats,
                 _targetMask, empowered)
             {

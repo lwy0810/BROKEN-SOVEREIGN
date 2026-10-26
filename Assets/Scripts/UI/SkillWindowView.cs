@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BrokenSovereign.Ascension;
 using BrokenSovereign.Core;
 using BrokenSovereign.Hero;
@@ -24,9 +24,14 @@ namespace BrokenSovereign.UI
         private const float TREE_Y = 78f;
         private const float TREE_W = 1120f;
         private const float TREE_H = 520f;
-        private const float NODE = 72f;
-        private const float COLUMN_X = 200f;
-        private const float COLUMN_STEP = 144f;
+        private const float NODE = 68f;
+        private const float HEADER_H = 58f;
+        /// <summary>열 머리글 아래 첫 기술 칸 위쪽 (트리 위 기준)</summary>
+        private const float NODE_TOP = 98f;
+        /// <summary>열 안 기술 간격 (칸 + 레벨 + 이름 두 줄)</summary>
+        private const float NODE_STEP = 140f;
+        /// <summary>칸 아래 레벨·이름이 끝나는 거리 (연결선 시작)</summary>
+        private const float NAME_BOTTOM = 52f;
         private const float LIST_X = 1164f;
         private const float LIST_W = 412f;
         private const float PANEL_Y = 616f;
@@ -40,7 +45,8 @@ namespace BrokenSovereign.UI
         };
 
         private static readonly string[] LIST_KEYS = { "LMB", "RMB", "1", "2", "3", "4", "5", "6" };
-        private static readonly string[] TIER_ROWS = { "범인", "초인", "반신" };
+        /// <summary>격 6단계 열 (Figma 19-B). 신격·초월·태초는 아직 기술이 없어 자리만</summary>
+        private static readonly string[] TIER_COLUMNS = { "범인", "초인", "반신", "신격", "초월", "태초" };
         private static readonly string[] TIER_JOBS = { "성기사 · 공용", "성투사", "영웅의 길" };
 
         private sealed class NodeDef
@@ -51,6 +57,8 @@ namespace BrokenSovereign.UI
             public AscensionTier Tier;
             public string Name;
             public bool Hero;
+            /// <summary>이 영웅만 가진 기술 (다른 영웅을 고르면 칸을 숨김). 비우면 모든 영웅</summary>
+            public string HeroId;
         }
 
         private static readonly NodeDef[] NODES =
@@ -60,8 +68,9 @@ namespace BrokenSovereign.UI
             new NodeDef { Slot = SkillSlot.Key2, Key = "2", Column = 2, Tier = AscensionTier.Mortal, Name = "진격" },
             new NodeDef { Slot = SkillSlot.Key3, Key = "3", Column = 3, Tier = AscensionTier.Superhuman, Name = "불굴의 갑주" },
             new NodeDef { Slot = SkillSlot.Key4, Key = "4", Column = 4, Tier = AscensionTier.Superhuman, Name = "전장의 함성" },
-            new NodeDef { Slot = SkillSlot.Key4, Key = "4′", Column = 5, Tier = AscensionTier.Demigod, Name = "분쇄 일격 · 난천무", Hero = true },
-            new NodeDef { Slot = SkillSlot.Key5, Key = "5", Column = 6, Tier = AscensionTier.Demigod, Name = "모드변환" }
+            // 10/26: 영웅 기술은 5·6번 (초인까지 공용 1~4번 유지, 전장의 함성이 영웅 기술로 바뀌지 않음)
+            new NodeDef { Slot = SkillSlot.Key5, Key = "5", Column = 5, Tier = AscensionTier.Demigod, Name = "분쇄 일격 · 난천무", Hero = true },
+            new NodeDef { Slot = SkillSlot.Key6, Key = "6", Column = 6, Tier = AscensionTier.Demigod, Name = "모드변환", Hero = true, HeroId = "seokcheon" }
         };
 
         private sealed class NodeView
@@ -79,7 +88,11 @@ namespace BrokenSovereign.UI
             public Text Name;
             public Text Key;
             public Vector2 Center;
+            public Image LevelFlash;
+            public float FlashTime = float.NegativeInfinity;
         }
+
+        private const float LEVEL_FLASH_TIME = 0.5f;
 
         private sealed class ListRow
         {
@@ -107,6 +120,9 @@ namespace BrokenSovereign.UI
 
         private readonly List<NodeView> _nodes = new List<NodeView>();
         private readonly List<Image> _connectors = new List<Image>();
+        // 열 머리글 (미도달 격은 ???로 가림, 10/26)
+        private readonly List<(Text tier, Text job, Image header)> _tierHeaders = new List<(Text, Text, Image)>();
+        private const string HIDDEN = "???";
         private readonly List<ListRow> _rows = new List<ListRow>();
 
         // 강화 패널
@@ -166,6 +182,7 @@ namespace BrokenSovereign.UI
             BuildList();
             BuildPanel();
             BuildGhost();
+            BuildResetConfirm();
 
             _message = UiKit.Label("Message", _panel, 16, p.Title, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.Place(_message.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, -30f), new Vector2(WIDTH, 26f));
@@ -190,30 +207,61 @@ namespace BrokenSovereign.UI
             _dirty = true;
         }
 
-        // ── 트리 ─────────────────────────────────────────────
+        // ── 트리 (10/26 Figma 19-B: 격 6단계 열 배치) ─────────────
+        // 왼→오 = 범인·초인·반신·신격·초월·태초. 단계마다 같은 폭의 열, 기술은 열 안에서 위→아래 (최대 3개).
+        // 아직 없는 단계(신격·초월·태초)는 머리글을 흐리게 + 빈 칸으로 자리만 잡아 둠 (나중에 NODES에 추가하면 그대로 들어감)
         private void BuildTree()
         {
             UiPalette p = UiTheme.P;
             Image frame = UiKit.Box("Tree", _panel, UiTheme.WithAlpha(p.Inset, 0.55f));
             UiKit.PlaceTopLeft(frame.rectTransform, new Vector2(TREE_X, TREE_Y), new Vector2(TREE_W, TREE_H));
-            float rowHeight = TREE_H / 3f;
+            float columnWidth = TREE_W / TIER_COLUMNS.Length;
 
-            for (int r = 0; r < 3; r++)
+            for (int c = 0; c < TIER_COLUMNS.Length; c++)
             {
-                float y = TREE_Y + r * rowHeight;
+                float x = TREE_X + c * columnWidth;
+                bool future = c >= TIER_JOBS.Length;
 
-                if (r > 0)
+                if (c > 0)
                 {
-                    Image line = UiKit.Box("RowLine", _panel, UiTheme.WithAlpha(p.PlateStroke, 0.3f));
-                    UiKit.PlaceTopLeft(line.rectTransform, new Vector2(TREE_X + 12f, y), new Vector2(TREE_W - 24f, 1f));
+                    Image line = UiKit.Box("ColumnLine", _panel, UiTheme.WithAlpha(p.PlateStroke, 0.3f));
+                    UiKit.PlaceTopLeft(line.rectTransform, new Vector2(x, TREE_Y + 12f), new Vector2(1f, TREE_H - 24f));
                 }
 
-                Text tier = UiKit.Title("Tier", _panel, 22, p.Title, TextAnchor.MiddleLeft);
-                UiKit.PlaceTopLeft(tier.rectTransform, new Vector2(TREE_X + 22f, y + rowHeight * 0.5f - 26f), new Vector2(140f, 30f));
-                tier.text = TIER_ROWS[r];
-                Text job = UiKit.Label("Job", _panel, 13, p.TextDim, TextAnchor.MiddleLeft);
-                UiKit.PlaceTopLeft(job.rectTransform, new Vector2(TREE_X + 22f, y + rowHeight * 0.5f + 4f), new Vector2(140f, 20f));
-                job.text = TIER_JOBS[r];
+                Image header = UiKit.Round("TierHeader", _panel, UiTheme.WithAlpha(future ? p.PlateStroke : p.Accent, future ? 0.1f : 0.14f));
+                UiKit.PlaceTopLeft(header.rectTransform, new Vector2(x + 10f, TREE_Y + 12f), new Vector2(columnWidth - 20f, HEADER_H));
+
+                Text tier = UiKit.Title("Tier", _panel, 22, future ? UiTheme.WithAlpha(p.TextDisabled, 0.8f) : p.Title, TextAnchor.MiddleCenter);
+                UiKit.PlaceTopLeft(tier.rectTransform, new Vector2(x, TREE_Y + 14f), new Vector2(columnWidth, 30f));
+                tier.text = TIER_COLUMNS[c];
+                _tierHeaders.Add((tier, null, header));
+                // 보조 글: 이름 아래 (10px 여백 규칙에 맞춰 이름과 겹치지 않게)
+                Text job = UiKit.Label("Job", _panel, 12, future ? UiTheme.WithAlpha(p.TextDisabled, 0.8f) : p.TextDim, TextAnchor.MiddleCenter);
+                UiKit.PlaceTopLeft(job.rectTransform, new Vector2(x, TREE_Y + 46f), new Vector2(columnWidth, 18f));
+                job.text = future ? string.Empty : TIER_JOBS[c];
+                _tierHeaders[c] = (tier, job, header);
+
+                if (c < TIER_COLUMNS.Length - 1)
+                {
+                    Text arrow = UiKit.Label("Arrow", _panel, 24, c < TIER_JOBS.Length - 1 ? p.Accent : UiTheme.WithAlpha(p.TextDisabled, 0.7f),
+                        TextAnchor.MiddleCenter, FontStyle.Bold);
+                    UiKit.PlaceTopLeft(arrow.rectTransform, new Vector2(x + columnWidth - 12f, TREE_Y + 22f), new Vector2(24f, 30f));
+                    arrow.text = "›";
+                }
+
+                // 아직 없는 단계: 빈 칸 3개 (자리만)
+                if (future)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
+                        float cy = NodeCenterY(k);
+                        Image slot = UiKit.Round("FutureSlot", _panel, UiTheme.WithAlpha(p.Inset, 0.4f));
+                        UiKit.PlaceTopLeft(slot.rectTransform, new Vector2(x + columnWidth * 0.5f - NODE * 0.5f, cy - NODE * 0.5f), new Vector2(NODE, NODE));
+                        slot.gameObject.AddComponent<Outline>().effectColor = UiTheme.WithAlpha(p.PlateStroke, 0.35f);
+                        Image bar = UiKit.Round("FutureBar", _panel, UiTheme.WithAlpha(p.PlateStroke, 0.18f));
+                        UiKit.PlaceTopLeft(bar.rectTransform, new Vector2(x + columnWidth * 0.5f - 34f, cy + NODE * 0.5f + 12f), new Vector2(68f, 10f));
+                    }
+                }
             }
 
             // 연결선 먼저 (노드 아래에 그려지도록)
@@ -227,29 +275,50 @@ namespace BrokenSovereign.UI
 
             foreach (NodeDef def in NODES)
             {
-                _nodes.Add(CreateNode(def, rowHeight));
+                _nodes.Add(CreateNode(def));
             }
 
+            // 같은 단계(열) 안에서만 위→아래로 연결. 단계 사이는 머리글의 › 로 표시
             for (int i = 0; i < NODES.Length - 1; i++)
             {
                 Vector2 a = _nodes[i].Center, b = _nodes[i + 1].Center;
-                float half = NODE * 0.5f;
+                bool sameTier = NODES[i].Tier == NODES[i + 1].Tier;
+                _connectors[i * 3].gameObject.SetActive(sameTier);
+                _connectors[i * 3 + 1].gameObject.SetActive(false);
+                _connectors[i * 3 + 2].gameObject.SetActive(false);
 
-                if (Mathf.Abs(a.y - b.y) < 1f)
+                if (sameTier)
                 {
-                    PlaceLine(_connectors[i * 3], new Vector2(a.x + half, a.y), new Vector2(b.x - half, b.y));
-                    _connectors[i * 3 + 1].gameObject.SetActive(false);
-                    _connectors[i * 3 + 2].gameObject.SetActive(false);
-                }
-                else
-                {
-                    // 오른쪽으로 나가서 아래로 내려간 뒤 다음 노드로
-                    float midX = (a.x + b.x) * 0.5f;
-                    PlaceLine(_connectors[i * 3], new Vector2(a.x + half, a.y), new Vector2(midX, a.y));
-                    PlaceLine(_connectors[i * 3 + 1], new Vector2(midX, a.y), new Vector2(midX, b.y));
-                    PlaceLine(_connectors[i * 3 + 2], new Vector2(midX, b.y), new Vector2(b.x - half, b.y));
+                    PlaceLine(_connectors[i * 3], new Vector2(a.x, a.y + NODE * 0.5f + NAME_BOTTOM), new Vector2(b.x, b.y - NODE * 0.5f));
                 }
             }
+        }
+
+        // 열 안 k번째 기술의 중심 y
+        private static float NodeCenterY(int k)
+        {
+            return TREE_Y + NODE_TOP + k * NODE_STEP + NODE * 0.5f;
+        }
+
+        // 같은 단계에서 몇 번째 기술인지 (NODES 순서)
+        private static int IndexInTier(NodeDef def)
+        {
+            int index = 0;
+
+            foreach (NodeDef other in NODES)
+            {
+                if (other == def)
+                {
+                    return index;
+                }
+
+                if (other.Tier == def.Tier)
+                {
+                    index++;
+                }
+            }
+
+            return index;
         }
 
         private static void PlaceLine(Image line, Vector2 from, Vector2 to)
@@ -258,11 +327,12 @@ namespace BrokenSovereign.UI
             UiKit.PlaceTopLeft(line.rectTransform, min - new Vector2(1.5f, 1.5f), max - min + new Vector2(3f, 3f));
         }
 
-        private NodeView CreateNode(NodeDef def, float rowHeight)
+        private NodeView CreateNode(NodeDef def)
         {
             UiPalette p = UiTheme.P;
-            float cx = TREE_X + COLUMN_X + def.Column * COLUMN_STEP;
-            float cy = TREE_Y + (int)def.Tier * rowHeight + 18f + NODE * 0.5f;
+            float columnWidth = TREE_W / TIER_COLUMNS.Length;
+            float cx = TREE_X + ((int)def.Tier + 0.5f) * columnWidth;
+            float cy = NodeCenterY(IndexInTier(def));
             var node = new NodeView { Def = def, Center = new Vector2(cx, cy) };
 
             node.Glow = UiKit.Sliced("Glow", _panel, UiSprites.Glow);
@@ -284,6 +354,12 @@ namespace BrokenSovereign.UI
             node.Frame = UiKit.Sliced("Frame", node.Rect, ItemVisuals.Frame);
             HudGraphics.Stretch(node.Frame.rectTransform);
 
+            // 강화 반짝임 (10/26): 테두리 위에 금빛 테두리를 잠깐 겹침
+            node.LevelFlash = UiKit.Sliced("LevelFlash", node.Rect, ItemVisuals.Glow);
+            HudGraphics.Stretch(node.LevelFlash.rectTransform);
+            node.LevelFlash.color = Color.clear;
+            node.LevelFlash.gameObject.AddComponent<Outline>().effectColor = Color.clear;
+
             node.Key = UiKit.Label("Key", node.Rect, 11, p.Title, TextAnchor.LowerRight, FontStyle.Bold);
             HudGraphics.Stretch(node.Key.rectTransform);
             node.Key.rectTransform.offsetMin = new Vector2(4f, 3f);
@@ -296,7 +372,7 @@ namespace BrokenSovereign.UI
             HudGraphics.Stretch(node.Points.rectTransform);
 
             node.Name = UiKit.Label("Name", _panel, 14, p.Text, TextAnchor.UpperCenter);
-            UiKit.PlaceTopLeft(node.Name.rectTransform, new Vector2(cx - 72f, cy + NODE * 0.5f + 32f), new Vector2(144f, 20f));
+            UiKit.PlaceTopLeft(node.Name.rectTransform, new Vector2(cx - columnWidth * 0.5f, cy + NODE * 0.5f + 32f), new Vector2(columnWidth, 20f));
             return node;
         }
 
@@ -382,7 +458,7 @@ namespace BrokenSovereign.UI
             _bigName = UiKit.Title("Name", box, 28, p.Title, TextAnchor.MiddleLeft);
             UiKit.PlaceTopLeft(_bigName.rectTransform, new Vector2(156f, 20f), new Vector2(440f, 40f));
             _bigSub = UiKit.Label("Sub", box, 14, p.TextDim, TextAnchor.MiddleLeft);
-            UiKit.PlaceTopLeft(_bigSub.rectTransform, new Vector2(156f, 60f), new Vector2(440f, 22f));
+            UiKit.PlaceTopLeft(_bigSub.rectTransform, new Vector2(156f, 65f), new Vector2(440f, 22f));   // 10/26: 이름과 간격 +5
 
             _levelBar = UiKit.Bar("Level", box, p.Accent, p.Accent * 0.5f);
             UiKit.PlaceTopLeft(_levelBar.Rect, new Vector2(156f, 96f), new Vector2(330f, 14f));
@@ -487,6 +563,7 @@ namespace BrokenSovereign.UI
             }
 
             CancelDrag();
+            _resetConfirm?.SetActive(false);
             _panel.gameObject.SetActive(false);
             GameplayInput.IsBlocked = false;
         }
@@ -501,6 +578,13 @@ namespace BrokenSovereign.UI
             }
             else if (IsOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
+                // 초기화 확인 팝업이 떠 있으면 팝업만 닫음
+                if (_resetConfirm != null && _resetConfirm.activeSelf)
+                {
+                    _resetConfirm.SetActive(false);
+                    return;
+                }
+
                 Close();
             }
             else if (IsOpen && UiKit.IsCloseClicked(_close))
@@ -527,17 +611,38 @@ namespace BrokenSovereign.UI
 
         private void HandleInput()
         {
+            // 초기화 확인 팝업이 떠 있으면 팝업만 처리
+            if (_resetConfirm != null && _resetConfirm.activeSelf)
+            {
+                HandleResetConfirm();
+                return;
+            }
+
             for (int i = 0; i < _nodes.Count; i++)
             {
                 bool hover = UiKit.IsHover(_nodes[i].Rect);
                 _nodes[i].Tile.color = hover ? new Color(1f, 0.92f, 0.8f) : Color.white;
 
-                if (hover && UiKit.Clicked && _selected != i)
+                if (hover && UiKit.Clicked && _selected != i && !IsHiddenTier(_nodes[i].Def.Tier))
                 {
                     _selected = i;
                     _dirty = true;
                 }
+
+                // 10/26: 우클릭 = 그 기술 1포인트 강화
+                if (hover && Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame && !IsHiddenTier(_nodes[i].Def.Tier))
+                {
+                    if (_selected != i)
+                    {
+                        _selected = i;
+                        _dirty = true;
+                    }
+
+                    TryLevel(_nodes[i]);
+                }
             }
+
+            AnimateLevelFlash();
 
             HandleListDrag();
 
@@ -548,9 +653,9 @@ namespace BrokenSovereign.UI
 
             SkillSlot actual = loadout.MapSlot(node.Def.Slot);
 
-            if (canLevel && UiKit.IsHover(_levelButton.rectTransform) && UiKit.Clicked && loadout.TryLevelUp(actual))
+            if (canLevel && UiKit.IsHover(_levelButton.rectTransform) && UiKit.Clicked)
             {
-                ShowMessage($"{node.Skill.DisplayName} 강화  ·  Lv {loadout.GetSlotLevel(actual)}");
+                TryLevel(node);
             }
 
             ButtonHover(_resetButton, true);
@@ -563,8 +668,9 @@ namespace BrokenSovereign.UI
                 }
                 else
                 {
-                    loadout.ResetGrowth();
-                    ShowMessage("기술 포인트를 모두 되돌렸습니다");
+                    // 10/26: 확인 팝업 (추후 초기화에 자원 소모 예정)
+                    _resetConfirm.SetActive(true);
+                    _resetConfirm.transform.SetAsLastSibling();
                 }
             }
 
@@ -691,14 +797,155 @@ namespace BrokenSovereign.UI
             }
         }
 
+        // ── 초기화 확인 팝업 (10/26) ─────────────────────────
+        private GameObject _resetConfirm;
+        private Image _resetYes;
+        private Image _resetNo;
+
+        private void BuildResetConfirm()
+        {
+            UiPalette p = UiTheme.P;
+            Image cover = UiKit.Box("ResetConfirm", _panel, new Color(0f, 0f, 0f, 0.6f));
+            HudGraphics.Stretch(cover.rectTransform);
+            _resetConfirm = cover.gameObject;
+
+            RectTransform box = UiKit.Plate("Box", cover.transform).rectTransform;
+            UiKit.Place(box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(460f, 200f));
+            box.gameObject.AddComponent<Outline>().effectColor = UiTheme.WithAlpha(p.Accent, 0.8f);
+
+            Text message = UiKit.Label("Message", box, 20, p.Text, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.Place(message.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(420f, 40f));
+            message.text = "스킬을 초기화 하시겠습니까?";
+            // 보조 글: 문구와 10px 띄움
+            Text sub = UiKit.Label("Sub", box, 14, p.TextDim, TextAnchor.UpperCenter);
+            UiKit.Place(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -86f), new Vector2(420f, 22f));
+            sub.text = "사용한 기술 포인트를 모두 되돌립니다.";
+
+            _resetYes = UiKit.Button("Yes", box, "초기화 (Enter)", 16);
+            UiKit.Place(_resetYes.rectTransform, new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-8f, 24f), new Vector2(160f, 44f));
+            _resetNo = UiKit.Button("No", box, "취소 (Esc)", 16);
+            UiKit.Place(_resetNo.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(8f, 24f), new Vector2(160f, 44f));
+            _resetConfirm.SetActive(false);
+        }
+
+        private void HandleResetConfirm()
+        {
+            Keyboard keyboard = Keyboard.current;
+            ButtonHover(_resetYes, true);
+            ButtonHover(_resetNo, true);
+            bool yes = (UiKit.IsHover(_resetYes.rectTransform) && UiKit.Clicked) || (keyboard != null && keyboard.enterKey.wasPressedThisFrame);
+            bool no = UiKit.IsHover(_resetNo.rectTransform) && UiKit.Clicked;
+
+            if (yes)
+            {
+                _resetConfirm.SetActive(false);
+
+                if (_caster.InCombat)
+                {
+                    ShowMessage("전투 중에는 초기화할 수 없습니다");
+                }
+                else
+                {
+                    _caster.Loadout.ResetGrowth();
+                    ShowMessage("기술 포인트를 모두 되돌렸습니다");
+                }
+            }
+            else if (no)
+            {
+                _resetConfirm.SetActive(false);
+            }
+        }
+
         private static void ButtonHover(Image button, bool enabled)
         {
             bool hover = enabled && UiKit.IsHover(button.rectTransform);
             button.color = !enabled ? new Color(1f, 1f, 1f, 0.45f) : hover ? new Color(1f, 0.92f, 0.8f) : Color.white;
         }
 
+        // 강화 1회: 성공하면 안내 + 테두리 반짝임, 못 하면 이유 안내
+        private void TryLevel(NodeView node)
+        {
+            SkillLoadout loadout = _caster.Loadout;
+            SkillSlot actual = loadout.MapSlot(node.Def.Slot);
+
+            // 전환 기술(모드변환): 포인트 1로 습득 (최대 1)
+            if (node.Skill != null && SkillLoadout.RequiresLearning(node.Skill))
+            {
+                if (loadout.TryLearn(node.Skill))
+                {
+                    node.FlashTime = Time.unscaledTime;
+                    ShowMessage($"{node.Skill.DisplayName} 습득");
+                    _dirty = true;
+                }
+                else
+                {
+                    ShowMessage(loadout.IsLearned(node.Skill) ? "이미 습득했습니다 (최대 1포인트)" : "기술 포인트가 부족합니다");
+                }
+
+                return;
+            }
+
+            if (CanLevel(node) && loadout.TryLevelUp(actual))
+            {
+                node.FlashTime = Time.unscaledTime;
+                ShowMessage($"{node.Skill.DisplayName} 강화  ·  Lv {loadout.GetSlotLevel(actual)}");
+                _dirty = true;
+                return;
+            }
+
+            if (node.Skill == null || node.Replaced)
+            {
+                ShowMessage("아직 사용할 수 없는 기술입니다");
+            }
+            else if (!SkillGrowth.CanGrow(node.Def.Slot, node.Skill))
+            {
+                ShowMessage("강화할 수 없는 기술입니다");
+            }
+            else if (loadout.GetSlotLevel(actual) >= SkillGrowth.MAX_LEVEL)
+            {
+                ShowMessage("최대 레벨입니다");
+            }
+            else
+            {
+                ShowMessage("기술 포인트가 부족합니다");
+            }
+        }
+
+        // 강화 반짝임: 빠르게 밝아졌다가 사라짐 + 칸이 살짝 커졌다 돌아옴
+        private void AnimateLevelFlash()
+        {
+            Color gold = UiTheme.P.Title;
+
+            foreach (NodeView node in _nodes)
+            {
+                float t = (Time.unscaledTime - node.FlashTime) / LEVEL_FLASH_TIME;
+
+                if (t < 0f || t > 1f)
+                {
+                    if (node.LevelFlash.color.a > 0f)
+                    {
+                        node.LevelFlash.color = Color.clear;
+                        node.LevelFlash.GetComponent<Outline>().effectColor = Color.clear;
+                        node.Rect.localScale = Vector3.one;
+                    }
+
+                    continue;
+                }
+
+                float alpha = t < 0.2f ? t / 0.2f : 1f - (t - 0.2f) / 0.8f;
+                node.LevelFlash.color = new Color(gold.r, gold.g, gold.b, alpha * 0.9f);
+                node.LevelFlash.GetComponent<Outline>().effectColor = new Color(1f, 0.95f, 0.8f, alpha);
+                node.Rect.localScale = Vector3.one * (1f + 0.08f * Mathf.Sin(t * Mathf.PI));
+            }
+        }
+
         private bool CanLevel(NodeView node)
         {
+            if (node.Skill != null && SkillLoadout.RequiresLearning(node.Skill))
+            {
+                return !_caster.Loadout.IsLearned(node.Skill) && _caster.Loadout.SkillPoints > 0;
+            }
+
             return node.Skill != null && !node.Replaced && SkillGrowth.CanGrow(node.Def.Slot, node.Skill) &&
                 _caster.Loadout.SkillPoints > 0 && _caster.Loadout.GetSlotLevel(_caster.Loadout.MapSlot(node.Def.Slot)) < SkillGrowth.MAX_LEVEL;
         }
@@ -764,8 +1011,12 @@ namespace BrokenSovereign.UI
             {
                 SkillSlot actual = loadout.MapSlot(node.Def.Slot);
                 SkillDefinition equipped = loadout.GetEquipped(actual);
-                node.Replaced = node.Def.Slot == SkillSlot.Key4 && !node.Def.Hero && hero;
-                node.Skill = node.Def.Hero ? (hero ? equipped : null) : node.Replaced ? null : equipped;
+                node.Replaced = false;
+                node.Skill = node.Def.Hero ? (hero ? equipped : null) : equipped;
+
+                // 다른 영웅 전용 기술 칸은 숨김 (야로미르: 모드변환 없음)
+                bool otherHero = hero && !string.IsNullOrEmpty(node.Def.HeroId) && _hero.Current.HeroId != node.Def.HeroId;
+                SetNodeVisible(node, !otherHero);
 
                 bool open = node.Skill != null;
                 bool grows = open && SkillGrowth.CanGrow(node.Def.Slot, node.Skill);
@@ -783,24 +1034,49 @@ namespace BrokenSovereign.UI
                 node.Glow.color = UiTheme.WithAlpha(p.Accent, selected ? 0.45f : 0.16f);
                 node.Key.color = open ? p.Title : p.TextDisabled;
                 node.Pill.color = open ? Color.white : new Color(1f, 1f, 1f, 0.45f);
-                node.Points.text = grows ? $"{level}/{SkillGrowth.MAX_LEVEL}" : open ? "-" : "0/15";
+                bool toggle = open && SkillLoadout.RequiresLearning(node.Skill);
+                node.Points.text = toggle ? (loadout.IsLearned(node.Skill) ? "1/1" : "0/1")
+                    : grows ? $"{level}/{SkillGrowth.MAX_LEVEL}" : open ? "-" : "0/15";
                 node.Points.color = !open ? p.TextDisabled : level >= SkillGrowth.MAX_LEVEL ? p.Title : p.Text;
                 node.Name.text = open ? node.Skill.DisplayName : node.Def.Name;
                 node.Name.color = open ? p.Text : p.TextDisabled;
 
                 if (!open)
                 {
-                    node.Name.text += node.Replaced ? "\n(영웅 기술로 교체)" : tier < node.Def.Tier ? $"\n({AscensionModel.DisplayName(node.Def.Tier)} 돌파)" : string.Empty;
+                    node.Name.text += node.Replaced ? "\n(영웅 기술로 교체)" : string.Empty;
                 }
+
+                // 10/26: 아직 도달하지 않은 격의 기술은 이름·키·레벨을 숨김
+                if (IsHiddenTier(node.Def.Tier))
+                {
+                    node.Name.text = HIDDEN;
+                    node.Key.text = string.Empty;
+                    node.Points.text = string.Empty;
+                    node.Icon.enabled = false;
+                    node.Glow.enabled = false;
+                }
+            }
+
+            // 열 머리글: 도달한 격만 이름·직업 표시, 나머지는 ???
+            for (int c = 0; c < _tierHeaders.Count; c++)
+            {
+                bool hidden = c > (int)tier;
+                (Text tierText, Text job, Image header) = _tierHeaders[c];
+                tierText.text = hidden ? HIDDEN : TIER_COLUMNS[c];
+                tierText.color = hidden ? UiTheme.WithAlpha(p.TextDisabled, 0.8f) : p.Title;
+                job.text = hidden || c >= TIER_JOBS.Length ? string.Empty : TIER_JOBS[c];
+                header.color = UiTheme.WithAlpha(hidden ? p.PlateStroke : p.Accent, hidden ? 0.1f : 0.14f);
             }
 
             for (int i = 0; i < _nodes.Count - 1; i++)
             {
                 bool lit = _nodes[i].Skill != null && _nodes[i + 1].Skill != null;
+                bool hiddenLink = !_nodes[i].Rect.gameObject.activeSelf || !_nodes[i + 1].Rect.gameObject.activeSelf;
 
                 for (int s = 0; s < 3; s++)
                 {
-                    _connectors[i * 3 + s].color = lit ? UiTheme.WithAlpha(p.Accent, 0.9f) : UiTheme.WithAlpha(p.PlateStroke, 0.35f);
+                    _connectors[i * 3 + s].color = hiddenLink ? Color.clear
+                        : lit ? UiTheme.WithAlpha(p.Accent, 0.9f) : UiTheme.WithAlpha(p.PlateStroke, 0.35f);
                 }
             }
 
@@ -817,6 +1093,26 @@ namespace BrokenSovereign.UI
             }
 
             RefreshPanel();
+        }
+
+        private static void SetNodeVisible(NodeView node, bool visible)
+        {
+            if (node.Rect.gameObject.activeSelf == visible)
+            {
+                return;
+            }
+
+            node.Rect.gameObject.SetActive(visible);
+            node.Pill.gameObject.SetActive(visible);
+            node.Name.gameObject.SetActive(visible);
+            node.Glow.gameObject.SetActive(visible);
+        }
+
+        // 아직 도달하지 않은 격 (기술 창에서 정보를 숨김)
+        private bool IsHiddenTier(AscensionTier nodeTier)
+        {
+            AscensionTier current = _progression != null ? _progression.Tier : AscensionTier.Mortal;
+            return nodeTier > current;
         }
 
         private void RefreshPanel()
@@ -838,8 +1134,10 @@ namespace BrokenSovereign.UI
             _bigSub.text = $"{(actualSlot == slot ? node.Def.Key : KeyName(actualSlot))} 키  ·  {AscensionModel.DisplayName(node.Def.Tier)}" +
                 (skill == null ? (node.Replaced ? "  ·  영웅 기술로 교체됨" : "  ·  잠김") : string.Empty);
 
-            _levelBar.SetRatio(grows ? (float)level / SkillGrowth.MAX_LEVEL : 0f);
-            _levelText.text = grows ? $"Lv {level} / {SkillGrowth.MAX_LEVEL}" : "강화 없음";
+            bool toggleSkill = SkillLoadout.RequiresLearning(skill);
+            bool learned = loadout.IsLearned(skill);
+            _levelBar.SetRatio(toggleSkill ? (learned ? 1f : 0f) : grows ? (float)level / SkillGrowth.MAX_LEVEL : 0f);
+            _levelText.text = toggleSkill ? (learned ? "Lv 1 / 1" : "Lv 0 / 1") : grows ? $"Lv {level} / {SkillGrowth.MAX_LEVEL}" : "강화 없음";
 
             if (skill == null)
             {
@@ -871,7 +1169,8 @@ namespace BrokenSovereign.UI
 
                     Text[] texts = _statRows[row++];
                     bool changes = grows && level < SkillGrowth.MAX_LEVEL && Mathf.Abs(next.Get(key) - now.Get(key)) > 0.0001f;
-                    texts[0].text = label;
+                    // 단일 대상 기술(강타)은 범위가 아니라 사거리 (10/26)
+                    texts[0].text = key == SkillParameterKeys.RADIUS && skill.Behaviour is SingleStrikeBehaviour ? "사거리" : label;
                     texts[1].text = Format(now.Get(key), percent, key);
                     texts[2].enabled = changes;
                     texts[3].text = changes ? Format(next.Get(key), percent, key) : string.Empty;
@@ -896,13 +1195,17 @@ namespace BrokenSovereign.UI
                 _branchCards[i].gameObject.SetActive(hasBranch);
                 _branchCards[i].sprite = chosen == i ? UiSprites.ButtonEquip : UiSprites.Button;
                 _branchCards[i].color = branchOpen ? Color.white : new Color(1f, 1f, 1f, 0.45f);
-                _branchNames[i].text = $"{(char)('A' + i)}  {SkillGrowth.BRANCH_NAMES[i]}";
+                _branchNames[i].text = $"{(char)('A' + i)}. {SkillGrowth.BRANCH_NAMES[i]}";
                 _branchNames[i].color = chosen == i ? p.EquipText : branchOpen ? p.Title : p.TextDisabled;
-                _branchTexts[i].text = SkillGrowth.BRANCH_DESCRIPTIONS[i] + (chosen == i ? "\n선택됨" : branchOpen ? "\n클릭해 선택" : $"\nLv {SkillGrowth.BRANCH_LEVEL} 필요");
+                // 10/26: 설명 / (보충 · 상태) 두 단락
+                string state = chosen == i ? "선택됨" : branchOpen ? "클릭해 선택" : $"Lv {SkillGrowth.BRANCH_LEVEL} 필요";
+                string note = SkillGrowth.BRANCH_NOTES[i];
+                _branchTexts[i].text = SkillGrowth.BRANCH_DESCRIPTIONS[i] + $"\n({(note.Length > 0 ? note + " " : string.Empty)}{state})";
                 _branchTexts[i].color = branchOpen ? p.Text : p.TextDisabled;
             }
 
-            _levelButtonText.text = grows && level >= SkillGrowth.MAX_LEVEL ? "최대 레벨"
+            _levelButtonText.text = toggleSkill ? (learned ? "습득 완료" : $"습득   (포인트 1 / 남은 {loadout.SkillPoints})")
+                : grows && level >= SkillGrowth.MAX_LEVEL ? "최대 레벨"
                 : $"강화 +1   (포인트 1 / 남은 {loadout.SkillPoints})";
         }
 
@@ -981,7 +1284,11 @@ namespace BrokenSovereign.UI
 
             float radius = skill.GetBaseParameter(SkillParameterKeys.RADIUS);
 
-            if (radius > 0f)
+            if (skill.Behaviour is SingleStrikeBehaviour)
+            {
+                parts.Add(radius > 0f ? $"단일 대상  ·  사거리 {radius:0.#}m" : "단일 대상");   // 10/26 강타
+            }
+            else if (radius > 0f)
             {
                 parts.Add($"범위 {radius:0.#}m");
             }

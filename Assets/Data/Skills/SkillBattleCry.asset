@@ -15,6 +15,7 @@ MonoBehaviour:
   _skillId: battle_cry
   _displayName: "\uC804\uC7A5\uC758 \uD568\uC131"
   _cooldown: 30
+  _attackInterval: 0
   _resourceCost: 50
   _parameters:
   - Key: radius
@@ -28,5 +29,15 @@ MonoBehaviour:
   _locksMovement: 0
   _castMovement: 2
   _castTime: 0.4
+  _channeled: 0
+  _animationState: 
   _empoweredModifiers: []
   _behaviour: {fileID: 11400000, guid: 2831be1ea11b4876879b7b4f3a8fd086, type: 2}
+  _castEffect: {fileID: 3280519133390621005, guid: a71be3e7990efb040a07565c43cbb198, type: 3}
+  _castEffectAnchor: 0
+  _castEffectScale: 1.6
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 0}
+  _hitEffectScale: 1
+  _hitEffectExtra: {fileID: 0}

@@ -44,3 +44,11 @@ MonoBehaviour:
     Type: 0
     Value: 0.5
   _behaviour: {fileID: 11400000, guid: dc088f906ff71fc459bb63a2dfb13a27, type: 2}
+  _castEffect: {fileID: 0}
+  _castEffectAnchor: 0
+  _castEffectScale: 1
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
+  _hitEffectScale: 1.3
+  _hitEffectExtra: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}

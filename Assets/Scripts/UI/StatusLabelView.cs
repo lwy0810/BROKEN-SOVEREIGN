@@ -11,12 +11,16 @@ namespace BrokenSovereign.UI
     /// <summary>
     /// 적 머리 위 효과 이름: 능력치 효과(도발·전장의 함성 등 StatusEffectHost 이름)와 기절·공중·무력화를
     /// "이름 · 이름"으로 표시합니다. 몸 색은 바꾸지 않습니다 (10/21 요청).
+    /// 10/26: 효과 이름은 걸린 순간 약 1초만 표시 (나타남 0.15초 → 유지 → 사라짐 0.35초). 새 효과가 더해지면 다시 표시.
     /// 피격되거나 효과가 걸린 적만 추적하고, 효과가 없이 일정 시간이 지나면 추적 해제. HudView가 생성합니다.
     /// </summary>
     public class StatusLabelView : MonoBehaviour
     {
         private const float HEAD_HEIGHT = 2.75f;
         private const float TRACK_TIME = 10f;
+        private const float SHOW_TIME = 1f;
+        private const float FADE_IN = 0.15f;
+        private const float FADE_OUT = 0.35f;
 
         private static Color COLOR => UiTheme.P.Status;
 
@@ -28,6 +32,8 @@ namespace BrokenSovereign.UI
             public StatusEffectHost Host;
             public float LastActiveTime;
             public Text Text;
+            public string Shown = string.Empty;
+            public float ShownAt;
         }
 
         private readonly Dictionary<Health, Entry> _entries = new Dictionary<Health, Entry>();
@@ -124,9 +130,17 @@ namespace BrokenSovereign.UI
                     continue;
                 }
 
+                // 효과 구성이 바뀌면(새로 걸림) 표시 시간을 다시 시작
+                if (label != entry.Shown)
+                {
+                    entry.Shown = label;
+                    entry.ShownAt = Time.time;
+                }
+
+                float elapsed = Time.time - entry.ShownAt;
                 Vector3 screen = hidden ? Vector3.back
                     : _camera.WorldToScreenPoint(entry.Health.transform.position + Vector3.up * HEAD_HEIGHT);
-                bool visible = label.Length > 0 && screen.z > 0f;
+                bool visible = label.Length > 0 && elapsed < SHOW_TIME && screen.z > 0f;
                 entry.Text.enabled = visible;
 
                 if (!visible)
@@ -138,6 +152,11 @@ namespace BrokenSovereign.UI
                 {
                     entry.Text.text = label;
                 }
+
+                float alpha = Mathf.Min(Mathf.Clamp01(elapsed / FADE_IN), Mathf.Clamp01((SHOW_TIME - elapsed) / FADE_OUT));
+                Color color = COLOR;
+                color.a *= alpha;
+                entry.Text.color = color;
 
                 entry.Text.rectTransform.anchoredPosition = new Vector2(screen.x, screen.y) / scaleFactor;
             }

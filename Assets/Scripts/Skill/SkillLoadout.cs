@@ -36,6 +36,8 @@ namespace BrokenSovereign.Skill
         private readonly HashSet<SkillDefinition> _unlocked = new HashSet<SkillDefinition>();
         private readonly Dictionary<SkillSlot, int> _slotLevels = new Dictionary<SkillSlot, int>();
         private readonly Dictionary<SkillDefinition, int> _branchChoices = new Dictionary<SkillDefinition, int>();
+        // 10/26: 포인트 1로 배우는 기술 (모드변환 같은 전환 기술, 최대 1포인트)
+        private readonly HashSet<SkillDefinition> _learned = new HashSet<SkillDefinition>();
 
         // 키 순서 바꾸기 (10/21): 직업·영웅이 정한 슬롯(지정) → 실제 키. 직업이 바뀌어도 유지
         private readonly Dictionary<SkillSlot, SkillSlot> _remap = new Dictionary<SkillSlot, SkillSlot>();
@@ -275,7 +277,33 @@ namespace BrokenSovereign.Skill
             return true;
         }
 
-        /// <summary>모든 슬롯 레벨을 1로 되돌리고 포인트 환급, 분기 선택 초기화</summary>
+        /// <summary>포인트 1을 넣어야 쓸 수 있는 기술 (전환 기술: 모드변환 등, 최대 1포인트)</summary>
+        public static bool RequiresLearning(SkillDefinition skill)
+        {
+            return skill != null && skill.Behaviour is ModeToggleBehaviour;
+        }
+
+        /// <summary>배운 상태 (배울 필요 없는 기술은 항상 true)</summary>
+        public bool IsLearned(SkillDefinition skill)
+        {
+            return !RequiresLearning(skill) || _learned.Contains(skill);
+        }
+
+        /// <summary>포인트 1로 전환 기술 배우기</summary>
+        public bool TryLearn(SkillDefinition skill)
+        {
+            if (!RequiresLearning(skill) || _learned.Contains(skill) || SkillPoints <= 0)
+            {
+                return false;
+            }
+
+            SkillPoints--;
+            _learned.Add(skill);
+            GrowthChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>모든 슬롯 레벨을 1로 되돌리고 포인트 환급, 분기 선택 초기화 (배운 전환 기술도 환급)</summary>
         public void ResetGrowth()
         {
             foreach (int level in _slotLevels.Values)
@@ -283,6 +311,8 @@ namespace BrokenSovereign.Skill
                 SkillPoints += Math.Max(0, level - 1);
             }
 
+            SkillPoints += _learned.Count;
+            _learned.Clear();
             _slotLevels.Clear();
             _branchChoices.Clear();
             GrowthChanged?.Invoke();

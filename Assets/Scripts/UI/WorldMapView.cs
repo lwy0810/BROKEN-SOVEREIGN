@@ -183,6 +183,42 @@ namespace BrokenSovereign.UI
             }
         }
 
+        /// <summary>HUD 메뉴 [지도] (10/26): M과 같은 오버레이로 엶. 지도가 없는 씬·다른 창이 열려 있으면 무시</summary>
+        public void OpenOverlay()
+        {
+            if (LevelMap.Current == null || _waypointMode || GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
+            if (IsOpen)
+            {
+                ApplyMode(MapDisplayMode.Overlay);
+            }
+            else
+            {
+                Open(MapDisplayMode.Overlay);
+            }
+        }
+
+        /// <summary>HUD 메뉴 [지도 Tab] (10/26): Tab과 같은 전체 화면으로 엶. 지도가 없는 씬·다른 창이 열려 있으면 무시</summary>
+        public void OpenFullscreen()
+        {
+            if (LevelMap.Current == null || _waypointMode || GameplayInput.IsBlocked)
+            {
+                return;
+            }
+
+            if (IsOpen)
+            {
+                ApplyMode(MapDisplayMode.Fullscreen);
+            }
+            else
+            {
+                Open(MapDisplayMode.Fullscreen);
+            }
+        }
+
         private void Open(MapDisplayMode mode)
         {
             LevelMap level = LevelMap.Current;
@@ -472,7 +508,8 @@ namespace BrokenSovereign.UI
 
             if (Mathf.Abs(scroll) > 0.01f)
             {
-                _viewWidth *= scroll > 0f ? 1f / ZOOM_STEP : ZOOM_STEP;
+                float step = Mathf.Pow(ZOOM_STEP, GameSettings.MouseSensitivity);   // 10/26: 마우스 감도(설정)
+                _viewWidth *= scroll > 0f ? 1f / step : step;
                 _viewWidth = Mathf.Clamp(_viewWidth, MIN_VIEW_WIDTH, maxWidth);
             }
         }
@@ -526,7 +563,7 @@ namespace BrokenSovereign.UI
             _lastPointer = pointer;
             float canvasScale = _root.lossyScale.x > 0f ? _root.lossyScale.x : 1f;
             float metersPerScreenPixel = _viewWidth / (screenWidth * canvasScale);
-            _viewCenter -= MapLayer.ScreenToWorldDirection(delta, yaw) * metersPerScreenPixel;
+            _viewCenter -= MapLayer.ScreenToWorldDirection(delta, yaw) * metersPerScreenPixel * GameSettings.MouseSensitivity;
 
             if (!_isFullscreen && delta.sqrMagnitude > 0f)
             {

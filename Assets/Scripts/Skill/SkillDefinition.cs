@@ -76,6 +76,22 @@ namespace BrokenSovereign.Skill
 
         [SerializeField] private SkillBehaviour _behaviour;
 
+        [Header("이펙트 (10/26, GameEffects가 재생)")]
+        [Tooltip("시전 이펙트 프리팹 (비우면 없음)")]
+        [SerializeField] private GameObject _castEffect;
+        [Tooltip("시전 이펙트 위치: Player = 시전자 발밑, Target = 커서·대상 지점, Follow = 시전자를 따라다님")]
+        [SerializeField] private SkillEffectAnchor _castEffectAnchor = SkillEffectAnchor.Player;
+        [SerializeField, Min(0.05f)] private float _castEffectScale = 1f;
+        [Tooltip("Follow 이펙트 유지: Natural = 이펙트 자체 길이, SkillDuration = 수치 duration(초), Channel = 지속 시전 동안")]
+        [SerializeField] private SkillEffectLifetime _castEffectLifetime = SkillEffectLifetime.Natural;
+        [Tooltip("시전 이펙트에 함께 재생할 보조 이펙트 (같은 위치, 비우면 없음)")]
+        [SerializeField] private GameObject _castEffectExtra;
+        [Tooltip("이 기술로 적을 맞혔을 때의 타격 이펙트 (비우면 기본 타격 이펙트)")]
+        [SerializeField] private GameObject _hitEffect;
+        [SerializeField, Min(0.05f)] private float _hitEffectScale = 1f;
+        [Tooltip("타격 이펙트에 함께 재생할 보조 이펙트 (비우면 없음)")]
+        [SerializeField] private GameObject _hitEffectExtra;
+
         public string SkillId => _skillId;
         public string DisplayName => _displayName;
         public float Cooldown => _cooldown;
@@ -86,6 +102,30 @@ namespace BrokenSovereign.Skill
         public SkillCastMovement CastMovement => _castMovement;
         public float CastTime => _castTime;
         public bool IsChanneled => _channeled;
+        public GameObject CastEffect => _castEffect;
+        public GameObject CastEffectExtra => _castEffectExtra;
+        public SkillEffectAnchor CastEffectAnchor => _castEffectAnchor;
+        public float CastEffectScale => _castEffectScale;
+        public SkillEffectLifetime CastEffectLifetime => _castEffectLifetime;
+        public GameObject HitEffect => _hitEffect;
+        public GameObject HitEffectExtra => _hitEffectExtra;
+        public float HitEffectScale => _hitEffectScale;
+
+#if UNITY_EDITOR
+        /// <summary>에디터 메뉴(이펙트 연결)에서 사용</summary>
+        public void EditorSetEffects(GameObject cast, GameObject castExtra, SkillEffectAnchor anchor, float castScale,
+            SkillEffectLifetime lifetime, GameObject hit, GameObject hitExtra, float hitScale)
+        {
+            _castEffect = cast;
+            _castEffectExtra = castExtra;
+            _castEffectAnchor = anchor;
+            _castEffectScale = castScale;
+            _castEffectLifetime = lifetime;
+            _hitEffect = hit;
+            _hitEffectExtra = hitExtra;
+            _hitEffectScale = hitScale;
+        }
+#endif
 
         /// <summary>시전 모션 Animator 상태 이름 (CharacterSetupTools가 같은 규칙으로 상태 생성)</summary>
         public string AnimationState => string.IsNullOrEmpty(_animationState) ? ToAnimationState(_skillId) : _animationState;
@@ -167,5 +207,21 @@ namespace BrokenSovereign.Skill
 
             return set;
         }
+    }
+
+    /// <summary>시전 이펙트 위치 (10/26)</summary>
+    public enum SkillEffectAnchor
+    {
+        Player,
+        Target,
+        Follow,
+    }
+
+    /// <summary>따라다니는 시전 이펙트 유지 시간 (10/26)</summary>
+    public enum SkillEffectLifetime
+    {
+        Natural,
+        SkillDuration,
+        Channel,
     }
 }

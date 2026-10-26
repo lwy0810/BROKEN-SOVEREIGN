@@ -15,6 +15,7 @@ MonoBehaviour:
   _skillId: advancing_oath
   _displayName: "\uC9C4\uACA9"
   _cooldown: 10
+  _attackInterval: 0
   _resourceCost: 20
   _parameters:
   - Key: coefficient
@@ -32,6 +33,8 @@ MonoBehaviour:
   _locksMovement: 1
   _castMovement: 2
   _castTime: 0.4
+  _channeled: 0
+  _animationState: 
   _empoweredModifiers:
   - Key: coefficient
     Type: 1
@@ -43,3 +46,11 @@ MonoBehaviour:
     Type: 1
     Value: 0.3
   _behaviour: {fileID: 11400000, guid: 1ab6b59977cc4fdb8b37a57cf2b4cfa5, type: 2}
+  _castEffect: {fileID: 3696007233179127096, guid: c248f95ffea8b8543bc7ad0fffe0216d, type: 3}
+  _castEffectAnchor: 2
+  _castEffectScale: 1
+  _castEffectLifetime: 0
+  _castEffectExtra: {fileID: 0}
+  _hitEffect: {fileID: 8525990746615576120, guid: b85d21f3b8fed714bacf0c4fd50fa512, type: 3}
+  _hitEffectScale: 1.2
+  _hitEffectExtra: {fileID: 0}

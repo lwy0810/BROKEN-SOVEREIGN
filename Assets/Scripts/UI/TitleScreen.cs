@@ -42,6 +42,8 @@ namespace BrokenSovereign.UI
         private Image _fade;
         private Image _startButton;
         private Image _quitButton;
+        private Image _settingsButton;          // 10/26: 시작 아래 [설정]
+        private SettingsWindowView _settings;
         private RectTransform[] _motes;
         private float[] _moteSpeed;
         private Text _logo;
@@ -64,12 +66,13 @@ namespace BrokenSovereign.UI
             AnimateMotes();
             AnimateLogo();
 
-            if (_busy)
+            if (_busy || (_settings != null && _settings.IsOpen))
             {
                 return;
             }
 
             UpdateButton(_startButton);
+            UpdateButton(_settingsButton);
             UpdateButton(_quitButton);
             UpdateHoverSound();
             Keyboard keyboard = Keyboard.current;
@@ -80,6 +83,11 @@ namespace BrokenSovereign.UI
                 SoundPlayer.Play(SoundId.UI_START, 1f, 0f);
                 SoundPlayer.PlayMusic(null, 2.5f);   // 세계관 소개는 효과음만 (끝나면 필드 음악)
                 StartCoroutine(PlayStory());
+            }
+            else if (UiKit.Clicked && UiKit.IsHover(_settingsButton.rectTransform))
+            {
+                SoundPlayer.Play(SoundId.UI_CLICK, 1f, 0f);
+                _settings.Open();
             }
             else if (UiKit.Clicked && UiKit.IsHover(_quitButton.rectTransform))
             {
@@ -150,12 +158,15 @@ namespace BrokenSovereign.UI
 
             Text tagline = UiKit.Title("Tagline", title, 30, p.Text, TextAnchor.MiddleCenter);
             tagline.text = "격 을   빼 앗 긴   영 웅 의   귀 환";
-            UiKit.Place(tagline.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(1200f, 44f));
+            UiKit.Place(tagline.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 32f), new Vector2(1200f, 44f));   // 10/26: 금색 선과 간격 +8
 
             _startButton = UiKit.Button("Start", title, "시작", 22);
             UiKit.Place(_startButton.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -110f), new Vector2(300f, 60f));
+            // 10/26 (Figma 14-B): 시작 → 설정 → 종료
+            _settingsButton = UiKit.Button("Settings", title, "설정", 22);
+            UiKit.Place(_settingsButton.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -186f), new Vector2(300f, 60f));
             _quitButton = UiKit.Button("Quit", title, "종료", 22);
-            UiKit.Place(_quitButton.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -186f), new Vector2(300f, 60f));
+            UiKit.Place(_quitButton.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -262f), new Vector2(300f, 60f));
 
             Text version = UiKit.Label("Version", title, 15, p.TextDim, TextAnchor.LowerRight);
             version.text = "Prototype · Unity 6";
@@ -178,6 +189,10 @@ namespace BrokenSovereign.UI
             story.gameObject.SetActive(false);
 
             // 전체 페이드 (맨 위)
+            // 설정 창 (10/26, Figma 14-A) — 페이드보다 아래
+            _settings = SettingsWindowView.Create(_root);
+            _settings.HideEscHint();
+
             _fade = UiKit.Box("Fade", _root, Color.black);
             HudGraphics.Stretch(_fade.rectTransform);
         }
@@ -186,6 +201,7 @@ namespace BrokenSovereign.UI
         private void UpdateHoverSound()
         {
             Image hovered = UiKit.IsHover(_startButton.rectTransform) ? _startButton
+                : UiKit.IsHover(_settingsButton.rectTransform) ? _settingsButton
                 : UiKit.IsHover(_quitButton.rectTransform) ? _quitButton : null;
 
             if (hovered != null && hovered != _hovered)

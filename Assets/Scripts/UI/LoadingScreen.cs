@@ -221,7 +221,7 @@ namespace BrokenSovereign.UI
 
             Text sub = UiKit.Title("Sub", root, 26, p.Text, TextAnchor.MiddleCenter);
             sub.text = "옥황상제의 신역 — 빛을 잃은 하늘 아래 갈라진 석단";
-            UiKit.Place(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -530f), new Vector2(1200f, 44f));
+            UiKit.Place(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -540f), new Vector2(1200f, 44f));   // 10/26: 선과 간격 +10
         }
 
         // 왼쪽 아래 TIP 상자 (무작위 1개)

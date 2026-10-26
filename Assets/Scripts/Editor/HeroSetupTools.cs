@@ -159,12 +159,13 @@ namespace BrokenSovereign.Editor
             {
                 if (path.HeroId == "seokcheon")
                 {
-                    path.EditorSetSkills(whirl, SkillSlot.Key4,
-                        new[] { new HeroPathDefinition.ExtraSkill(SkillSlot.Key5, shift) }, reachRule);
+                    // 10/26: 영웅 기술은 5·6번 (초인까지 공용 기술 1~4번 유지)
+                    path.EditorSetSkills(whirl, SkillSlot.Key5,
+                        new[] { new HeroPathDefinition.ExtraSkill(SkillSlot.Key6, shift) }, reachRule);
                 }
                 else if (path.HeroId == "yaromir")
                 {
-                    path.EditorSetSkills(crushSkill, SkillSlot.Key4, new HeroPathDefinition.ExtraSkill[0], crushRule);
+                    path.EditorSetSkills(crushSkill, SkillSlot.Key5, new HeroPathDefinition.ExtraSkill[0], crushRule);
                 }
 
                 EditorUtility.SetDirty(path);

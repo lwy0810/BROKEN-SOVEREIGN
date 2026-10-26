@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Skill.SingleStrikeBehaviour
   _cursorPickRadius: 1
   _reachTolerance: 0.5
-  _showArea: 1
+  _showArea: 0
   _areaColor: {r: 1, g: 0.3, b: 0.2, a: 0.45}
   _areaDuration: 0.2
   _hitMarkRadius: 0.8
