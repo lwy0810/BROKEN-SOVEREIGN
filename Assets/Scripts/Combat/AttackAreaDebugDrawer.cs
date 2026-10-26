@@ -50,6 +50,45 @@ namespace BrokenSovereign.Combat
             ShowCone(origin, Vector3.forward, radius, 360f, groundY, color, duration);
         }
 
+        /// <summary>직선(사각형) 범위 표시: origin에서 forward로 length, 폭 width (보스 광선 등)</summary>
+        public static void ShowLine(Vector3 origin, Vector3 forward, float length, float width, float groundY,
+            Color color, float duration)
+        {
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.0001f)
+            {
+                forward = Vector3.forward;
+            }
+
+            GameObject area = new GameObject("AttackAreaDebugLine");
+            area.transform.SetPositionAndRotation(
+                new Vector3(origin.x, groundY + GROUND_OFFSET, origin.z),
+                Quaternion.LookRotation(forward.normalized, Vector3.up));
+
+            float half = width * 0.5f;
+            var mesh = new Mesh { name = "AttackAreaLine" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-half, 0f, 0f), new Vector3(half, 0f, 0f),
+                new Vector3(-half, 0f, length), new Vector3(half, 0f, length),
+            };
+            mesh.triangles = new[] { 0, 2, 1, 1, 2, 3 };
+            mesh.RecalculateNormals();
+            area.AddComponent<MeshFilter>().sharedMesh = mesh;
+
+            MeshRenderer meshRenderer = area.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = GetMaterial();
+            meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            block.SetColor(COLOR_ID, color);
+            meshRenderer.SetPropertyBlock(block);
+
+            Object.Destroy(mesh, duration);
+            Object.Destroy(area, duration);
+        }
+
         // 같은 크기의 부채꼴은 메시를 재사용 (매 공격마다 메시 생성 방지)
         private static Mesh GetConeMesh(float radius, float angle)
         {

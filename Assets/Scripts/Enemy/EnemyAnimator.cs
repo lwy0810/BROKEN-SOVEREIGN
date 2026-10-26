@@ -79,7 +79,17 @@ namespace BrokenSovereign.Enemy
         private void PlayAttack()
         {
             EnemyDefinition definition = _controller.Definition;
-            float duration = definition != null ? definition.AttackWindup + definition.AttackRecovery : 1f;
+            PlayAttack(definition != null ? definition.AttackWindup + definition.AttackRecovery : 1f);
+        }
+
+        /// <summary>공격 모션을 duration초에 맞춰 재생 (보스 패턴 등 외부 행동용)</summary>
+        public void PlayAttack(float duration)
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
             float playSpeed = _attackClipLength > 0f && duration > 0f ? _attackClipLength / duration : 1f;
             _animator.SetFloat(ATTACK_SPEED, Mathf.Clamp(playSpeed, 0.25f, 4f));
             _animator.SetTrigger(ATTACK);

@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44ac9f792444dcd499d43766d267464c, type: 3}
+  m_Name: ErlangShenPhases
+  m_EditorClassIdentifier: BrokenSovereign::BrokenSovereign.Enemy.BossPhaseProfile
+  TransitionTime: 2
+  Phases:
+  - Title: "1\uD398\uC774\uC988"
+    Subtitle: "\uCC9C\uACC4\uC758 \uBB34\uC2E0"
+    StartRatio: 1
+    Interval: 7
+    Chain: 1
+    WindupScale: 1
+    Patterns:
+    - Pattern: 0
+      Weight: 1
+      Cooldown: 6
+      MinRange: 0
+      MaxRange: 6
+    - Pattern: 1
+      Weight: 1
+      Cooldown: 8
+      MinRange: 3
+      MaxRange: 16
+  - Title: "2\uD398\uC774\uC988"
+    Subtitle: "\uC9C4\uAD70\uC758 \uB178\uC5EC\uC6C0"
+    StartRatio: 0.7
+    Interval: 5.5
+    Chain: 1
+    WindupScale: 0.85
+    Patterns:
+    - Pattern: 0
+      Weight: 1
+      Cooldown: 6
+      MinRange: 0
+      MaxRange: 6
+    - Pattern: 1
+      Weight: 1
+      Cooldown: 8
+      MinRange: 3
+      MaxRange: 16
+    - Pattern: 2
+      Weight: 1.4
+      Cooldown: 9
+      MinRange: 5
+      MaxRange: 18
+  - Title: "3\uD398\uC774\uC988"
+    Subtitle: "\uD6A8\uCC9C\uACAC\uC744 \uBD80\uB974\uB2E4"
+    StartRatio: 0.35
+    Interval: 4
+    Chain: 2
+    WindupScale: 0.75
+    Patterns:
+    - Pattern: 0
+      Weight: 1
+      Cooldown: 5
+      MinRange: 0
+      MaxRange: 6
+    - Pattern: 1
+      Weight: 0.8
+      Cooldown: 7
+      MinRange: 3
+      MaxRange: 16
+    - Pattern: 2
+      Weight: 1.2
+      Cooldown: 8
+      MinRange: 5
+      MaxRange: 18
+    - Pattern: 3
+      Weight: 1.5
+      Cooldown: 10
+      MinRange: 2
+      MaxRange: 16

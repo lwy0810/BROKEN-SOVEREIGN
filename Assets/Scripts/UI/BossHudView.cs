@@ -12,13 +12,18 @@ namespace BrokenSovereign.UI
     /// </summary>
     public class BossHudView : MonoBehaviour
     {
-        private const float BAR_WIDTH = 900f;
+        private const float BAR_WIDTH = 440f;   // 10/25: BossPlate 폭 500 (= 막대 + 60)
         private const float BAR_HEIGHT = 22f;
         private const float PLATE_TOP = 18f;
         private const float PLATE_HEIGHT = 132f;
         private const float TRAIL_DELAY = 0.45f;
         private const float TRAIL_SPEED = 0.6f;
         private const float BANNER_TIME = 2.6f;
+        private static readonly Color INTRO_FILL = new Color(0.55f, 0.57f, 0.6f);
+        private static readonly Color INTRO_DARK = new Color(0.17f, 0.18f, 0.2f);
+        private static readonly Color PHASE_PASSED = new Color(0.45f, 0.42f, 0.42f, 0.7f);
+        private const int MAX_PHASE_MARKERS = 4;
+        private const float BAR_TOP = -70f;
 
         private RectTransform _plate;
         private UiBar _bar;
@@ -29,6 +34,7 @@ namespace BrokenSovereign.UI
         private Text _bannerTitle;
         private Text _bannerSub;
         private CanvasGroup _bannerGroup;
+        private readonly Image[] _phaseMarkers = new Image[MAX_PHASE_MARKERS];
 
         private BossStatus _boss;
         private BossStatus _introducedBoss;
@@ -57,7 +63,7 @@ namespace BrokenSovereign.UI
             UiKit.Place(_plate, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -PLATE_TOP),
                 new Vector2(BAR_WIDTH + 60f, PLATE_HEIGHT));
 
-            _titleText = UiKit.Title("Title", _plate, 14, p.TextDim, TextAnchor.MiddleCenter);
+            _titleText = UiKit.Title("Title", _plate, 14, Color.white, TextAnchor.MiddleCenter);   // 10/25: 흰색
             UiKit.Place(_titleText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(BAR_WIDTH, 20f));
             _nameText = UiKit.Title("Name", _plate, 28, p.Title, TextAnchor.MiddleCenter);
             UiKit.Place(_nameText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(BAR_WIDTH, 38f));
@@ -67,6 +73,17 @@ namespace BrokenSovereign.UI
             _bar.EnableTrail(p.Trail);
             _bar.EnableShield(UiTheme.WithAlpha(p.Shield, 0.85f));
             _bar.EnableText(13);
+
+            // 페이즈 표식: 체력바 위, 다음 페이즈 시작 비율 위치에 빨간 역삼각형 (10/26)
+            for (int i = 0; i < MAX_PHASE_MARKERS; i++)
+            {
+                Image marker = HudGraphics.CreateRect("PhaseMarker" + i, _plate).gameObject.AddComponent<Image>();
+                marker.sprite = UiSprites.PhaseMarker;
+                marker.raycastTarget = false;
+                UiKit.Place(marker.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0f), new Vector2(0f, BAR_TOP - 1f), new Vector2(16f, 13f));
+                marker.gameObject.SetActive(false);
+                _phaseMarkers[i] = marker;
+            }
 
             // 버팀 게이지 (야로미르 선택 시 첫 피해부터)
             _poise = UiKit.Bar("Poise", _plate, p.Poise, p.ResourceDark);
@@ -96,11 +113,13 @@ namespace BrokenSovereign.UI
 
             _plate.gameObject.SetActive(false);
             BossStatus.AnyDefeated += OnBossDefeated;
+            BossStatus.AnyPhaseChanged += OnBossPhaseChanged;
         }
 
         private void OnDestroy()
         {
             BossStatus.AnyDefeated -= OnBossDefeated;
+            BossStatus.AnyPhaseChanged -= OnBossPhaseChanged;
         }
 
         private void Update()
@@ -148,6 +167,9 @@ namespace BrokenSovereign.UI
                 _trail = Mathf.MoveTowards(_trail, ratio, TRAIL_SPEED * Time.deltaTime);
             }
 
+            // 등장 연출 중: 회색 (공격 불가), 끝나면 원래 색 (10/25)
+            UiPalette palette = UiTheme.P;
+            _bar.SetColor(_boss.IsIntro ? INTRO_FILL : palette.Hp, _boss.IsIntro ? INTRO_DARK : palette.HpDark);
             _bar.SetRatio(ratio);
             _bar.SetTrail(_trail);
             _bar.SetShield(health.Max > 0f ? Mathf.Clamp01(_boss.Shield / health.Max) : 0f);
@@ -155,10 +177,32 @@ namespace BrokenSovereign.UI
             _titleText.text = _boss.Title;
 
             string shield = _boss.Shield > 0f ? $"   +보호막 {Mathf.CeilToInt(_boss.Shield)}" : string.Empty;
-            _bar.Text.text = $"{Mathf.CeilToInt(ratio * 100f)}%{shield}";
+            _bar.Text.text = _boss.IsIntro ? "공격 불가" : $"{Mathf.CeilToInt(ratio * 100f)}%{shield}";
 
             UpdatePoise();
             UpdateCrystals();
+            UpdatePhaseMarkers(ratio);
+        }
+
+        // 지난 페이즈 표식은 회색, 남은 페이즈는 빨간색
+        private void UpdatePhaseMarkers(float ratio)
+        {
+            float[] ratios = _boss.PhaseRatios;
+
+            for (int i = 0; i < MAX_PHASE_MARKERS; i++)
+            {
+                Image marker = _phaseMarkers[i];
+                bool show = i < ratios.Length && ratios[i] > 0f && ratios[i] < 1f;
+                marker.gameObject.SetActive(show);
+
+                if (!show)
+                {
+                    continue;
+                }
+
+                marker.rectTransform.anchoredPosition = new Vector2((ratios[i] - 0.5f) * BAR_WIDTH, BAR_TOP - 1f);
+                marker.color = ratio <= ratios[i] ? PHASE_PASSED : Color.white;
+            }
         }
 
         private void UpdatePoise()
@@ -212,6 +256,13 @@ namespace BrokenSovereign.UI
         private void OnBossDefeated(BossStatus boss)
         {
             ShowBanner($"{boss.BossName} 격파", "신의 격을 쓰러뜨렸다");
+        }
+
+        // 10/26: 페이즈 전환 배너 ("2 페이즈 · 진군의 노여움")
+        private void OnBossPhaseChanged(BossStatus boss, int phase, string title, string subtitle)
+        {
+            string head = string.IsNullOrEmpty(title) ? $"{phase + 1} 페이즈" : $"{phase + 1} 페이즈 · {title}";
+            ShowBanner(head, subtitle ?? string.Empty);
         }
 
         private void ShowBanner(string title, string sub)
